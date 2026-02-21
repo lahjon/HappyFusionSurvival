@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh auth:*)",
+      "Bash(where gh:*)",
+      "Bash(echo gh not found in standard locations:*)",
+      "Bash(cmd.exe:*)",
+      "Bash(winget install:*)",
+      "Bash(export PATH=\"/c/Program Files/GitHub CLI:$PATH\" && gh auth status 2>&1)",
+      "Bash(export PATH=\"/c/Program Files/GitHub CLI:$PATH\" && gh auth login --web -p https 2>&1)",
+      "Bash(cd \"C:/Unity Projects/HappyFusion\" && git init 2>&1)",
+      "Bash(cd \"C:/Unity Projects/HappyFusion\" && git add -A 2>&1)"
+    ]
+  }
+}
