@@ -11,7 +11,9 @@
       "Bash(cd \"C:/Unity Projects/HappyFusion\" && git init 2>&1)",
       "Bash(cd \"C:/Unity Projects/HappyFusion\" && git add -A 2>&1)",
       "Bash(cd \"C:/Unity Projects/HappyFusion\" && git commit -m \"$\\(cat <<'EOF'\nInitial commit: HappyFusion Unity project\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\" 2>&1)",
-      "Bash(export PATH=\"/c/Program Files/GitHub CLI:$PATH\" && cd \"C:/Unity Projects/HappyFusion\" && gh repo create HappyFusion --private --source=. --push 2>&1)"
+      "Bash(export PATH=\"/c/Program Files/GitHub CLI:$PATH\" && cd \"C:/Unity Projects/HappyFusion\" && gh repo create HappyFusion --private --source=. --push 2>&1)",
+      "Bash(cd \"/c/Unity Projects/HappyFusion\" && gh repo create HappyNetworkBase --public --description \"HappyNetworkBase\" --confirm 2>&1)",
+      "Bash(cd:*)"
     ]
   }
 }
