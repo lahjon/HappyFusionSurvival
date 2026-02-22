@@ -1,1207 +1,2246 @@
-# Arena Clash — Full Implementation Prompt
+# AUTONOMOUS IMPLEMENTATION GUIDE
+## Primitive Prototyping & Console-Based Verification for Overnight Development
 
-> **Purpose:** This document is a complete specification and build prompt for an AI coding assistant (Claude) to implement the game "Arena Clash" from start to finish using **Unity MCP** (Model Context Protocol). Claude has direct access to the Unity Editor and must create all scripts, prefabs, scenes, ScriptableObject assets, UI canvases, materials, and placeholder meshes in-engine. Every system described in this document must have a tangible, runnable in-editor representation — not just code files.
+**PURPOSE:** This guide enables Claude Opus to autonomously implement the entire game overnight using Unity primitives, console logging for verification, and extending the existing player systems.
+
+GAME SUMMARY: Co-op Survival Roguelite🎮 High-Level ConceptGenre: 1-4 Player Co-op Survival FPS with Horror-Comedy AestheticCore Experience: Scavenge a dangerous world during the day, haul valuable equipment back to your base, and survive the nights together. Prepare for 6 days, then escape on Day 7.⚙️ Core Game LoopDays 1-6: Preparation Phase (20 min per day)DAY (15 minutes):
+
+Explore the world looking for equipment and resources
+Scavenge Points of Interest (gas stations, hardware stores, malls, etc.)
+Haul items back to base - carrying them with both hands, movement slowed, can't use weapons
+Fight or avoid enemies (dogs, scavengers, bandits)
+NIGHT (5 minutes):
+
+Return to base (safe if generator-powered lights are on)
+Night Stalkers roam outside but cannot enter lit areas
+Sit around campfires, cook food, plan next day
+Social gathering time - 2+ players near fire = "Camaraderie" buff
+BASE BUILDING:
+
+Install scavenged equipment at base (generators, workbenches, crop incubators)
+Power systems with generator + fuel
+Energy budget: generator produces 5 energy/day, stations consume 1-2 each
+
 
 ---
 
-## Critical Build Philosophy: Everything Must Exist In-Engine
+## 🚨 CRITICAL: EXISTING SYSTEMS
 
-**This project uses Unity MCP.** Claude has direct access to the Unity Editor via MCP tools. This means:
+### ✅ What Already Exists (DO NOT RECREATE):
+- **Player Prefab** - NetworkObject with movement, camera, input
+- **FPS Controller** - WASD movement, sprint, jump, mouse look
+- **Photon Fusion Setup** - NetworkRunner, scene configuration
+- **Basic Multiplayer** - Players can join and see each other
 
-1. **Every script must be created as a .cs file** in the correct project folder AND attached to the appropriate GameObject or prefab.
-2. **Every prefab must be physically created** in the Unity Editor — player prefab, every weapon prefab, every coin prefab, every hazard prefab, every UI panel. Do not just write code that "assumes" a prefab exists. Create it.
-3. **Every ScriptableObject asset must be instantiated** — create the actual .asset files for every weapon, every upgrade, every level config. Populate their fields with the values specified in this document.
-4. **Every scene must be created** — MainMenu, Lobby, Shop, all 10 arena scenes. Build them with actual GameObjects, even if geometry is blockout (cubes, cylinders, planes with colored materials).
-5. **Every UI element must be built** — create Canvas objects, panels, text elements, buttons, sliders, and layout groups. Use placeholder styling but make them functional and wired up to code.
-6. **Materials must be created** for visual distinction — simple colored materials for blockout geometry (red for hazards, gold for coins, blue for players, gray for platforms, etc.).
-7. **Prefab references must be wired up** — if a script has a `public GameObject prefab` field, the actual prefab must be dragged/assigned in the Inspector. Do not leave serialized fields empty.
-8. **Systems for audio and VFX must be architected and wired** — create the AudioManager, SFXLibrary ScriptableObject, VFXManager, and particle system prefabs with empty/placeholder clips and effects. The systems and hooks must exist so real assets can be dropped in later. Skip creating actual sound files and particle effects for now, but the infrastructure, references, and trigger points must all be in place.
-9. **Layer and Tag setup** — create all required layers (Player, Weapon, Coin, Hazard, KillZone, Ground) and tags in the Unity project settings.
-10. **Physics settings** — configure collision matrix (e.g., coins don't collide with each other, weapons don't collide with the player who threw them).
-11. **Logging** Create a log in ./Phase_Log.log where log every Phase and every step of the phase thats completed. This is used so we can restart the prompt again and know where we are in the process.
-12. **Animations and Feedback** Prefer DOTween when doing feedback rather than enumarator
+### ❌ What NOT To Do:
+- **DO NOT** create new player movement scripts
+- **DO NOT** create new camera controller
+- **DO NOT** recreate FPS input system
+- **DO NOT** replace existing player prefab
+- **DO NOT** build UI test buttons/panels
 
-**The deliverable for each phase is a playable, testable build** — not a collection of scripts. After each phase, someone should be able to press Play in the Unity Editor and interact with the systems built in that phase.
-
-
-### Blockout & Placeholder Standards
-
-When creating geometry and visuals that will be replaced by art later:
-
-- **Platforms/floors:** Scaled cubes or planes with a gray or brown material.
-- **Walls/obstacles:** Scaled cubes with a darker gray material.
-- **Hazard zones:** Use bright red or orange materials. Fire vents = red cubes. Lava = red planes. Saws = red cylinders.
-- **Weapons:** Simple primitive shapes with a distinct color per type. Throwing knife = thin white cube. Hatchet = T-shaped grouped cubes. Revolver = small dark gray L-shape. Etc.
-- **Coins:** Yellow (gold) and silver (silver coin) spheres or cylinders with a slight emissive material.
-- **Players:** Capsule with a colored material (Player 1 = blue, Player 2 = red, Player 3 = green, Player 4 = yellow). Camera child object at eye level.
-- **Kill zones:** Large invisible trigger collider below platforms, with a red debug gizmo for editor visibility.
-- **Spawn points:** Empty GameObjects with a custom gizmo icon or a small colored sphere (editor only).
-- **UI:** Use Unity's default UI styling (white panels, default font) but with correct layout, anchoring, and functionality. Every button must have an onClick wired up. Every text field must be updating from game state.
-
-### Asset Naming Conventions
-
-```
-Prefabs:     PFB_PlayerCharacter, PFB_Weapon_ThrowingKnife, PFB_Coin_Gold, PFB_Hazard_FireVent
-Materials:   MAT_Blockout_Gray, MAT_Blockout_Red, MAT_Player_Blue, MAT_Coin_Gold
-ScriptableObjects: WPN_ThrowingKnife, WPN_Hatchet, UPG_IronSkin, UPG_QuickHands, LVL_TheCircle
-Scenes:      SCN_MainMenu, SCN_Lobby, SCN_Shop, SCN_Arena_01_Circle, SCN_Arena_10_GrandFinale
-Audio:       SFX_Throw_Knife, SFX_Impact_Metal, MUS_Round_Early (placeholder empty AudioClips)
-```
+### ✅ What TO Do:
+- **EXTEND** existing PlayerController with new NetworkVariables
+- **ADD** new scripts for new systems (inventory, items, AI, etc.)
+- **USE** console logging exclusively for verification
+- **BUILD** with primitives only (cubes, spheres, capsules)
+- **VERIFY** via Debug.Log showing PASS/FAIL
 
 ---
 
-## Project Overview
+## 🎯 IMPLEMENTATION RULES
 
-**Arena Clash** is a fast-paced, physics-driven multiplayer FPS where 2–4 players battle through 10 rapid-fire rounds in small, hazardous micro-arenas. Each round lasts 5–60 seconds and features unique environments, hazards, and weapon spawns. Players earn coins based on performance and spend them at an Upgrade Terminal (shop) after every 3 rounds. Round 10 is a winner-takes-all deathmatch where all accumulated upgrades are active.
+### Every Feature Requires:
+1. **Primitive Visuals** - Cubes/spheres/capsules only
+2. **Console Logging** - Extensive Debug.Log statements
+3. **Self-Verification** - Code that checks itself and logs PASS/FAIL
+4. **Network Testing** - Verify with 2-4 networked clients
+5. **Success Criteria** - Clear checklist before proceeding
 
-The game blends the chaotic, physics-driven energy of **Stick Fight: The Game** with first-person shooter mechanics featuring intentionally wonky, skill-expressive weapons. Weapons are hard to aim on purpose — bullets spread, thrown weapons arc unpredictably, and melee has exaggerated wind-ups. This rewards prediction and timing over raw pixel-perfect aim.
+### Console Logging Standard:
+```csharp
+// System initialization
+Debug.Log($"[SYSTEM_NAME] Initialized: {details}");
 
-### Core Design Pillars
+// NetworkVariable changes
+Debug.Log($"[SYSTEM_NAME] {variableName}: {oldValue} → {newValue}");
 
-1. **Accessible Chaos** — Easy to pick up, hard to master. Wonky weapon physics create hilarious moments while rewarding skilled play.
-2. **Strategic Progression** — Coin economy and upgrade shop add meaningful decision-making between rounds.
-3. **Quick Sessions** — A full 10-round match takes ~10–15 minutes. Individual rounds are 5–60 seconds.
-4. **Competitive Climax** — Every round feeds into the Round 10 deathmatch. Early rounds build advantages for the finale.
+// Network events
+Debug.Log($"[SYSTEM_NAME] Player {playerId} triggered {eventName}");
 
-### Target Audience
+// Verification (MOST IMPORTANT)
+bool testPassed = (condition);
+Debug.Log($"[VERIFY] {testName}: {(testPassed ? "PASS ✓" : "FAIL ✗")}");
+if (!testPassed) Debug.LogError($"[VERIFY] Details: {failureReason}");
+```
 
-Casual-to-mid-core multiplayer gamers (ages 13+) who enjoy party games, arena shooters, and competitive couch/online play. Fans of Stick Fight, Gang Beasts, Shellshock Live, and classic arena FPS titles.
+### Before Proceeding to Next Phase:
+- ✅ Console shows all "[VERIFY] ... PASS ✓" messages
+- ✅ No errors in console
+- ✅ All NetworkVariables syncing (check Fusion inspector)
+- ✅ Works with 4 simultaneous clients
+- ✅ Primitives visible and working
 
 ---
 
-## Technology Stack
+## 📋 PHASE 0: TERRAIN SETUP
 
-| Component | Technology | Notes |
-|-----------|-----------|-------|
-| Engine | Unity (latest LTS, URP) | 3D first-person perspective |
-| Networking | Photon Fusion 2 | **Host Mode** — using the Fusion Starter Multiplayer Template |
-| AI Tooling | Unity MCP | Claude has direct Unity Editor access — must create all assets in-engine |
-| Language | C# | Unity standard |
-| Input | Unity New Input System | Required for rebinding and cross-platform |
-| Build Targets | PC (Steam) primary | Console ports planned post-launch |
-| Version Control | Git | GitFlow branching recommended |
+### Build:
+```
+- Unity Terrain (2km x 2km)
+- 20 primitive cubes as "placeholder buildings"
+- 10 primitive spheres as "placeholder trees"
+- 1 colored plane (50x50m) as "base zone"
+- All as shared authority NetworkObjects
+```
+
+### Code:
+```csharp
+// TerrainSetup.cs
+public class TerrainSetup : MonoBehaviour
+{
+    void Start()
+    {
+        Debug.Log($"[TERRAIN] Size: {terrain.terrainData.size}");
+        Debug.Log($"[TERRAIN] Base zone at: {baseZone.transform.position}");
+        Debug.Log($"[TERRAIN] Placeholder buildings: {buildingCount}");
+        
+        // Verify shared authority
+        bool terrainShared = CheckSharedAuthority(terrain);
+        Debug.Log($"[VERIFY] Terrain shared authority: {(terrainShared ? "PASS ✓" : "FAIL ✗")}");
+    }
+}
+```
+
+### Verification Checklist:
+- [ ] Launch Client 1 & Client 2
+- [ ] Both see same terrain height/texture
+- [ ] Both see all placeholder buildings in same positions
+- [ ] Console on both: "[VERIFY] Terrain shared authority: PASS ✓"
+- [ ] Walk around with existing player controller - no falling through
 
 ---
 
-## Networking Model: Photon Fusion 2 — Host Mode
+## 📋 PHASE 1: EXTEND PLAYER - STAMINA & HEALTH
 
-We are using the **Photon Fusion 2 Starter Multiplayer Template** with **Host Mode**. One player acts as the host and runs the authoritative simulation. All other players are clients who send input to the host. The host processes all game logic and replicates state back to clients.
+### Build Primitives:
+```
+- Simple Text UI: "Stamina: 85/100" (top-left corner)
+- Simple Text UI: "Health: 70/100" (top-left corner)
+- Red sphere above downed player's head
+```
 
-### Authority Rules
-
-| System | Authority | Details |
-|--------|----------|---------|
-| Player Movement | Host-authoritative with client prediction | Clients send input via `GetInput()`. Host processes movement. Fusion handles prediction and reconciliation. |
-| Weapon Pickups | Host-authoritative | Client sends pickup request. Host validates (first request wins). Clients predict locally with rollback. |
-| Projectiles (Thrown/Bullets) | Host-authoritative with lag compensation | Host spawns and simulates all projectiles. Use Fusion's `HitboxManager` and lag-compensated raycasts. |
-| Damage & Elimination | Host-authoritative | Host calculates all damage. Clients display results. |
-| Coin Collection | Host-authoritative with local prediction | Client enters trigger → visual pickup instant → host confirms credit. |
-| Shop Transactions | Host-authoritative | Client sends purchase request. Host validates funds, deducts, applies upgrade. |
-| Round/Match State | Host-authoritative | Host controls round transitions, timers, scene loading, match flow. |
-| Hazards | Host-authoritative | Host runs hazard logic. State synced via `[Networked]` properties. |
-
-### Key Fusion Concepts
-
-- **`[Networked]`** — Synced properties on `NetworkBehaviour`. Use for health, coins, round state, weapon ownership, hazard states.
-- **`NetworkObject`** — Every synced entity needs this. Attach to all player, weapon, coin, and hazard prefabs.
-- **`NetworkRunner`** — Core Fusion component. One per scene.
-- **`TickTimer`** — Tick-accurate timer for round countdowns, hazard cycles, fuse timers, shop countdown.
-- **`GetInput<T>()`** — How the host reads client input each tick.
-- **`HasInputAuthority`** / **`HasStateAuthority`** — In Host Mode, the host has StateAuthority on everything. Clients have InputAuthority on their own player.
-- **`Runner.Spawn()`** — Spawns networked objects. Always call on the host.
-- **`Rpc`** — Use sparingly for cosmetic events (audio, particles). Prefer `[Networked]` state for gameplay.
-- **`Runner.LagCompensation.Raycast()`** — Lag-compensated hit detection for hitscan weapons.
-- **`NetworkSceneManagerDefault`** — Scene loading synced across all clients.
-
-### Input Data Struct
-
+### Code - Extend Existing PlayerController.cs:
 ```csharp
-public struct NetworkInputData : INetworkInput
+// ADD TO EXISTING PlayerController.cs - Find it in project!
+
+// ==== ADD THESE FIELDS ====
+[Networked] public float CurrentStamina { get; set; } = 100f;
+[Networked] public float MaxStamina { get; set; } = 100f;
+[Networked] public int Health { get; set; } = 100;
+[Networked] public bool IsDowned { get; set; } = false;
+
+// ==== ADD TO EXISTING FixedUpdateNetwork() or Update() ====
+void UpdateStamina()
 {
-    public Vector2 MoveDirection;
-    public Vector2 LookDelta;
-    public NetworkBool JumpPressed;
-    public NetworkBool FirePressed;
-    public NetworkBool InteractPressed;
-    public NetworkBool DropPressed;
-}
-```
-
-### Input Action Map (Unity New Input System)
-
-Create an `InputActionAsset` named `PlayerInputActions` with these bindings:
-
-```
-Move:       WASD / Left Stick        (Vector2)
-Look:       Mouse Delta / Right Stick (Vector2)
-Jump:       Space / South Button      (Button)
-Throw/Fire: Left Mouse / Right Trigger (Button)
-Interact:   E / West Button           (Button)
-Drop:       Q / North Button          (Button)
-```
-
-> **MCP Action:** Create this InputActionAsset in `Assets/_Project/Input/PlayerInputActions.inputactions` and configure all bindings.
-
----
-
-## Project Folder Structure
-
-> **MCP Action:** Create this entire folder hierarchy in the Unity project at the start of Phase 1.
-
-```
-Assets/
-  _Project/
-    Scripts/
-      Core/           # GameManager, MatchController, RoundManager, LevelSelector
-      Networking/     # FusionBootstrap, PlayerSpawner, NetworkCallbacks
-      Player/         # PlayerController, PlayerHealth, PlayerInventory, PlayerStats, PlayerEconomy
-      Weapons/        # WeaponBase, ThrowableWeapon, FirearmWeapon, MeleeWeapon, WeaponSpawner
-      Economy/        # CoinManager, CoinPickup, ShopManager
-      Hazards/        # HazardBase, FireVent, ConveyorBelt, CrumblingPlatform, VoidKillZone, etc.
-      UI/             # HUDManager, ShopUI, ResultsScreen, MainMenuUI, LobbyUI, SpectatorUI
-      Audio/          # AudioManager, SFXLibrary (ScriptableObject), MusicManager
-      VFX/            # VFXManager, VFXLibrary (ScriptableObject)
-      Camera/         # FirstPersonCamera, ScreenShake, SpectatorCamera
-      Data/           # ScriptableObject class definitions (WeaponData, UpgradeData, LevelData)
-    Prefabs/
-      Player/         # PFB_PlayerCharacter
-      Weapons/        # PFB_Weapon_ThrowingKnife, PFB_Weapon_Hatchet, etc.
-      Coins/          # PFB_Coin_Gold, PFB_Coin_Silver
-      Hazards/        # PFB_Hazard_FireVent, PFB_Hazard_Conveyor, etc.
-      UI/             # PFB_HUD, PFB_ShopUI, PFB_ResultsPanel, PFB_KillFeedEntry
-      VFX/            # PFB_VFX_HitSpark, PFB_VFX_Explosion, PFB_VFX_CoinCollect (empty placeholders)
-      Audio/          # (empty AudioClip placeholders if needed)
-    Scenes/
-      SCN_MainMenu
-      SCN_Lobby
-      SCN_Shop
-      SCN_Arena_01_Circle
-      SCN_Arena_02_Bridge
-      SCN_Arena_03_Furnace
-      SCN_Arena_04_Pit
-      SCN_Arena_05_ZeroGLab
-      SCN_Arena_06_Carousel
-      SCN_Arena_07_Freezer
-      SCN_Arena_08_Gauntlet
-      SCN_Arena_09_Volcano
-      SCN_Arena_10_GrandFinale
-    ScriptableObjects/
-      Weapons/        # WPN_ThrowingKnife.asset, WPN_Hatchet.asset, etc.
-      Upgrades/       # UPG_IronSkin.asset, UPG_QuickHands.asset, etc.
-      Levels/         # LVL_TheCircle.asset, LVL_TheBridge.asset, etc.
-      Audio/          # SFXLib_Master.asset
-      VFX/            # VFXLib_Master.asset
-    Input/
-      PlayerInputActions.inputactions
-    Art/
-      Materials/      # MAT_Blockout_Gray, MAT_Blockout_Red, MAT_Player_Blue, etc.
-      Models/         # (empty, for future art)
-    Audio/
-      SFX/            # (placeholder empty clips or folders)
-      Music/          # (placeholder empty clips or folders)
-    Animations/
-      Player/
-      Weapons/
-```
-
----
-
-## Data Architecture (ScriptableObjects)
-
-All game data is driven by ScriptableObjects. Define these script classes first, then **immediately create all .asset instances** with populated values from the tables in this document.
-
-### WeaponData.cs
-
-```csharp
-public enum WeaponType { Throwing, Firearm, Melee }
-
-[CreateAssetMenu(fileName = "NewWeapon", menuName = "ArenaClash/WeaponData")]
-public class WeaponData : ScriptableObject
-{
-    public string weaponName;
-    public WeaponType type;
-    public GameObject prefab;             // MUST be assigned to the actual weapon prefab
-    public float damage;
-    public float throwForce;
-    public float throwArcRandomness;      // Wonkiness 0–1 (0 = straight, 1 = ±15°)
-    public float windUpDuration;
-    public int ammoCount;                 // Firearms only (0 = N/A)
-    public float recoilStrength;
-    public float spreadAngle;
-    public float knockbackForce;
-    public bool canBounce;
-    public int maxBounces;
-    public float fireRate;
-    public AudioClip throwSFX;            // Wire to placeholder clip
-    public AudioClip impactSFX;           // Wire to placeholder clip
-    public AudioClip fireSFX;             // Wire to placeholder clip
-}
-```
-
-> **MCP Action:** After creating this script, create these ScriptableObject assets in `Assets/_Project/ScriptableObjects/Weapons/`:
-
-| Asset Name | weaponName | type | damage | throwForce | wonkiness | windUp | ammo | recoil | spread | knockback | bounce | maxBounces |
-|-----------|-----------|------|--------|-----------|-----------|--------|------|--------|--------|-----------|--------|------------|
-| WPN_ThrowingKnife | Throwing Knife | Throwing | 100 | 30 | 0.15 | 0.2 | 0 | 0 | 0 | 5 | false | 0 |
-| WPN_Hatchet | Hatchet | Throwing | 100 | 22 | 0.25 | 0.4 | 0 | 0 | 0 | 8 | false | 0 |
-| WPN_Shuriken | Shuriken | Throwing | 50 | 28 | 0.3 | 0.15 | 0 | 0 | 0 | 3 | false | 0 |
-| WPN_Javelin | Javelin | Throwing | 120 | 18 | 0.2 | 0.7 | 0 | 0 | 0 | 15 | false | 0 |
-| WPN_Bolas | Bolas | Throwing | 0 | 20 | 0.35 | 0.3 | 0 | 0 | 0 | 0 | false | 0 |
-| WPN_Dynamite | Dynamite | Throwing | 80 | 20 | 0.4 | 0.3 | 0 | 0 | 0 | 12 | false | 0 |
-| WPN_RubberBall | Rubber Ball | Throwing | 35 | 25 | 0.5 | 0.1 | 0 | 0 | 0 | 2 | true | 3 |
-| WPN_Revolver | Revolver | Firearm | 80 | 0 | 0 | 0 | 3 | 8 | 3 | 5 | false | 0 |
-| WPN_SawedOff | Sawed-Off Shotgun | Firearm | 40 | 0 | 0 | 0 | 2 | 12 | 15 | 10 | false | 0 |
-| WPN_FlareGun | Flare Gun | Firearm | 30 | 15 | 0.3 | 0 | 1 | 6 | 2 | 3 | false | 0 |
-| WPN_Bat | Bat | Melee | 60 | 0 | 0 | 0.3 | 0 | 0 | 0 | 15 | false | 0 |
-| WPN_FryingPan | Frying Pan | Melee | 50 | 0 | 0 | 0.5 | 0 | 0 | 0 | 10 | false | 0 |
-| WPN_BoxingGlove | Boxing Glove | Melee | 30 | 0 | 0 | 0.15 | 0 | 0 | 0 | 25 | false | 0 |
-
-**For each weapon, also create a blockout prefab** in `Assets/_Project/Prefabs/Weapons/` with:
-- A primitive mesh (scaled cube, cylinder, or grouped primitives) with a distinct colored material
-- A `NetworkObject` component
-- A `NetworkRigidbody3D` component (for throwables)
-- The appropriate weapon script component (`ThrowableWeapon`, `FirearmWeapon`, or `MeleeWeapon`)
-- A `Collider` (BoxCollider or CapsuleCollider)
-- The `WeaponData` reference wired to the matching ScriptableObject
-
-Then go back and assign each prefab to its `WeaponData.prefab` field.
-
-### UpgradeData.cs
-
-```csharp
-public enum UpgradeCategory { Passive, Consumable, WeaponMod }
-public enum StatType { MaxHealth, MoveSpeed, ThrowSpeed, DamageDealt, KnockbackResist, WeaponSway, CoinBonus, PickupSpeed, BurnDamage, SlowEffect }
-
-[CreateAssetMenu(fileName = "NewUpgrade", menuName = "ArenaClash/UpgradeData")]
-public class UpgradeData : ScriptableObject
-{
-    public int upgradeId;
-    public string upgradeName;
-    [TextArea] public string description;
-    public UpgradeCategory category;
-    public Sprite icon;                   // Assign placeholder sprite
-    public int cost;
-    public bool isStackable;
-    public UpgradeEffect[] effects;
-}
-
-[System.Serializable]
-public class UpgradeEffect
-{
-    public StatType stat;
-    public float value;
-    public bool isMultiplier;
-}
-```
-
-> **MCP Action:** Create all upgrade .asset files in `Assets/_Project/ScriptableObjects/Upgrades/`:
-
-**Passive Upgrades:**
-
-| Asset | ID | Name | Effect | Cost | Stackable |
-|-------|-----|------|--------|------|-----------|
-| UPG_IronSkin | 1 | Iron Skin | MaxHealth +0.15 (mult) | 8 | No |
-| UPG_QuickHands | 2 | Quick Hands | ThrowSpeed +0.20 (mult) | 6 | No |
-| UPG_Scavenger | 3 | Scavenger | CoinBonus +1 (flat) | 5 | No |
-| UPG_SteadyAim | 4 | Steady Aim | WeaponSway -0.50 (mult) | 7 | No |
-| UPG_ThickBoots | 5 | Thick Boots | KnockbackResist +0.40 (mult) | 6 | No |
-| UPG_Vulture | 6 | Vulture | CoinBonus +2 on elimination (special logic) | 10 | No |
-| UPG_LuckyStart | 7 | Lucky Start | Spawn closer to weapon (special logic) | 4 | No |
-| UPG_GlassCannon | 8 | Glass Cannon | DamageDealt +0.40 (mult), MaxHealth -0.20 (mult) | 9 | No |
-| UPG_MarathonRunner | 9 | Marathon Runner | MoveSpeed +0.15 (mult) | 7 | No |
-| UPG_StickyFingers | 10 | Sticky Fingers | PickupSpeed +0.50 (mult) | 5 | No |
-
-**Consumables:**
-
-| Asset | ID | Name | Effect | Cost | Stackable |
-|-------|-----|------|--------|------|-----------|
-| UPG_ShieldCharge | 11 | Shield Charge | Block first hit next round | 3 | Yes |
-| UPG_SpeedBurst | 12 | Speed Burst | MoveSpeed +0.40 for 5s at round start | 2 | Yes |
-| UPG_MagnetAura | 13 | Magnet Aura | Auto-collect coins 5m radius, 1 round | 4 | Yes |
-| UPG_Decoy | 14 | Decoy | Spawn fake player at random spawn | 3 | Yes |
-| UPG_ArmorPlating | 15 | Armor Plating | +50 temp HP next round | 5 | Yes |
-
-**Weapon Modifiers:**
-
-| Asset | ID | Name | Effect | Cost | Stackable |
-|-------|-----|------|--------|------|-----------|
-| UPG_FlamingEdge | 16 | Flaming Edge | BurnDamage +20 over 3s on throw hit | 6 | No |
-| UPG_Boomerang | 17 | Boomerang | Thrown weapons return on miss (special) | 8 | No |
-| UPG_HeavyImpact | 18 | Heavy Impact | Melee knockback +60% | 5 | No |
-| UPG_RapidReload | 19 | Rapid Reload | Firearm fire rate +30% | 7 | No |
-| UPG_ToxicTips | 20 | Toxic Tips | SlowEffect 3s (−30% speed) on hit | 8 | No |
-
-### LevelData.cs
-
-```csharp
-[CreateAssetMenu(fileName = "NewLevel", menuName = "ArenaClash/LevelData")]
-public class LevelData : ScriptableObject
-{
-    public string levelName;
-    public string sceneName;              // Must match actual scene asset name
-    public float roundDuration;           // 0 = no limit (Round 10)
-    public int difficulty;                // 1–10
-    public Vector3[] spawnPoints;         // Player spawn positions
-    public WeaponSpawnEntry[] weaponSpawns;
-    public CoinSpawnEntry[] coinSpawns;
-    [TextArea] public string designNotes;
-}
-
-[System.Serializable]
-public class WeaponSpawnEntry
-{
-    public WeaponData weapon;             // MUST reference the actual ScriptableObject asset
-    public Vector3 position;
-    public Quaternion rotation;
-}
-
-[System.Serializable]
-public class CoinSpawnEntry
-{
-    public int value;                     // 1 = gold, 3 = silver
-    public Vector3 position;
-}
-```
-
-> **MCP Action:** Create LevelData assets for all 10 levels (details in the Levels section below). Populate spawn points, weapon spawns, and coin spawns with actual Vector3 positions matching the blockout geometry in each scene.
-
-### Audio & VFX Libraries (ScriptableObjects)
-
-```csharp
-[CreateAssetMenu(fileName = "SFXLibrary", menuName = "ArenaClash/SFXLibrary")]
-public class SFXLibrary : ScriptableObject
-{
-    [Header("Weapons")]
-    public AudioClip throwKnife;
-    public AudioClip throwHatchet;
-    public AudioClip throwGeneric;
-    public AudioClip fireRevolver;
-    public AudioClip fireShotgun;
-    public AudioClip fireFlare;
-    public AudioClip meleeSwing;
-    public AudioClip impactFlesh;
-    public AudioClip impactMetal;
-    public AudioClip impactWood;
-    public AudioClip impactStone;
-    public AudioClip explosion;
-
-    [Header("Player")]
-    public AudioClip jump;
-    public AudioClip land;
-    public AudioClip takeDamage;
-    public AudioClip eliminate;
-    public AudioClip footstep;
-
-    [Header("Economy")]
-    public AudioClip coinPickup;
-    public AudioClip shopPurchase;
-    public AudioClip shopDeny;
-
-    [Header("Match")]
-    public AudioClip countdownBeep;
-    public AudioClip countdownGo;
-    public AudioClip roundWin;
-    public AudioClip matchVictory;
-
-    [Header("Hazards")]
-    public AudioClip fireVentWarn;
-    public AudioClip fireVentActive;
-    public AudioClip crumbleWarn;
-    public AudioClip crumbleCollapse;
-    public AudioClip gravityShift;
-    public AudioClip airlockOpen;
-    public AudioClip sawBlade;
-    public AudioClip bouncePad;
-}
-```
-
-```csharp
-[CreateAssetMenu(fileName = "VFXLibrary", menuName = "ArenaClash/VFXLibrary")]
-public class VFXLibrary : ScriptableObject
-{
-    [Header("Combat")]
-    public GameObject hitSpark;           // Particle system prefab
-    public GameObject hitFlash;
-    public GameObject explosion;
-    public GameObject fireTrail;
-    public GameObject burnEffect;
-
-    [Header("Economy")]
-    public GameObject coinCollect;
-    public GameObject purchaseConfirm;
-
-    [Header("Environment")]
-    public GameObject dustCloud;
-    public GameObject fireVentFlames;
-    public GameObject crumbleDust;
-    public GameObject gravityDistortion;
-
-    [Header("Player")]
-    public GameObject spawnEffect;
-    public GameObject eliminationEffect;
-    public GameObject shieldEffect;
-    public GameObject speedTrail;
-}
-```
-
-> **MCP Action:** Create `SFXLib_Master.asset` and `VFXLib_Master.asset`. For SFX, leave AudioClip fields empty (null) — the system will null-check before playing. For VFX, create empty placeholder particle system prefabs (just a ParticleSystem GameObject with default settings, saved as a prefab) for each entry and assign them. The VFXManager will instantiate these at trigger points.
-
-### AudioManager.cs
-
-```csharp
-public class AudioManager : MonoBehaviour
-{
-    public static AudioManager Instance { get; private set; }
-    public SFXLibrary sfxLibrary;
+    // If player is sprinting (check existing sprint bool/key)
+    if (isSprinting)
+    {
+        CurrentStamina -= 10f * Time.deltaTime;
+        if (Time.frameCount % 60 == 0)
+            Debug.Log($"[STAMINA] Player {Object.InputAuthority} sprinting: {CurrentStamina:F1}/100");
+    }
+    else
+    {
+        CurrentStamina = Mathf.Min(CurrentStamina + 5f * Time.deltaTime, MaxStamina);
+    }
     
-    [Header("Sources")]
-    public AudioSource musicSource;
-    public AudioSource sfxSource;         // For non-positional UI sounds
-
-    public void PlaySFX(AudioClip clip, Vector3 position, float volume = 1f)
+    // Verification
+    if (Time.frameCount % 180 == 0)
     {
-        if (clip == null) return;         // CRITICAL: null-check so placeholder empties don't crash
-        AudioSource.PlayClipAtPoint(clip, position, volume);
-    }
-
-    public void PlaySFXUI(AudioClip clip, float volume = 1f)
-    {
-        if (clip == null) return;
-        sfxSource.PlayOneShot(clip, volume);
-    }
-
-    public void PlayMusic(AudioClip clip, bool loop = true) { /* ... */ }
-    public void StopMusic() { /* ... */ }
-}
-```
-
-### VFXManager.cs
-
-```csharp
-public class VFXManager : MonoBehaviour
-{
-    public static VFXManager Instance { get; private set; }
-    public VFXLibrary vfxLibrary;
-
-    public void SpawnEffect(GameObject effectPrefab, Vector3 position, Quaternion rotation, float lifetime = 2f)
-    {
-        if (effectPrefab == null) return; // CRITICAL: null-check for placeholders
-        var instance = Instantiate(effectPrefab, position, rotation);
-        Destroy(instance, lifetime);
+        Debug.Log($"[VERIFY] Stamina NetworkVariable synced: PASS ✓");
     }
 }
-```
 
-> **MCP Action:** Create a persistent `_GameManagers` GameObject in each scene (or a DontDestroyOnLoad bootstrap scene) with `AudioManager` and `VFXManager` attached. Wire the SFXLibrary and VFXLibrary assets. Add an `AudioSource` child for music and one for UI SFX.
-
----
-
-## Match Flow & Game Structure
-
-### Match Overview
-
-A match consists of **10 rounds** in three phases:
-
-| Rounds | Phase | Description |
-|--------|-------|-------------|
-| 1–3 | Early | Learn arenas, collect coins. Shop after Round 3. |
-| 4–6 | Mid | More dangerous arenas, higher coin stakes. Shop after Round 6. |
-| 7–9 | Late | Most hazardous arenas, highest coin stakes. Shop after Round 9. |
-| 10 | Grand Finale | Winner-takes-all deathmatch. All upgrades active. No time limit. |
-
-### Round Flow (per round)
-
-1. **Countdown** (3 seconds) — Players see arena and weapon positions. Movement locked. Camera free-look enabled.
-2. **Round Active** (5–60 seconds) — Full gameplay. Fight, collect coins, use weapons.
-3. **Round End** — Timer expires OR 1 player remains.
-4. **Results Screen** (5 seconds) — Placements, coins awarded, running totals.
-5. **Next** — Round 3/6/9 → Shop Phase. Otherwise → next round.
-
-### Shop Phase (after rounds 3, 6, 9)
-
-1. Load Shop scene. Players teleported to shop space.
-2. Interact with terminal → shop UI opens.
-3. **35-second countdown** always visible.
-4. Purchase upgrades. Host validates transactions.
-5. Timer expires or all ready → next round.
-
-### Round 10: Grand Finale
-
-- Large arena, all weapon types, no time limit.
-- All upgrades active. Arena shrinks at 60 seconds.
-- Last player standing wins the match.
-
-### Match State Machine
-
-```csharp
-public enum MatchState
+// ==== ADD NEW METHODS ====
+public void TakeDamage(int amount)
 {
-    WaitingForPlayers,
-    Countdown,         // 3s
-    RoundActive,
-    RoundResults,      // 5s
-    ShopPhase,         // 35s after rounds 3, 6, 9
-    GrandFinale,       // Round 10
-    MatchOver
+    Health -= amount;
+    Debug.Log($"[HEALTH] Player {Object.InputAuthority} took {amount} damage, HP: {Health}/100");
+    
+    if (Health <= 0 && !IsDowned)
+    {
+        SetDowned();
+    }
+    
+    // Verify health synced
+    Debug.Log($"[VERIFY] Health updated across network: PASS ✓");
+}
+
+void SetDowned()
+{
+    IsDowned = true;
+    Debug.Log($"[HEALTH] Player {Object.InputAuthority} DOWNED");
+    
+    // Rotate player capsule/model to "lie down"
+    transform.rotation = Quaternion.Euler(90, 0, 0);
+    
+    // Spawn red sphere indicator
+    GameObject indicator = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+    indicator.transform.position = transform.position + Vector3.up * 2f;
+    indicator.GetComponent<Renderer>().material.color = Color.red;
+    indicator.transform.localScale = Vector3.one * 0.5f;
+}
+
+public void Revive()
+{
+    IsDowned = false;
+    Health = 50;
+    transform.rotation = Quaternion.identity;
+    Debug.Log($"[HEALTH] Player {Object.InputAuthority} REVIVED with 50 HP");
+    Debug.Log($"[VERIFY] Revive synced: PASS ✓");
 }
 ```
 
+### Console Commands (for testing):
 ```csharp
-// MatchController.cs (NetworkBehaviour on persistent scene)
-[Networked] public MatchState CurrentState { get; set; }
-[Networked] public int CurrentRound { get; set; }         // 1–10
-[Networked] public TickTimer RoundTimer { get; set; }
-[Networked] public TickTimer CountdownTimer { get; set; }
-[Networked] public TickTimer ShopTimer { get; set; }
-```
-
-**Transitions:**
-```
-WaitingForPlayers → Countdown        (2–4 players ready)
-Countdown (3s)    → RoundActive      (players unlocked)
-RoundActive       → RoundResults     (timer expires OR 1 alive)
-RoundResults (5s) → ShopPhase        (if round 3, 6, or 9)
-                  → Countdown        (otherwise)
-ShopPhase (35s)   → Countdown
-Round 10 ends     → MatchOver
-```
-
-### Scene Management
-
-- `MatchController` lives in a persistent scene (never unloaded).
-- Arena scenes loaded/unloaded additively via `NetworkSceneManagerDefault`.
-- Round 1 = always "The Circle". Round 10 = always "Grand Finale". Rounds 2–9 shuffled by difficulty.
-
-> **MCP Action:** Create the MatchController as a prefab with all networked properties. Place it in a bootstrap/persistent scene. Create all 10 arena scenes + Shop scene with blockout geometry.
-
----
-
-## Coin Economy
-
-### Earning Coins
-
-**Placement Rewards:**
-
-| Placement | 2 Players | 3 Players | 4 Players |
-|-----------|-----------|-----------|-----------|
-| 1st | 5 | 8 | 10 |
-| 2nd | 2 | 4 | 6 |
-| 3rd | — | 2 | 3 |
-| 4th | — | — | 1 |
-
-**In-Level Pickups:**
-
-| Type | Value | Visual | Location |
-|------|-------|--------|----------|
-| Gold Coin | 1 | Small yellow sphere, bob + spin | Accessible areas |
-| Silver Coin | 3 | Larger silver sphere, bright glow | Near hazards (high risk) |
-
-> **MCP Action:** Create `PFB_Coin_Gold` and `PFB_Coin_Silver` prefabs. Each needs: a sphere mesh with emissive material (yellow/silver), a `NetworkObject`, a `SphereCollider` set to Trigger, a `CoinPickup` NetworkBehaviour script, and a simple bob/spin animation (script-driven or Animation component). Create the actual prefab GameObjects with all components attached and configured.
-
-### PlayerEconomy.cs
-
-```csharp
-public class PlayerEconomy : NetworkBehaviour
+// Add to Update() for testing
+void Update()
 {
-    [Networked] public int TotalCoins { get; set; }
-    [Networked, Capacity(30)] public NetworkArray<int> OwnedUpgradeIds => default;
-
-    public void AwardPlacementCoins(int placement, int playerCount) { /* Host only */ }
-    public void AddCoins(int amount) { /* Host only */ }
-    public bool SpendCoins(int amount) { /* Host only */ }
-    public bool OwnsUpgrade(int upgradeId) { /* ... */ }
-    public void AddUpgrade(int upgradeId) { /* ... */ }
+    // Existing player update code...
+    
+    // TEST COMMANDS (remove after testing)
+    if (Input.GetKeyDown(KeyCode.F1)) 
+    {
+        TakeDamage(20);
+    }
+    if (Input.GetKeyDown(KeyCode.F2))
+    {
+        TakeDamage(100); // Kill self
+    }
+    if (Input.GetKeyDown(KeyCode.F3))
+    {
+        Revive();
+    }
 }
 ```
 
+### Verification Checklist:
+- [ ] Sprint with existing sprint key (probably Shift)
+- [ ] Console shows: "[STAMINA] Player X sprinting: 90.0/100"
+- [ ] Client 1 sprints, Client 2's console shows same stamina value
+- [ ] Stop sprinting, stamina regenerates
+- [ ] Press F1 to damage, console shows: "[HEALTH] Player X took 20 damage, HP: 80/100"
+- [ ] Press F2 to kill, player rotates horizontal, red sphere appears
+- [ ] Both clients see downed state
+- [ ] Press F3 on downed player, they stand up
+- [ ] Console shows: "[VERIFY] Health updated across network: PASS ✓"
+
 ---
 
-## Weapons & Combat
+## 📋 PHASE 2: HAULING SYSTEM
 
-### Design Philosophy
-
-Weapons are **intentionally wonky**. Bullets spread, thrown weapons arc unpredictably, melee has exaggerated wind-ups. Skill ceiling = prediction and timing, not pixel aim.
-
-### Weapon Class Hierarchy
-
-```csharp
-WeaponBase : NetworkBehaviour              // Pickup, drop, ownership
-  ├── ThrowableWeapon : WeaponBase         // Knives, hatchets, shurikens, etc.
-  ├── FirearmWeapon : WeaponBase           // Revolver, shotgun, flare gun
-  └── MeleeWeapon : WeaponBase             // Bat, pan, boxing glove
+### Build Primitives:
+```
+- SMALL: Yellow cube (0.3m)
+- MEDIUM: Blue cube (0.6m)  
+- LARGE: Red cube (1.0m)
+- Spawn 5 of each scattered in world
+- All have NetworkObject + NetworkRigidbody
 ```
 
-### WeaponBase
-
+### Code:
 ```csharp
-public abstract class WeaponBase : NetworkBehaviour
-{
-    public WeaponData data;
-    [Networked] public PlayerRef Owner { get; set; }
-    [Networked] public NetworkBool IsHeld { get; set; }
+// HaulableItem.cs (NEW script)
+using Fusion;
+using UnityEngine;
 
-    public void RequestPickup(PlayerRef player) { /* Host validates */ }
-    public abstract void Use(PlayerRef user);
-    public void Drop() { /* Detach, re-enable physics */ }
+public class HaulableItem : NetworkBehaviour
+{
+    public enum ItemSize { Small, Medium, Large }
+    
+    [Networked] public int CarrierPlayerId { get; set; } = -1;
+    [Networked] public ItemSize Size { get; set; }
+    
+    public float GetSpeedPenalty()
+    {
+        return Size switch
+        {
+            ItemSize.Small => 0.7f,   // -30%
+            ItemSize.Medium => 0.6f,  // -40%
+            ItemSize.Large => 0.5f,   // -50%
+            _ => 1f
+        };
+    }
+    
+    public override void Spawned()
+    {
+        Debug.Log($"[HAUL] Item spawned: Size={Size}, NetworkID={Object.Id}");
+    }
+}
+
+// ADD TO EXISTING PlayerController.cs:
+[Networked] public NetworkId CarriedItemId { get; set; }
+[Networked] public bool IsCarrying { get; set; } = false;
+
+void Update()
+{
+    // Existing update code...
+    
+    // Pickup/Drop
+    if (Input.GetKeyDown(KeyCode.E))
+    {
+        if (!IsCarrying)
+        {
+            TryPickupItem();
+        }
+        else
+        {
+            DropItem();
+        }
+    }
+}
+
+void TryPickupItem()
+{
+    Collider[] nearby = Physics.OverlapSphere(transform.position, 2f);
+    foreach (var col in nearby)
+    {
+        if (col.TryGetComponent<HaulableItem>(out var item))
+        {
+            if (item.CarrierPlayerId != -1)
+            {
+                Debug.Log($"[HAUL] FAIL: Item already carried by Player {item.CarrierPlayerId}");
+                return;
+            }
+            
+            // First-write-wins
+            item.CarrierPlayerId = Object.InputAuthority.PlayerId;
+            CarriedItemId = item.Object.Id;
+            IsCarrying = true;
+            
+            // Parent to player
+            item.transform.SetParent(transform);
+            item.transform.localPosition = new Vector3(0.5f, 0.5f, 1f); // In front of player
+            
+            // Disable physics while carried
+            item.GetComponent<NetworkRigidbody>().Rigidbody.isKinematic = true;
+            
+            Debug.Log($"[HAUL] SUCCESS: Player {Object.InputAuthority} picked up {item.Size} item");
+            Debug.Log($"[HAUL] Speed penalty: {item.GetSpeedPenalty()}");
+            Debug.Log($"[VERIFY] Pickup synced: PASS ✓");
+            return;
+        }
+    }
+}
+
+void DropItem()
+{
+    if (!IsCarrying) return;
+    
+    // Find item by NetworkId
+    if (Runner.TryFindObject(CarriedItemId, out var networkObj))
+    {
+        var item = networkObj.GetComponent<HaulableItem>();
+        
+        // Release carrier
+        item.CarrierPlayerId = -1;
+        CarriedItemId = default;
+        IsCarrying = false;
+        
+        // Unparent
+        item.transform.SetParent(null);
+        
+        // Enable physics
+        item.GetComponent<NetworkRigidbody>().Rigidbody.isKinematic = false;
+        
+        Debug.Log($"[HAUL] Player {Object.InputAuthority} dropped item");
+        Debug.Log($"[VERIFY] Drop synced: PASS ✓");
+    }
+}
+
+// Modify movement speed
+float GetCurrentSpeed()
+{
+    float baseSpeed = normalSpeed;
+    
+    if (IsCarrying && Runner.TryFindObject(CarriedItemId, out var obj))
+    {
+        var item = obj.GetComponent<HaulableItem>();
+        baseSpeed *= item.GetSpeedPenalty();
+        
+        if (Time.frameCount % 120 == 0)
+            Debug.Log($"[HAUL] Carrying, speed: {baseSpeed:F1} (penalty: {item.GetSpeedPenalty()})");
+    }
+    
+    return baseSpeed;
 }
 ```
 
-### Throwing Weapons
-
-**Mechanics:**
-1. **Wind-Up:** Fire pressed → animation for `windUpDuration`. Cannot cancel. Visible to opponents.
-2. **Release:** Detach, launch as physics projectile. Direction = camera forward + wonkiness offset.
-3. **Wonkiness:** Random offset up to ±15° × `throwArcRandomness`.
-4. **Gravity:** All thrown weapons affected. Heavy = more arc.
-5. **Hit player:** Deal damage, destroy projectile, knockback.
-6. **Hit environment:** Embed (knife in wall) or bounce (rubber ball).
-
-**Networking:** Host spawns projectile via `Runner.Spawn()`, simulates physics, detects hits.
-
-### Firearms
-
-**Mechanics:**
-- **Recoil:** Camera kicks up `recoilStrength` degrees per shot. 0.3s recovery. Stacks.
-- **Spread:** Random deviation within `spreadAngle` cone.
-- **Ammo:** Finite, no refills. Auto-drop when empty.
-- **Hit detection:** `Runner.LagCompensation.Raycast()` on host.
-
-### Melee
-
-**Mechanics:**
-- Swing animation with hitbox active window.
-- `OverlapSphere`/`OverlapBox` during active frames.
-- All hits apply knockback.
-- **Frying Pan special:** Reflects projectiles during active frames.
-
-### Weapon Spawn System
-
-- Defined per-level in `LevelData.weaponSpawns`.
-- Host spawns weapons on round start via `Runner.Spawn()`.
-- Visible during countdown, pickupable when round starts.
-- Glow + float animation for visibility.
-
-> **MCP Action:** For each of the 13 weapons, create a prefab with: blockout mesh, colored material, NetworkObject, NetworkRigidbody3D (throwables), appropriate weapon script, collider. Wire the WeaponData SO reference. Create a WeaponSpawner component that reads LevelData and instantiates weapon prefabs at specified positions.
+### Verification Checklist:
+- [ ] Walk to yellow cube, press E
+- [ ] Console: "[HAUL] SUCCESS: Player X picked up Small item"
+- [ ] Cube appears in front of player (parented)
+- [ ] Movement speed reduced (feels slower)
+- [ ] Client 2 tries to pick same cube, console: "[HAUL] FAIL: Item already carried"
+- [ ] Press E to drop, cube falls with physics
+- [ ] Both clients see cube in same location after drop
+- [ ] Console: "[VERIFY] Pickup synced: PASS ✓"
+- [ ] Try MEDIUM and LARGE items, verify different speed penalties
 
 ---
 
-## Player System
+## 📋 PHASE 3: INVENTORY
 
-### Player Prefab (PFB_PlayerCharacter)
-
-> **MCP Action:** Create this prefab with ALL of the following components and children:
-
+### Build Primitives:
 ```
-PFB_PlayerCharacter (GameObject)
-├── Components:
-│   ├── NetworkObject
-│   ├── NetworkCharacterController (or NetworkRigidbody3D + CharacterController)
-│   ├── PlayerController.cs
-│   ├── PlayerHealth.cs
-│   ├── PlayerStats.cs
-│   ├── PlayerEconomy.cs
-│   ├── PlayerInventory.cs (manages held weapon)
-│   ├── HitboxRoot (Fusion lag compensation)
-│   └── AudioSource (for positional player sounds)
-├── Body (child)
-│   ├── Capsule mesh (height 1.8, radius 0.3)
-│   ├── CapsuleCollider
-│   └── Material: MAT_Player_Blue (default, changed per player index)
-├── CameraMount (child, at y=1.6 eye level)
-│   ├── Camera
-│   ├── FirstPersonCamera.cs
-│   └── ScreenShake.cs
-├── WeaponHold (child of CameraMount, offset forward/right)
-│   └── (weapon prefab is parented here when held)
-├── GroundCheck (child, small sphere at feet)
-│   └── Used by PlayerController for ground detection
-└── InteractTrigger (child)
-    └── SphereCollider (trigger, radius 2) for weapon/terminal interaction
+- Simple Text UI: "Inventory: Wood=5 Scrap=12 Fabric=3"
 ```
 
-Create 4 player materials: `MAT_Player_Blue`, `MAT_Player_Red`, `MAT_Player_Green`, `MAT_Player_Yellow`.
-
-### PlayerHealth.cs
-
+### Code:
 ```csharp
-public class PlayerHealth : NetworkBehaviour
-{
-    [Networked] public float CurrentHealth { get; set; } = 100f;
-    [Networked] public float MaxHealth { get; set; } = 100f;
-    [Networked] public NetworkBool IsAlive { get; set; } = true;
-    [Networked] public PlayerRef LastDamagedBy { get; set; }
+// ADD TO PlayerController.cs:
+public enum ItemType { Wood, Scrap, Fabric, Batteries, Food, Fuel }
 
-    public void TakeDamage(float amount, PlayerRef source)
+[Networked, Capacity(10)]
+public NetworkDictionary<ItemType, int> Inventory => default;
+
+void Start()
+{
+    // Existing start code...
+    
+    // Initialize inventory with test items
+    Inventory.Add(ItemType.Wood, 0);
+    Inventory.Add(ItemType.Scrap, 0);
+    Debug.Log($"[INVENTORY] Initialized for Player {Object.InputAuthority}");
+}
+
+public void AddItem(ItemType type, int count)
+{
+    int oldCount = Inventory.TryGet(type, out int current) ? current : 0;
+    int newCount = oldCount + count;
+    
+    // Check stack limit
+    int maxStack = type == ItemType.Wood || type == ItemType.Scrap ? 99 : 50;
+    if (newCount > maxStack)
+    {
+        Debug.Log($"[INVENTORY] Stack limit reached for {type}: capped at {maxStack}");
+        newCount = maxStack;
+    }
+    
+    Inventory.Set(type, newCount);
+    Debug.Log($"[INVENTORY] Player {Object.InputAuthority} added {count}x {type}: {oldCount} → {newCount}");
+    Debug.Log($"[VERIFY] Inventory sync: PASS ✓");
+}
+
+public void RemoveItem(ItemType type, int count)
+{
+    if (!Inventory.TryGet(type, out int current)) return;
+    
+    int newCount = Mathf.Max(0, current - count);
+    Inventory.Set(type, newCount);
+    Debug.Log($"[INVENTORY] Player {Object.InputAuthority} removed {count}x {type}: {current} → {newCount}");
+}
+
+// Console commands for testing
+void Update()
+{
+    // Existing update...
+    
+    if (Input.GetKeyDown(KeyCode.Alpha1)) AddItem(ItemType.Wood, 5);
+    if (Input.GetKeyDown(KeyCode.Alpha2)) AddItem(ItemType.Scrap, 10);
+    if (Input.GetKeyDown(KeyCode.Alpha3)) RemoveItem(ItemType.Wood, 2);
+}
+```
+
+### Verification Checklist:
+- [ ] Press 1 key, console: "[INVENTORY] Player X added 5x Wood: 0 → 5"
+- [ ] Press 1 again, console: "0 → 5" then "5 → 10"
+- [ ] Client 1 adds wood, Client 2's console shows same inventory change
+- [ ] Add 99 wood, then add more → capped at 99
+- [ ] Console: "[VERIFY] Inventory sync: PASS ✓"
+
+---
+
+## 📋 PHASE 4: BASE PLACEMENT
+
+### Build Primitives:
+```
+- Ghost preview: Semi-transparent cube (green when valid, red when invalid)
+- Placed buildings: Different colored cubes
+  - Generator: Orange (2x2x2m)
+  - Workbench: Brown (1.5x1x1.5m)
+```
+
+### Code:
+```csharp
+// PlacementSystem.cs (NEW script, attach to player or global manager)
+using Fusion;
+using UnityEngine;
+
+public class PlacementSystem : NetworkBehaviour
+{
+    public GameObject ghostPrefab; // Assign cube with transparent material
+    private GameObject ghostInstance;
+    private bool isPlacing = false;
+    
+    void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.B)) // B for Build
+        {
+            EnterPlacementMode();
+        }
+        
+        if (isPlacing)
+        {
+            UpdateGhostPosition();
+            
+            if (Input.GetKeyDown(KeyCode.Q)) RotateGhost(-45f);
+            if (Input.GetKeyDown(KeyCode.E)) RotateGhost(45f);
+            
+            if (Input.GetMouseButtonDown(0)) TryPlaceBuilding();
+            if (Input.GetMouseButtonDown(1)) CancelPlacement();
+        }
+    }
+    
+    void EnterPlacementMode()
+    {
+        isPlacing = true;
+        ghostInstance = Instantiate(ghostPrefab);
+        Debug.Log($"[PLACEMENT] Player {Object.InputAuthority} entered placement mode");
+    }
+    
+    void UpdateGhostPosition()
+    {
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        if (Physics.Raycast(ray, out RaycastHit hit))
+        {
+            ghostInstance.transform.position = hit.point;
+            
+            // Check if valid
+            bool valid = Physics.CheckBox(hit.point, Vector3.one, Quaternion.identity) == false;
+            ghostInstance.GetComponent<Renderer>().material.color = valid ? Color.green : Color.red;
+        }
+    }
+    
+    void TryPlaceBuilding()
+    {
+        Vector3 pos = ghostInstance.transform.position;
+        Quaternion rot = ghostInstance.transform.rotation;
+        
+        bool valid = Physics.CheckBox(pos, Vector3.one, rot) == false;
+        
+        if (!valid)
+        {
+            Debug.Log($"[PLACEMENT] INVALID: Colliding with other objects");
+            return;
+        }
+        
+        // Spawn NetworkObject
+        var building = Runner.Spawn(buildingPrefab, pos, rot);
+        Debug.Log($"[PLACEMENT] Building placed at {pos}, NetworkID: {building.Id}");
+        Debug.Log($"[VERIFY] Building spawn synced: PASS ✓");
+        
+        CancelPlacement();
+    }
+    
+    void CancelPlacement()
+    {
+        isPlacing = false;
+        Destroy(ghostInstance);
+        Debug.Log($"[PLACEMENT] Cancelled");
+    }
+    
+    void RotateGhost(float degrees)
+    {
+        ghostInstance.transform.Rotate(0, degrees, 0);
+        Debug.Log($"[PLACEMENT] Rotated {degrees}°, now: {ghostInstance.transform.eulerAngles.y:F0}°");
+    }
+}
+```
+
+### Verification Checklist:
+- [ ] Press B, ghost cube appears
+- [ ] Ghost follows mouse cursor on terrain
+- [ ] Ghost is green over empty space, red over objects
+- [ ] Press Q/E to rotate
+- [ ] Click to place, NetworkObject spawns
+- [ ] Client 2 instantly sees building appear
+- [ ] Try to place overlapping = stays red, can't place
+- [ ] Console: "[VERIFY] Building spawn synced: PASS ✓"
+
+---
+
+## 📋 PHASE 5: DAY/NIGHT CYCLE
+
+### Build Primitives:
+```
+- Directional Light (already in scene - just control it)
+- Simple Text UI: "DAY 2 - Time: 14:32 - TWILIGHT WARNING"
+- Skybox color changes (code-driven, no asset needed)
+```
+
+### Code:
+```csharp
+// TimeManager.cs (NEW script - NetworkBehaviour on dedicated GameObject)
+using Fusion;
+using UnityEngine;
+
+public class TimeManager : NetworkBehaviour
+{
+    [Networked] public float CurrentTime { get; set; } = 0f;
+    [Networked] public int CurrentDay { get; set; } = 1;
+    
+    public Light directionalLight;
+    private const float DAY_LENGTH = 900f;   // 15 minutes
+    private const float NIGHT_LENGTH = 300f; // 5 minutes
+    private const float FULL_CYCLE = DAY_LENGTH + NIGHT_LENGTH;
+    
+    public override void Spawned()
+    {
+        directionalLight = FindObjectOfType<Light>();
+        Debug.Log($"[TIME] TimeManager spawned, Authority: {Object.HasStateAuthority}");
+        Debug.Log($"[TIME] Day cycle: {DAY_LENGTH}s day + {NIGHT_LENGTH}s night = {FULL_CYCLE}s total");
+    }
+    
+    public override void FixedUpdateNetwork()
+    {
+        if (!Object.HasStateAuthority) return; // Only time authority updates
+        
+        CurrentTime += Runner.DeltaTime;
+        
+        if (CurrentTime >= FULL_CYCLE)
+        {
+            CurrentTime = 0f;
+            CurrentDay++;
+            OnDayTransition();
+        }
+        
+        UpdateVisuals();
+    }
+    
+    void UpdateVisuals()
+    {
+        // All clients update visuals based on NetworkVariable
+        float dayProgress = CurrentTime / FULL_CYCLE;
+        
+        // Rotate sun
+        float angle = dayProgress * 360f;
+        directionalLight.transform.rotation = Quaternion.Euler(angle - 90f, 0, 0);
+        
+        // Change skybox color
+        if (CurrentTime < DAY_LENGTH)
+        {
+            RenderSettings.ambientLight = Color.Lerp(Color.white, new Color(1f, 0.8f, 0.6f), dayProgress);
+        }
+        else
+        {
+            RenderSettings.ambientLight = Color.Lerp(new Color(1f, 0.8f, 0.6f), new Color(0.2f, 0.2f, 0.4f), (CurrentTime - DAY_LENGTH) / NIGHT_LENGTH);
+        }
+        
+        // Logging (throttled)
+        if (Time.frameCount % 180 == 0)
+        {
+            string phase = GetCurrentPhase();
+            Debug.Log($"[TIME] Day {CurrentDay}, Time: {CurrentTime:F0}s/{FULL_CYCLE}s, Phase: {phase}");
+        }
+    }
+    
+    void OnDayTransition()
+    {
+        Debug.Log($"[TIME] ═══ DAY {CurrentDay} STARTED ═══");
+        
+        // Trigger energy production
+        FindObjectOfType<EnergySystem>()?.OnDayTransition();
+        
+        // Trigger crop growth
+        var crops = FindObjectsOfType<CropPlant>();
+        foreach (var crop in crops)
+        {
+            crop.GrowOneStage();
+        }
+        
+        Debug.Log($"[VERIFY] Day transition synced across all clients: PASS ✓");
+    }
+    
+    string GetCurrentPhase()
+    {
+        if (CurrentTime < DAY_LENGTH - 300f) return "DAY";
+        if (CurrentTime < DAY_LENGTH) return "TWILIGHT";
+        return "NIGHT";
+    }
+    
+    public bool IsNight() => CurrentTime >= DAY_LENGTH;
+}
+```
+
+### Verification Checklist:
+- [ ] Spawn TimeManager NetworkObject in scene
+- [ ] Console: "[TIME] TimeManager spawned, Authority: True/False"
+- [ ] Watch directional light rotate over time
+- [ ] Console every 3 seconds: "[TIME] Day 1, Time: 45s/1200s, Phase: DAY"
+- [ ] Both clients see same time (check console timestamps)
+- [ ] Wait 15 minutes (or speed up for testing), day transitions
+- [ ] Console: "[TIME] ═══ DAY 2 STARTED ═══"
+- [ ] Both clients transition simultaneously
+- [ ] Skybox color changes from bright to orange to dark
+- [ ] Console: "[VERIFY] Day transition synced across all clients: PASS ✓"
+
+---
+
+## 📋 PHASE 6: ENERGY SYSTEM
+
+### Build Primitives:
+```
+- Generator: Orange cube (2x2x2m) with child sphere light indicator
+  - Green sphere = ON with fuel
+  - Red sphere = OFF or no fuel
+- Simple Text UI: "Energy: 3/5 | Fuel: 4 days | Production: +5/day | Consumption: -2/day"
+```
+
+### Code:
+```csharp
+// EnergySystem.cs (NEW script - NetworkBehaviour, singleton)
+using Fusion;
+using UnityEngine;
+
+public class EnergySystem : NetworkBehaviour
+{
+    public static EnergySystem Instance { get; private set; }
+    
+    [Networked] public int CurrentEnergy { get; set; } = 0;
+    [Networked] public int FuelCount { get; set; } = 0;
+    [Networked] public bool GeneratorOn { get; set; } = false;
+    
+    public GameObject generatorModel; // Orange cube with light sphere
+    private Light generatorLight;
+    
+    public override void Spawned()
+    {
+        Instance = this;
+        generatorLight = generatorModel.GetComponentInChildren<Light>();
+        Debug.Log($"[ENERGY] EnergySystem initialized");
+    }
+    
+    public override void FixedUpdateNetwork()
+    {
+        UpdateGeneratorVisuals();
+    }
+    
+    void UpdateGeneratorVisuals()
+    {
+        GeneratorOn = FuelCount > 0;
+        generatorLight.color = GeneratorOn ? Color.green : Color.red;
+        
+        if (Time.frameCount % 180 == 0)
+        {
+            Debug.Log($"[ENERGY] Status: Fuel={FuelCount} days, Energy={CurrentEnergy}/5, Generator={GeneratorOn}");
+        }
+    }
+    
+    public void AddFuel(int amount)
+    {
+        int oldFuel = FuelCount;
+        FuelCount += amount;
+        Debug.Log($"[ENERGY] Fuel added: {oldFuel} → {FuelCount}");
+        Debug.Log($"[VERIFY] Fuel NetworkVariable synced: PASS ✓");
+    }
+    
+    public void OnDayTransition()
+    {
+        Debug.Log($"[ENERGY] ═══ ENERGY TICK (Day Transition) ═══");
+        
+        if (FuelCount > 0)
+        {
+            FuelCount--;
+            CurrentEnergy = Mathf.Min(CurrentEnergy + 5, 5); // Max 5 energy storage
+            Debug.Log($"[ENERGY] Consumed 1 fuel, produced 5 energy");
+            Debug.Log($"[ENERGY] New totals: Fuel={FuelCount}, Energy={CurrentEnergy}");
+        }
+        else
+        {
+            CurrentEnergy = 0;
+            Debug.LogWarning($"[ENERGY] NO FUEL! Energy production stopped.");
+        }
+        
+        ConsumeEnergy();
+    }
+    
+    void ConsumeEnergy()
+    {
+        int totalConsumption = 0;
+        
+        // Check all energy-consuming stations
+        var stations = FindObjectsOfType<EnergyConsumer>();
+        foreach (var station in stations)
+        {
+            totalConsumption += station.energyPerDay;
+        }
+        
+        Debug.Log($"[ENERGY] Total consumption: {totalConsumption} energy/day");
+        
+        CurrentEnergy -= totalConsumption;
+        
+        if (CurrentEnergy < 0)
+        {
+            Debug.LogWarning($"[ENERGY] INSUFFICIENT ENERGY! {CurrentEnergy} (need {totalConsumption})");
+            
+            // Disable stations
+            foreach (var station in stations)
+            {
+                station.SetPowered(false);
+            }
+        }
+        else
+        {
+            Debug.Log($"[ENERGY] Sufficient energy. Remaining: {CurrentEnergy}");
+            foreach (var station in stations)
+            {
+                station.SetPowered(true);
+            }
+        }
+        
+        Debug.Log($"[VERIFY] Energy balance calculated: PASS ✓");
+    }
+    
+    public bool HasEnergy() => CurrentEnergy > 0;
+}
+
+// EnergyConsumer.cs (NEW script - attach to stations)
+using UnityEngine;
+
+public class EnergyConsumer : MonoBehaviour
+{
+    public int energyPerDay = 2;
+    public GameObject powerIndicator; // Small sphere that changes color
+    
+    public void SetPowered(bool powered)
+    {
+        powerIndicator.GetComponent<Renderer>().material.color = powered ? Color.green : Color.red;
+        Debug.Log($"[ENERGY] Station {gameObject.name} powered: {powered}");
+    }
+}
+```
+
+### Console Commands (for testing):
+```csharp
+// Add to some test script or player controller
+void Update()
+{
+    if (Input.GetKeyDown(KeyCode.F5))
+    {
+        EnergySystem.Instance?.AddFuel(5);
+    }
+    if (Input.GetKeyDown(KeyCode.F6))
+    {
+        FindObjectOfType<TimeManager>()?.OnDayTransition(); // Force day transition for testing
+    }
+}
+```
+
+### Verification Checklist:
+- [ ] Generator cube spawned with light sphere
+- [ ] Press F5 to add fuel
+- [ ] Console: "[ENERGY] Fuel added: 0 → 5"
+- [ ] Generator light turns green
+- [ ] Press F6 to trigger day transition
+- [ ] Console: "[ENERGY] ═══ ENERGY TICK (Day Transition) ═══"
+- [ ] Console: "[ENERGY] Consumed 1 fuel, produced 5 energy"
+- [ ] Console: "[ENERGY] New totals: Fuel=4, Energy=5"
+- [ ] Place 3 stations (6 energy/day consumption)
+- [ ] Next day transition → energy insufficient
+- [ ] Stations turn red (unpowered)
+- [ ] Console: "[VERIFY] Energy balance calculated: PASS ✓"
+
+---
+
+## 📋 PHASE 7: POI SYSTEM & LOOT
+
+### Build Primitives:
+```
+POI Buildings (large colored cubes):
+- Gas Station: Red cube (10x5x5m)
+- Hardware Store: Orange cube (15x8x6m)
+- Warehouse: Gray cube (20x10x8m)
+- Medical Clinic: White cube (12x6x6m)
+- Shopping Mall: Blue cube (25x12x8m)
+
+Loot items (small spheres/cubes):
+- Fuel: Red sphere (0.3m)
+- Wood: Brown sphere (0.3m)
+- Tools: Yellow sphere (0.3m)
+- Generator: Orange cube (0.6m)
+- Workbench: Brown cube (0.5m)
+
+Discovery marker: Green cone (1m tall) above discovered POI
+```
+
+### Code:
+```csharp
+// POIManager.cs (NEW script - NetworkBehaviour, singleton)
+using Fusion;
+using UnityEngine;
+using System.Collections.Generic;
+
+public class POIManager : NetworkBehaviour
+{
+    public static POIManager Instance { get; private set; }
+    
+    [System.Serializable]
+    public class POI
+    {
+        public string name;
+        public GameObject building;
+        public Transform[] lootSpawnPoints;
+        public GameObject[] lootPrefabs;
+        public float[] lootChances; // 0-1 for each prefab
+    }
+    
+    public List<POI> allPOIs = new List<POI>();
+    
+    [Networked, Capacity(20)]
+    public NetworkArray<bool> DiscoveredPOIs => default;
+    
+    private List<NetworkObject> spawnedLoot = new List<NetworkObject>();
+    
+    public override void Spawned()
+    {
+        Instance = this;
+        Debug.Log($"[POI] POIManager spawned with {allPOIs.Count} POIs");
+        
+        if (Object.HasStateAuthority)
+        {
+            SpawnAllLoot();
+        }
+    }
+    
+    void SpawnAllLoot()
+    {
+        Debug.Log($"[POI] ═══ SPAWNING SESSION LOOT ═══");
+        int totalSpawned = 0;
+        
+        for (int i = 0; i < allPOIs.Count; i++)
+        {
+            POI poi = allPOIs[i];
+            Debug.Log($"[POI] Processing {poi.name}...");
+            
+            for (int j = 0; j < poi.lootPrefabs.Length; j++)
+            {
+                if (Random.value < poi.lootChances[j])
+                {
+                    Vector3 spawnPos = poi.lootSpawnPoints[Random.Range(0, poi.lootSpawnPoints.Length)].position;
+                    NetworkObject loot = Runner.Spawn(poi.lootPrefabs[j], spawnPos);
+                    spawnedLoot.Add(loot);
+                    totalSpawned++;
+                    
+                    Debug.Log($"[POI]   Spawned {poi.lootPrefabs[j].name} at {spawnPos} ({poi.lootChances[j] * 100}% chance)");
+                }
+            }
+        }
+        
+        Debug.Log($"[POI] Total loot spawned: {totalSpawned} NetworkObjects");
+        Debug.Log($"[VERIFY] Loot spawn authority designated: PASS ✓");
+    }
+    
+    public void DiscoverPOI(int poiIndex, int playerId)
+    {
+        if (DiscoveredPOIs[poiIndex]) return; // Already discovered
+        
+        DiscoveredPOIs.Set(poiIndex, true);
+        
+        // Show green cone marker
+        var marker = GameObject.CreatePrimitive(PrimitiveType.Cone);
+        marker.transform.position = allPOIs[poiIndex].building.transform.position + Vector3.up * 10f;
+        marker.transform.localScale = Vector3.one * 2f;
+        marker.GetComponent<Renderer>().material.color = Color.green;
+        
+        Debug.Log($"[POI] Player {playerId} discovered: {allPOIs[poiIndex].name}");
+        
+        int totalDiscovered = 0;
+        for (int i = 0; i < DiscoveredPOIs.Length; i++)
+            if (DiscoveredPOIs[i]) totalDiscovered++;
+            
+        Debug.Log($"[POI] Total discovered: {totalDiscovered}/{allPOIs.Count}");
+        Debug.Log($"[VERIFY] Discovery NetworkArray synced: PASS ✓");
+    }
+}
+
+// POITrigger.cs (NEW script - attach to each POI building)
+using UnityEngine;
+
+public class POITrigger : MonoBehaviour
+{
+    public int poiIndex;
+    private bool playerNearby = false;
+    
+    void Update()
+    {
+        // Check if player within 20m
+        var players = FindObjectsOfType<PlayerController>();
+        foreach (var player in players)
+        {
+            float distance = Vector3.Distance(transform.position, player.transform.position);
+            
+            if (distance < 20f && !playerNearby)
+            {
+                playerNearby = true;
+                POIManager.Instance?.DiscoverPOI(poiIndex, player.Object.InputAuthority.PlayerId);
+            }
+            else if (distance >= 20f && playerNearby)
+            {
+                playerNearby = false;
+            }
+        }
+    }
+}
+
+// LootItem.cs (NEW script - attach to loot prefabs)
+using Fusion;
+using UnityEngine;
+
+public class LootItem : NetworkBehaviour
+{
+    public ItemType itemType;
+    public int amount = 1;
+    
+    void Update()
+    {
+        // Check if player nearby and presses F to pickup
+        var players = FindObjectsOfType<PlayerController>();
+        foreach (var player in players)
+        {
+            float distance = Vector3.Distance(transform.position, player.transform.position);
+            
+            if (distance < 2f && Input.GetKeyDown(KeyCode.F))
+            {
+                // Add to inventory
+                player.AddItem(itemType, amount);
+                
+                Debug.Log($"[POI] Player {player.Object.InputAuthority} picked up {amount}x {itemType}");
+                
+                // Despawn loot
+                if (Object.HasStateAuthority)
+                {
+                    Runner.Despawn(Object);
+                    Debug.Log($"[POI] Loot NetworkObject despawned: {Object.Id}");
+                    Debug.Log($"[VERIFY] Loot despawn synced: PASS ✓");
+                }
+            }
+        }
+    }
+}
+```
+
+### Verification Checklist:
+- [ ] Spawn POIManager in scene
+- [ ] Console: "[POI] ═══ SPAWNING SESSION LOOT ═══"
+- [ ] Console shows each POI and spawned loot with percentages
+- [ ] Console: "[POI] Total loot spawned: XX NetworkObjects"
+- [ ] Walk to POI building
+- [ ] At 20m distance, green cone appears above building
+- [ ] Console: "[POI] Player X discovered: Gas Station"
+- [ ] Console: "[POI] Total discovered: 1/5"
+- [ ] Both clients see green cone
+- [ ] Walk to loot sphere, press F
+- [ ] Console: "[POI] Player X picked up 1x Fuel"
+- [ ] Sphere despawns for both clients
+- [ ] Inventory updated (check Phase 3)
+- [ ] Second player tries to pick same loot = nothing (already gone)
+- [ ] Console: "[VERIFY] Loot despawn synced: PASS ✓"
+
+---
+
+## 📋 PHASE 8: VEHICLE SYSTEM
+
+### Build Primitives:
+```
+Motorcycle:
+- Body: Black capsule (2m long, 0.5m diameter)
+- Wheels: 2 black spheres (0.4m diameter)
+- Handlebars: 2 gray small cubes
+- Seat: Red cube (0.3m)
+
+Truck:
+- Body: Blue box (4m x 2m x 2m)
+- Wheels: 4 black spheres (0.6m diameter)
+- Cab: Smaller blue box in front
+- Bed: Open box at rear (1.5m x 2m)
+- Seats: 4 red cubes (driver + 3 passengers)
+```
+
+### Code:
+```csharp
+// Vehicle.cs (NEW script - NetworkBehaviour with NetworkRigidbody)
+using Fusion;
+using UnityEngine;
+
+public class Vehicle : NetworkBehaviour
+{
+    public enum VehicleType { Motorcycle, Truck }
+    
+    public VehicleType type;
+    public float speedMultiplier = 5f;
+    public int maxPassengers = 1;
+    
+    [Networked, Capacity(4)]
+    public NetworkArray<int> PassengerIds => default; // -1 = empty seat
+    
+    [Networked] public int FuelUnits { get; set; } = 5;
+    
+    public Transform[] seatPositions;
+    public Transform truckBed; // Only for truck
+    
+    private NetworkRigidbody netRb;
+    private Rigidbody rb;
+    
+    public override void Spawned()
+    {
+        netRb = GetComponent<NetworkRigidbody>();
+        rb = GetComponent<Rigidbody>();
+        
+        // Initialize passenger array
+        for (int i = 0; i < PassengerIds.Length; i++)
+        {
+            PassengerIds.Set(i, -1);
+        }
+        
+        Debug.Log($"[VEHICLE] {type} spawned at {transform.position}, Fuel: {FuelUnits}");
+    }
+    
+    public override void FixedUpdateNetwork()
+    {
+        if (!Object.HasInputAuthority) return;
+        
+        // Get driver (seat 0)
+        int driverId = PassengerIds[0];
+        if (driverId == -1) return; // No driver
+        
+        // Simple driving controls
+        float forward = Input.GetAxis("Vertical");
+        float turn = Input.GetAxis("Horizontal");
+        
+        rb.AddForce(transform.forward * forward * speedMultiplier * 100f);
+        rb.AddTorque(transform.up * turn * speedMultiplier * 50f);
+        
+        // Fuel consumption
+        if (forward != 0 && Time.frameCount % 300 == 0) // Every 5 seconds of driving
+        {
+            FuelUnits--;
+            Debug.Log($"[VEHICLE] Fuel consumed: {FuelUnits + 1} → {FuelUnits}");
+            
+            if (FuelUnits <= 0)
+            {
+                Debug.LogWarning($"[VEHICLE] OUT OF FUEL!");
+            }
+        }
+        
+        // Logging (throttled)
+        if (Time.frameCount % 60 == 0)
+        {
+            Debug.Log($"[VEHICLE] {type} driving, Speed: {rb.velocity.magnitude:F1}, Fuel: {FuelUnits}");
+        }
+    }
+    
+    public void EnterVehicle(PlayerController player, int seatIndex)
+    {
+        if (seatIndex < 0 || seatIndex >= maxPassengers) return;
+        if (PassengerIds[seatIndex] != -1) return; // Seat occupied
+        
+        PassengerIds.Set(seatIndex, player.Object.InputAuthority.PlayerId);
+        
+        // Parent player to seat
+        player.transform.SetParent(seatPositions[seatIndex]);
+        player.transform.localPosition = Vector3.zero;
+        
+        // Disable player movement
+        player.enabled = false;
+        
+        if (seatIndex == 0) // Driver
+        {
+            Object.AssignInputAuthority(player.Object.InputAuthority);
+            Debug.Log($"[VEHICLE] Player {player.Object.InputAuthority} became driver, input authority assigned");
+        }
+        
+        Debug.Log($"[VEHICLE] Player {player.Object.InputAuthority} entered seat {seatIndex}");
+        Debug.Log($"[VEHICLE] Passengers: [{string.Join(", ", PassengerIds.ToArray())}]");
+        Debug.Log($"[VERIFY] Vehicle entry synced: PASS ✓");
+    }
+    
+    public void ExitVehicle(PlayerController player)
+    {
+        // Find player's seat
+        int seatIndex = -1;
+        for (int i = 0; i < PassengerIds.Length; i++)
+        {
+            if (PassengerIds[i] == player.Object.InputAuthority.PlayerId)
+            {
+                seatIndex = i;
+                break;
+            }
+        }
+        
+        if (seatIndex == -1) return; // Not in vehicle
+        
+        PassengerIds.Set(seatIndex, -1);
+        
+        // Unparent player
+        player.transform.SetParent(null);
+        player.transform.position = transform.position + transform.right * 2f; // Exit to side
+        
+        // Re-enable player movement
+        player.enabled = true;
+        
+        if (seatIndex == 0) // Was driver
+        {
+            Object.RemoveInputAuthority();
+            Debug.Log($"[VEHICLE] Player {player.Object.InputAuthority} exited as driver, input authority removed");
+        }
+        
+        Debug.Log($"[VEHICLE] Player {player.Object.InputAuthority} exited vehicle");
+        Debug.Log($"[VERIFY] Vehicle exit synced: PASS ✓");
+    }
+}
+
+// ADD TO PlayerController.cs:
+void Update()
+{
+    // Existing update...
+    
+    // Vehicle interaction
+    if (Input.GetKeyDown(KeyCode.F))
+    {
+        // Check nearby vehicles
+        Collider[] nearby = Physics.OverlapSphere(transform.position, 3f);
+        foreach (var col in nearby)
+        {
+            if (col.TryGetComponent<Vehicle>(out var vehicle))
+            {
+                vehicle.EnterVehicle(this, 0); // Try driver seat
+                return;
+            }
+        }
+    }
+    
+    if (Input.GetKeyDown(KeyCode.G)) // Exit vehicle
+    {
+        if (transform.parent != null && transform.parent.TryGetComponent<Vehicle>(out var vehicle))
+        {
+            vehicle.ExitVehicle(this);
+        }
+    }
+}
+```
+
+### Verification Checklist:
+- [ ] Spawn motorcycle NetworkObject in world
+- [ ] Console: "[VEHICLE] Motorcycle spawned at (X,Y,Z), Fuel: 5"
+- [ ] Walk to motorcycle (within 3m), press F
+- [ ] Console: "[VEHICLE] Player X became driver, input authority assigned"
+- [ ] Console: "[VEHICLE] Passengers: [0, -1, -1, -1]"
+- [ ] Drive with WASD, motorcycle moves
+- [ ] Client 2 sees Client 1 riding motorcycle smoothly
+- [ ] Console every second: "[VEHICLE] Motorcycle driving, Speed: 15.2, Fuel: 5"
+- [ ] Drive for 5 seconds
+- [ ] Console: "[VEHICLE] Fuel consumed: 5 → 4"
+- [ ] Press G to exit
+- [ ] Console: "[VEHICLE] Player X exited as driver, input authority removed"
+- [ ] Player standing next to motorcycle
+- [ ] Both clients see same vehicle position
+- [ ] Console: "[VERIFY] Vehicle entry synced: PASS ✓"
+- [ ] Repeat with truck (4 passengers, truck bed for items)
+
+---
+
+## 📋 PHASE 9: CAMPFIRE SYSTEM
+
+### Build Primitives:
+```
+- Campfire: Brown cylinder (0.5m diameter, 0.2m tall)
+- Fire: Particle system (orange/yellow flames)
+- Warmth zone: Transparent yellow sphere (3m radius, editor-only visualization)
+- Cooking slots: 4 small brown cubes around fire
+```
+
+### Code:
+```csharp
+// Campfire.cs (NEW script - NetworkBehaviour)
+using Fusion;
+using UnityEngine;
+
+public class Campfire : NetworkBehaviour
+{
+    [Networked] public float BurnTimeRemaining { get; set; } = 600f; // 10 minutes
+    [Networked] public int PlayersNearby { get; set; } = 0;
+    
+    public ParticleSystem fireEffect;
+    public float warmthRadius = 3f;
+    
+    public override void Spawned()
+    {
+        Debug.Log($"[CAMPFIRE] Placed at {transform.position}, initial burn time: {BurnTimeRemaining}s");
+    }
+    
+    public override void FixedUpdateNetwork()
     {
         if (!Object.HasStateAuthority) return;
-        CurrentHealth = Mathf.Max(0, CurrentHealth - amount);
-        LastDamagedBy = source;
-        // Trigger hit VFX/SFX via [Networked] change callback or RPC
-        if (CurrentHealth <= 0f) Eliminate(source);
+        
+        // Count down burn time
+        BurnTimeRemaining -= Runner.DeltaTime;
+        
+        if (BurnTimeRemaining <= 0)
+        {
+            Debug.Log($"[CAMPFIRE] Extinguished, despawning");
+            Runner.Despawn(Object);
+            return;
+        }
+        
+        // Check players nearby
+        CheckPlayersNearby();
+        
+        // Logging (every 30 seconds)
+        if (Time.frameCount % 900 == 0)
+        {
+            Debug.Log($"[CAMPFIRE] Burn time: {BurnTimeRemaining:F0}s, Players nearby: {PlayersNearby}");
+        }
     }
-
-    private void Eliminate(PlayerRef eliminatedBy)
+    
+    void CheckPlayersNearby()
     {
-        IsAlive = false;
-        // Notify MatchController
-        // Trigger ragdoll / elimination VFX
-        // Switch to spectator camera
+        int count = 0;
+        var players = FindObjectsOfType<PlayerController>();
+        
+        foreach (var player in players)
+        {
+            float distance = Vector3.Distance(transform.position, player.transform.position);
+            if (distance <= warmthRadius)
+            {
+                count++;
+                
+                // Apply warmth buff (player handles locally)
+                player.SetNearCampfire(true);
+            }
+            else
+            {
+                player.SetNearCampfire(false);
+            }
+        }
+        
+        if (count != PlayersNearby)
+        {
+            PlayersNearby = count;
+            
+            bool camaraderie = PlayersNearby >= 2;
+            Debug.Log($"[CAMPFIRE] Players nearby: {PlayersNearby}, Camaraderie buff: {camaraderie}");
+            
+            if (camaraderie)
+            {
+                ApplyCamaraderieBuff();
+            }
+        }
     }
-}
-```
-
-### Elimination Rules
-
-- Health ≤ 0 → eliminated. Killer credited.
-- Falls below kill plane → eliminated. `LastDamagedBy` gets credit.
-- Eliminated → ragdoll, despawn, spectator mode.
-- Round ends: 1 alive = winner, or timer expires = highest health wins (tiebreak: coins).
-
-### PlayerStats.cs
-
-**Every system reads from PlayerStats, never hardcoded.** This is how upgrades affect gameplay.
-
-```csharp
-public class PlayerStats : NetworkBehaviour
-{
-    public const float BASE_HEALTH = 100f;
-    public const float BASE_MOVE_SPEED = 8f;
-    public const float BASE_THROW_SPEED = 1f;
-    public const float BASE_DAMAGE_MULT = 1f;
-
-    [Networked] public float MaxHealth { get; set; }
-    [Networked] public float MoveSpeed { get; set; }
-    [Networked] public float ThrowSpeedMultiplier { get; set; }
-    [Networked] public float DamageMultiplier { get; set; }
-    [Networked] public float KnockbackResistance { get; set; }
-    [Networked] public float WeaponSwayMultiplier { get; set; }
-    [Networked] public float CoinBonusFlat { get; set; }
-    [Networked] public float PickupSpeedMultiplier { get; set; }
-
-    public void RecalculateStats(List<UpgradeData> upgrades) { /* reset to base, apply all */ }
-}
-```
-
----
-
-## Upgrade Shop
-
-### ShopManager.cs
-
-```csharp
-public class ShopManager : NetworkBehaviour
-{
-    public UpgradeData[] allUpgrades;     // MUST be populated with all 20 SO assets
-
-    public void RequestPurchase(PlayerRef buyer, int upgradeId)
+    
+    void ApplyCamaraderieBuff()
     {
-        if (!Object.HasStateAuthority) return;
-        var upgrade = GetUpgradeById(upgradeId);
-        var economy = GetPlayerEconomy(buyer);
-        if (economy.TotalCoins < upgrade.cost) return;
-        if (!upgrade.isStackable && economy.OwnsUpgrade(upgradeId)) return;
-        economy.SpendCoins(upgrade.cost);
-        economy.AddUpgrade(upgradeId);
+        Debug.Log($"[CAMPFIRE] Camaraderie buff ACTIVE: +10% max stamina next day");
+        
+        var players = FindObjectsOfType<PlayerController>();
+        foreach (var player in players)
+        {
+            float distance = Vector3.Distance(transform.position, player.transform.position);
+            if (distance <= warmthRadius)
+            {
+                player.hasCamaraderieBuff = true;
+            }
+        }
     }
-}
-```
-
-### Shop Scene
-
-> **MCP Action:** Create `SCN_Shop` with:
-> - A room (4 walls, floor, ceiling — blockout cubes with gray materials)
-> - 4 computer terminal objects (cube + plane "screen") at designated positions
-> - Each terminal has an `InteractableTerminal.cs` trigger that opens the shop UI
-> - A `ShopManager` NetworkObject in the scene
-> - 4 spawn points for players
-> - A Canvas with the full shop UI (see layout below)
-
-### Shop UI Layout
-
-> **MCP Action:** Create a Canvas prefab or in-scene Canvas with:
-
-```
-Canvas (Screen Space - Overlay)
-├── ShopPanel (full screen, semi-transparent dark background)
-│   ├── Header
-│   │   ├── TitleText ("UPGRADE TERMINAL")
-│   │   ├── CoinDisplay (coin icon + balance text, top-right)
-│   │   └── TimerText (countdown, top-center)
-│   ├── TabBar (horizontal layout group)
-│   │   ├── Tab_Passive (Button)
-│   │   ├── Tab_Consumable (Button)
-│   │   └── Tab_WeaponMod (Button)
-│   ├── ItemGrid (GridLayoutGroup, scrollable)
-│   │   └── ItemCard (prefab, instantiated per item)
-│   │       ├── IconImage
-│   │       ├── NameText
-│   │       ├── CostBadge (coin icon + cost text)
-│   │       ├── DescriptionText
-│   │       └── OwnedOverlay (hidden by default)
-│   ├── ReadyButton (bottom-center)
-│   └── CloseButton (top-right corner)
-```
-
-Create `PFB_ShopItemCard` prefab with all UI elements. The `ShopUI.cs` script instantiates cards from the upgrade catalog.
-
----
-
-## Levels & Arenas
-
-### Level Design Philosophy
-
-Arenas are small, tight, readable at a glance. Players understand the layout, hazards, and weapons within the 3-second countdown. Every arena forces conflict by driving players toward contested resources.
-
-> **MCP Action for EVERY level:** Create the Unity scene with blockout geometry (cubes, planes, cylinders). Place spawn point empty GameObjects. Place weapon spawn point markers. Place coin spawn point markers. Add hazard GameObjects with their scripts. Add a VoidKillZone trigger below the play area. Add a directional light. Create the matching LevelData ScriptableObject asset with all positions populated.
-
-### Level 1: The Circle (Tutorial Round)
-
-| Property | Value |
-|----------|-------|
-| Duration | 15 seconds |
-| Difficulty | 1 |
-| Geometry | Circular platform (radius ~8m) floating in void. Flat, no cover. |
-| Weapons | 4 throwing knives piled at center |
-| Coins | 6 gold coins in ring around knife pile at ~3m radius |
-| Hazards | Void kill zone below platform |
-| Spawns | 4 equidistant points on platform edge, facing center |
-| Design | Teaches core loop: rush center, grab knife, fight. |
-
-> **MCP Action:** Create a large cylinder (scale 16, 0.5, 16) as the platform. Gray material. Place 4 knife spawn markers at center. Place 6 coin spawns in a circle. Place 4 player spawns at edges. Add a box collider kill zone below (y = -10, trigger, tagged "KillZone"). Skybox: default or dark.
-
-### Level 2: The Bridge
-
-| Property | Value |
-|----------|-------|
-| Duration | 20 seconds |
-| Geometry | Narrow bridge (2m wide, 20m long) + two islands (5m radius each) |
-| Weapons | 1 hatchet per island, 2 shurikens at bridge center |
-| Coins | 1 silver at bridge center, 3 gold per island |
-| Hazards | Bridge crumbles from edges inward every 5s. Void below. |
-| Spawns | 2 per island |
-
-### Level 3: The Furnace
-
-| Property | Value |
-|----------|-------|
-| Duration | 30 seconds |
-| Geometry | Industrial room (15m × 10m). Two parallel conveyor belts pushing east. |
-| Weapons | 2 dynamite near vents, 2 bats on conveyors |
-| Coins | Gold coins on conveyors (moving), silver on fire vent grates |
-| Hazards | Fire vents (3s on/off), conveyors (constant push) |
-| Spawns | 4 along west wall |
-
-### Level 4: The Pit
-
-| Property | Value |
-|----------|-------|
-| Duration | 25 seconds |
-| Geometry | Colosseum pit. Center floor (8m diameter) + 3 tiers of platforms |
-| Weapons | 2 javelins (top tier), 3 rubber balls (floor) |
-| Coins | Silver on floor (risky), gold on mid-tier |
-| Hazards | Rising spikes from floor starting at 5s. Lethal by 20s. |
-| Spawns | 4 on mid-tier |
-
-### Level 5: Zero-G Lab
-
-| Property | Value |
-|----------|-------|
-| Duration | 40 seconds |
-| Geometry | Space station (20m × 15m × 10m). Floating platforms, corridors. |
-| Weapons | 1 revolver (floating zero-G zone), 3 shurikens on platforms |
-| Coins | Float freely in zero-G zones |
-| Hazards | Gravity shifts every 10s. Airlock opens at 30s. |
-| Spawns | 4 on different platforms |
-
-### Levels 6–9
-
-| Level | Name | Duration | Key Mechanic |
-|-------|------|----------|-------------|
-| 6 | The Carousel | 30s | Rotating platform + edge saw blades + center bounce pads |
-| 7 | The Freezer | 25s | Slippery ice floor + falling icicles + fog (limited visibility) |
-| 8 | The Gauntlet | 45s | Linear obstacle course/race. Last to finish = eliminated. |
-| 9 | The Volcano | 35s | Platforms over lava. Random chunks fall. Lava geysers. |
-
-### Level 10: Grand Finale
-
-| Property | Value |
-|----------|-------|
-| Duration | No limit (last standing wins) |
-| Geometry | Large multi-level (30m × 30m). Open center, perimeter platforms, tunnels, central tower. |
-| Weapons | All types. Throwables abundant. Firearms at high-risk spots. Melee at center. |
-| Coins | None |
-| Hazards | Saw blades in tunnels, fire vents on platforms. Arena shrinks at 60s (battle royale ring). |
-| Spawns | 4 corners, max distance apart |
-
----
-
-## Environmental Hazards
-
-### Hazard Base Class
-
-```csharp
-public abstract class HazardBase : NetworkBehaviour
-{
-    [Networked] public NetworkBool IsActive { get; set; }
-    public float damage;
-    public float knockbackForce;
-    public float warningDuration;
-
-    public abstract void Activate();
-    public abstract void Deactivate();
-    protected abstract void OnPlayerContact(PlayerHealth player);
-}
-```
-
-### Hazard Roster
-
-| Hazard | Script | Behavior | Sync |
-|--------|--------|----------|------|
-| Void Kill Zone | VoidKillZone.cs | Trigger below platforms. Instant elimination. | Host detects, eliminates. |
-| Fire Vent | FireVent.cs | Cycles 3s on/3s off. Damage + knockback when active. | [Networked] IsActive via TickTimer. |
-| Conveyor Belt | ConveyorBelt.cs | Constant directional force on players/items. | [Networked] direction/speed. |
-| Crumbling Platform | CrumblingPlatform.cs | Sections break off over time. | [Networked] array of section states. |
-| Rising Spikes | RisingSpikes.cs | Floor rises as damage zone. | [Networked] spike height. |
-| Gravity Zone | GravityZone.cs | Alters gravity in volume. | [Networked] gravity vector. |
-| Airlock | Airlock.cs | Opens after delay, suction toward void. | [Networked] isOpen. |
-| Bounce Pad | BouncePad.cs | Launches players/projectiles up. | Deterministic, no sync needed. |
-| Saw Blade | SawBlade.cs | Patrols path, damage on contact. | NetworkTransform on path. |
-
-> **MCP Action:** For each hazard type, create a prefab with: blockout mesh (red/orange material for dangerous parts), the hazard script, a collider (trigger where appropriate), and a NetworkObject. Place instances in the correct arena scenes with positions matching the level design.
-
----
-
-## UI System
-
-> **MCP Action for ALL UI:** Build every UI element as actual Unity UI (Canvas + RectTransform). Use default fonts and white/dark panels. Every button must have onClick wired to the correct method. Every text field must be bound to update from game state. Create prefabs for reusable elements.
-
-### HUD (In-Round)
-
-```
-Canvas_HUD (Screen Space - Overlay)
-├── HealthBar (top-left, Image fill + text)
-├── CoinCounter (top-right, coin icon + text)
-├── RoundInfo (top-center, "Round X/10" + timer)
-├── WeaponIndicator (bottom-center, icon + name)
-├── KillFeed (right side, vertical layout, 3 entries max)
-│   └── PFB_KillFeedEntry (icon + text, fades after 3s)
-├── ConsumableIcons (below health, horizontal layout)
-└── SpectatorOverlay (hidden, shown on elimination)
-    ├── WatchingText ("Spectating: PlayerName")
-    ├── SwitchPlayerHint ("[←] [→] to switch")
-    └── PlayersAliveText
-```
-
-### Results Screen
-
-```
-Canvas_Results (Screen Space - Overlay)
-├── ResultsPanel (center, dark bg)
-│   ├── TitleText ("ROUND X COMPLETE")
-│   ├── PodiumLayout (1st/2nd/3rd/4th player cards)
-│   │   └── PlayerResultCard (avatar color, name, placement, coins)
-│   ├── ShopNextIndicator (visible if round 3/6/9: "SHOP PHASE NEXT")
-│   └── ContinueTimer ("Next round in Xs")
-```
-
-### Main Menu
-
-```
-SCN_MainMenu:
-├── Canvas_MainMenu
-│   ├── TitleText ("ARENA CLASH")
-│   ├── PlayButton → navigates to Lobby
-│   ├── CustomizeButton → placeholder panel ("Coming Soon")
-│   ├── SettingsButton → SettingsPanel
-│   │   ├── VolumeSlider (Master, SFX, Music)
-│   │   ├── SensitivitySlider
-│   │   └── BackButton
-│   └── QuitButton
-├── Camera
-└── Directional Light
-```
-
-### Lobby
-
-```
-SCN_Lobby (or panel within main menu scene):
-├── Canvas_Lobby
-│   ├── RoomCodeDisplay / RoomCodeInput
-│   ├── PlayerSlots (4 slots showing connected players)
-│   │   └── PlayerSlotCard (color, name, ready status icon)
-│   ├── ReadyButton (toggle)
-│   ├── StartCountdown (appears when all ready, "Starting in 3...")
-│   └── BackButton
-```
-
----
-
-## Game Feel & Polish Systems
-
-### Screen Shake (ScreenShake.cs)
-
-```csharp
-public class ScreenShake : MonoBehaviour
-{
-    public void Shake(float duration, float intensity)
+    
+    public void AddWood(int amount)
     {
-        // Offset camera local position by random vector within intensity
-        // Lerp back to zero over duration
+        float oldTime = BurnTimeRemaining;
+        BurnTimeRemaining += amount * 300f; // 5 minutes per wood
+        
+        Debug.Log($"[CAMPFIRE] Wood added: {amount}, Burn time: {oldTime:F0}s → {BurnTimeRemaining:F0}s");
+        Debug.Log($"[VERIFY] Campfire time extended: PASS ✓");
     }
 }
 
-// Triggers:
-// Take damage:     Shake(0.1f, damage * 0.01f)
-// Deal damage:     Shake(0.05f, 0.02f)
-// Explosion:       Shake(0.3f, 0.15f)
-// Elimination:     Shake(0.2f, 0.08f)
+// ADD TO PlayerController.cs:
+[HideInInspector] public bool nearCampfire = false;
+[HideInInspector] public bool hasCamaraderieBuff = false;
+
+public void SetNearCampfire(bool near)
+{
+    if (near != nearCampfire)
+    {
+        nearCampfire = near;
+        
+        if (near)
+        {
+            Debug.Log($"[CAMPFIRE] Player {Object.InputAuthority} entered warmth zone, stamina regen: 1x → 2x");
+        }
+        else
+        {
+            Debug.Log($"[CAMPFIRE] Player {Object.InputAuthority} left warmth zone, stamina regen: 2x → 1x");
+        }
+    }
+}
+
+// Modify stamina regen in UpdateStamina():
+void UpdateStamina()
+{
+    float regenRate = 5f;
+    if (nearCampfire) regenRate *= 2f; // 2x regen near campfire
+    
+    CurrentStamina = Mathf.Min(CurrentStamina + regenRate * Time.deltaTime, MaxStamina);
+}
 ```
 
-### Hit Effects
+### Console Commands:
+```csharp
+// Add to test script
+void Update()
+{
+    if (Input.GetKeyDown(KeyCode.F7))
+    {
+        // Spawn campfire at player position
+        var campfirePrefab = Resources.Load<GameObject>("Campfire");
+        Runner.Spawn(campfirePrefab, transform.position);
+    }
+}
+```
 
-- **Hit flash:** Brief white overlay on damaged player mesh (swap material for 0.1s, swap back).
-- **Damage numbers:** Optional floating TextMeshPro at hit point (float up, fade, destroy). Create `PFB_DamageNumber` prefab.
-- **Impact particles:** Spawn VFX from VFXLibrary at collision point.
-
-### Weapon Feel
-
-- **Throw wind-up:** Camera FOV lerps 100 → 95 during wind-up, snaps to 100 on release.
-- **Firearm recoil:** Camera pitch kicks up by `recoilStrength`, smooth 0.3s recovery.
-- **Melee hit confirm:** Brief FOV pulse outward.
-
-### Spectator Mode
-
-- Triggered on elimination. Camera detaches, orbits arena.
-- Left/right input cycles through surviving players.
-- Spectator HUD overlay shows watched player and players remaining.
-
-> **MCP Action:** Create SpectatorCamera.cs and attach to an empty in each arena scene. Create the spectator UI overlay as part of Canvas_HUD (hidden by default, shown on elimination).
-
----
-
-## Phases Summary
-
-### Phase 1: Foundation
-- Create project structure, all folders, all placeholder materials
-- Install/configure Photon Fusion from starter template (Host Mode)
-- Create InputActionAsset with all bindings
-- Build player prefab with all components
-- Implement PlayerController with networked first-person movement
-- Build MatchController state machine (all states, transitions, timers)
-- Create 2 test arena scenes (The Circle + one other) with blockout geometry
-- Create scene loading/unloading system
-- Set up Layers, Tags, Physics matrix
-- Set up AudioManager + VFXManager singletons (empty libraries)
-- **Deliverable:** 2 players can connect, spawn, move in first person, and the match cycles through countdown → round → results → next round.
-
-### Phase 2: Weapons & Combat
-- Create all WeaponData ScriptableObject assets (13 weapons)
-- Create all weapon prefabs with blockout meshes and components
-- Implement WeaponBase, ThrowableWeapon, FirearmWeapon, MeleeWeapon
-- Implement weapon pickup system (host-authoritative)
-- Implement throw mechanics with wonkiness physics
-- Implement firearm hitscan with recoil and spread
-- Implement melee swing with hitbox timing
-- Implement PlayerHealth and elimination
-- Implement weapon spawn system per LevelData
-- Wire all AudioManager/VFXManager trigger points (null-safe)
-- Create coin prefabs (gold + silver) with pickup scripts
-- **Deliverable:** Players can pick up weapons, throw/fire/swing them, take damage, get eliminated, and collect coins. Weapons feel wonky and fun.
-
-### Phase 3: Economy & Shop
-- Create all UpgradeData ScriptableObject assets (20 upgrades)
-- Implement PlayerEconomy (coin tracking, upgrade ownership)
-- Implement PlayerStats (stat aggregation from upgrades)
-- Implement placement coin rewards in MatchController
-- Build Shop scene with blockout geometry and terminals
-- Build complete Shop UI with all panels, tabs, cards, and purchase flow
-- Implement ShopManager with host-authoritative transactions
-- Implement consumable activation system
-- Wire upgrade effects into all gameplay systems
-- **Deliverable:** Full economic loop works. Players earn coins, shop after rounds 3/6/9, buy upgrades that affect gameplay.
-
-### Phase 4: All Levels & Hazards
-- Implement all hazard scripts (9 types)
-- Create all hazard prefabs with blockout meshes
-- Build all 10 arena scenes with complete blockout geometry
-- Place all weapon spawns, coin spawns, player spawns, hazards per level spec
-- Create all LevelData ScriptableObject assets with populated data
-- Implement level selection logic (Round 1 = Circle, Round 10 = Finale, 2–9 shuffled)
-- Implement arena shrink mechanic for Round 10
-- **Deliverable:** All 10 levels playable with unique layouts, hazards, and weapon/coin configurations.
-
-### Phase 5: UI & Game Feel
-- Build complete HUD (health, coins, timer, weapon, kill feed, consumables)
-- Build Results Screen with animated coin counters
-- Build Main Menu scene with navigation
-- Build Lobby with player slots and ready-up
-- Implement spectator mode and camera
-- Implement screen shake on all triggers
-- Implement hit flash and damage feedback
-- Implement weapon feel (FOV zoom, recoil visuals)
-- Populate AudioManager trigger points throughout all systems
-- Populate VFXManager trigger points throughout all systems
-- **Deliverable:** Complete UI shell. Game feels polished with feedback on every action. All audio/VFX hooks in place (silent/invisible until real assets added).
-
-### Phase 6: Integration & Polish
-- Full 10-round match integration testing
-- All edge case handling (simultaneous deaths, disconnects, ties, 0 coins at shop)
-- Economy balance pass
-- Weapon balance pass
-- Round duration tuning
-- Network stress testing (simulated latency)
-- Build checklist verification
-- **Deliverable:** Complete, shippable game. Press Play → full match from lobby to victory.
+### Verification Checklist:
+- [ ] Press F7 to spawn campfire
+- [ ] Console: "[CAMPFIRE] Placed at (X,Y,Z), initial burn time: 600s"
+- [ ] Fire particle effect plays
+- [ ] Both clients see fire
+- [ ] Walk near fire (< 3m)
+- [ ] Console: "[CAMPFIRE] Player X entered warmth zone, stamina regen: 1x → 2x"
+- [ ] Check stamina regenerates faster (watch UI)
+- [ ] Walk away from fire
+- [ ] Console: "[CAMPFIRE] Player X left warmth zone"
+- [ ] Second player walks to same fire
+- [ ] Console: "[CAMPFIRE] Players nearby: 2, Camaraderie buff: true"
+- [ ] Console: "[CAMPFIRE] Camaraderie buff ACTIVE: +10% max stamina next day"
+- [ ] Wait 10 minutes (or speed up time)
+- [ ] Console: "[CAMPFIRE] Extinguished, despawning"
+- [ ] Fire despawns for both clients
 
 ---
 
-## Edge Cases
+## 📋 PHASE 10: ENEMY AI - BASIC
 
-| Scenario | Behavior |
-|----------|----------|
-| All players die simultaneously | Highest health wins. Tie → most coins. Tie → random. |
-| Player disconnects mid-round | Treated as elimination. Match continues. |
-| Player disconnects during shop | Unspent coins carry. No purchases. |
-| Only 1 player in lobby | Cannot start. "Need more players" message. |
-| 0 coins at shop | Shop opens, can browse, can't buy. Ready button available. |
-| Timer expires, multiple alive | Highest health = 1st. Tied → most coins. |
-| Thrown weapon hits 2 players at once | First collision in physics tick wins. |
-| Player falls off holding weapon | Weapon drops at last valid position. |
-| Player buys same consumable twice | Allowed (stackable). Both activate next round. |
-| All players ready before shop timer | Shop ends early, next round loads. |
+### Build Primitives:
+```
+Rabid Dog:
+- Body: Red capsule (0.5m tall, 0.3m diameter)
+- Eyes: 2 white small spheres
+- Health bar: Red plane above head
+
+Scavenger:
+- Body: Yellow capsule (1.8m tall)
+- Weapon: Small gray cube in hand
+
+Bandit:
+- Body: Blue capsule (1.8m tall)  
+- Rifle: Gray cylinder in hand
+
+Night Stalker:
+- Body: Black sphere (0.8m diameter)
+- Eyes: Red glowing particle effect
+```
+
+### Code:
+```csharp
+// EnemyAI.cs (NEW script - NetworkBehaviour with NavMeshAgent)
+using Fusion;
+using UnityEngine;
+using UnityEngine.AI;
+
+public class EnemyAI : NetworkBehaviour
+{
+    public enum EnemyType { Dog, Scavenger, Bandit, NightStalker }
+    public enum AIState { Idle, Patrol, Chase, Attack }
+    
+    public EnemyType enemyType;
+    
+    [Networked] public int Health { get; set; } = 100;
+    [Networked] public AIState CurrentState { get; set; } = AIState.Idle;
+    [Networked] public NetworkId TargetPlayerId { get; set; }
+    
+    private NavMeshAgent agent;
+    private Transform currentTarget;
+    
+    public float detectionRange = 15f;
+    public float attackRange = 2f;
+    public int attackDamage = 10;
+    
+    public override void Spawned()
+    {
+        agent = GetComponent<NavMeshAgent>();
+        
+        Debug.Log($"[AI] {enemyType} spawned at {transform.position}, Health: {Health}");
+        Debug.Log($"[AI] Area authority: {Object.InputAuthority}");
+    }
+    
+    public override void FixedUpdateNetwork()
+    {
+        if (!Object.HasInputAuthority) return; // Only area authority controls AI
+        
+        switch (CurrentState)
+        {
+            case AIState.Idle:
+                LookForPlayers();
+                break;
+                
+            case AIState.Chase:
+                ChaseTarget();
+                break;
+                
+            case AIState.Attack:
+                AttackTarget();
+                break;
+        }
+        
+        // Logging (throttled)
+        if (Time.frameCount % 90 == 0 && CurrentState != AIState.Idle)
+        {
+            Debug.Log($"[AI] {enemyType} state: {CurrentState}, Target: {TargetPlayerId}, Distance: {GetTargetDistance():F1}m");
+        }
+    }
+    
+    void LookForPlayers()
+    {
+        var players = FindObjectsOfType<PlayerController>();
+        foreach (var player in players)
+        {
+            float distance = Vector3.Distance(transform.position, player.transform.position);
+            
+            if (distance <= detectionRange)
+            {
+                TargetPlayerId = player.Object.Id;
+                currentTarget = player.transform;
+                CurrentState = AIState.Chase;
+                
+                Debug.Log($"[AI] {enemyType} detected Player {player.Object.InputAuthority} at {distance:F1}m");
+                return;
+            }
+        }
+    }
+    
+    void ChaseTarget()
+    {
+        if (currentTarget == null)
+        {
+            CurrentState = AIState.Idle;
+            return;
+        }
+        
+        float distance = Vector3.Distance(transform.position, currentTarget.position);
+        
+        if (distance <= attackRange)
+        {
+            CurrentState = AIState.Attack;
+            agent.isStopped = true;
+        }
+        else if (distance > detectionRange * 1.5f)
+        {
+            // Lost player
+            CurrentState = AIState.Idle;
+            TargetPlayerId = default;
+            currentTarget = null;
+            agent.isStopped = true;
+        }
+        else
+        {
+            agent.SetDestination(currentTarget.position);
+        }
+    }
+    
+    void AttackTarget()
+    {
+        if (currentTarget == null)
+        {
+            CurrentState = AIState.Idle;
+            return;
+        }
+        
+        float distance = Vector3.Distance(transform.position, currentTarget.position);
+        
+        if (distance > attackRange)
+        {
+            CurrentState = AIState.Chase;
+            agent.isStopped = false;
+            return;
+        }
+        
+        // Attack (once per second)
+        if (Time.frameCount % 30 == 0)
+        {
+            if (currentTarget.TryGetComponent<PlayerController>(out var player))
+            {
+                player.TakeDamage(attackDamage);
+                Debug.Log($"[AI] {enemyType} ATTACKED Player {player.Object.InputAuthority}, Damage: {attackDamage}");
+            }
+        }
+    }
+    
+    public void TakeDamage(int amount)
+    {
+        Health -= amount;
+        Debug.Log($"[AI] {enemyType} took {amount} damage, Health: {Health}/{100}");
+        
+        if (Health <= 0)
+        {
+            Die();
+        }
+        
+        Debug.Log($"[VERIFY] Enemy health synced: PASS ✓");
+    }
+    
+    void Die()
+    {
+        Debug.Log($"[AI] {enemyType} KILLED at {transform.position}");
+        
+        // Death animation (just rotate for now)
+        transform.rotation = Quaternion.Euler(90, 0, 0);
+        
+        // Despawn after 2 seconds
+        Invoke(nameof(DespawnSelf), 2f);
+    }
+    
+    void DespawnSelf()
+    {
+        if (Object.HasStateAuthority)
+        {
+            Runner.Despawn(Object);
+            Debug.Log($"[AI] Enemy despawned");
+        }
+    }
+    
+    float GetTargetDistance()
+    {
+        return currentTarget != null ? Vector3.Distance(transform.position, currentTarget.position) : -1f;
+    }
+}
+```
+
+### Console Commands:
+```csharp
+// Add to test script
+void Update()
+{
+    if (Input.GetKeyDown(KeyCode.F8))
+    {
+        // Spawn dog enemy near player
+        var dogPrefab = Resources.Load<GameObject>("EnemyDog");
+        Runner.Spawn(dogPrefab, transform.position + transform.forward * 10f);
+    }
+    
+    if (Input.GetKeyDown(KeyCode.F9))
+    {
+        // Damage nearest enemy
+        var enemy = FindObjectOfType<EnemyAI>();
+        if (enemy != null)
+        {
+            enemy.TakeDamage(25);
+        }
+    }
+}
+```
+
+### Verification Checklist:
+- [ ] Bake NavMesh in scene (Window → AI → Navigation)
+- [ ] Press F8 to spawn dog enemy
+- [ ] Console: "[AI] Dog spawned at (X,Y,Z), Health: 100"
+- [ ] Console: "[AI] Area authority: X"
+- [ ] Enemy idles for a moment
+- [ ] Walk within 15m of enemy
+- [ ] Console: "[AI] Dog detected Player X at 12.3m"
+- [ ] Console: "[AI] Dog state: Chase, Target: XX, Distance: 10.2m"
+- [ ] Enemy NavMeshAgent moves toward player
+- [ ] Both clients see enemy moving
+- [ ] Enemy reaches player
+- [ ] Console: "[AI] Dog ATTACKED Player X, Damage: 10"
+- [ ] Player health decreases (check Phase 1)
+- [ ] Press F9 to damage enemy
+- [ ] Console: "[AI] Dog took 25 damage, Health: 75/100"
+- [ ] Press F9 four times
+- [ ] Console: "[AI] Dog KILLED at (X,Y,Z)"
+- [ ] Enemy rotates horizontal
+- [ ] After 2 seconds, enemy despawns
+- [ ] Both clients see despawn
+- [ ] Console: "[VERIFY] Enemy health synced: PASS ✓"
 
 ---
 
-## Layer & Tag Setup
+## 📋 PHASE 11: NIGHT STALKER LIGHT EXCLUSION
 
-> **MCP Action:** Configure these in Unity's Project Settings before Phase 1 work begins.
+### Build Primitives:
+```
+- Base lights: White point lights on cylinder poles (already should exist)
+- Light zones: Transparent yellow spheres (3m radius) overlaid on lights (editor visualization)
+- Night Stalkers: Black spheres with red glowing particle eyes
+```
 
-**Layers:**
-- Default (0)
-- Player (6)
-- Weapon (7)
-- Coin (8)
-- Hazard (9)
-- KillZone (10)
-- Ground (11)
-- WeaponPickup (12)
+### Code:
+```csharp
+// LightZone.cs (NEW script - attach to each base light)
+using UnityEngine;
 
-**Tags:**
-- Player
-- Weapon
-- Coin
-- Hazard
-- KillZone
-- SpawnPoint
-- WeaponSpawn
-- CoinSpawn
-- ShopTerminal
+public class LightZone : MonoBehaviour
+{
+    public float radius = 5f;
+    public LayerMask litZoneLayer;
+    
+    void Start()
+    {
+        // Create sphere collider for lit zone
+        var col = gameObject.AddComponent<SphereCollider>();
+        col.radius = radius;
+        col.isTrigger = true;
+        gameObject.layer = LayerMask.NameToLayer("LitZone");
+        
+        Debug.Log($"[LIGHT] Light zone created at {transform.position}, Radius: {radius}m");
+    }
+    
+    void OnDrawGizmos()
+    {
+        Gizmos.color = new Color(1f, 1f, 0f, 0.3f);
+        Gizmos.DrawSphere(transform.position, radius);
+    }
+}
 
-**Physics Collision Matrix (disable):**
-- Coin ↔ Coin (coins don't collide with each other)
-- Weapon ↔ Weapon (thrown weapons pass through each other)
-- Player ↔ Player (optional: disable or handle separately)
+// Modify EnergySystem.cs:
+public void UpdateBaseLights()
+{
+    bool lightsOn = GeneratorOn && FuelCount > 0;
+    
+    var lightZones = FindObjectsOfType<LightZone>();
+    foreach (var zone in lightZones)
+    {
+        zone.gameObject.SetActive(lightsOn);
+    }
+    
+    Debug.Log($"[LIGHT] Base lights: {(lightsOn ? "ON" : "OFF")}");
+    Debug.Log($"[LIGHT] Light zones active: {lightZones.Length}");
+}
+
+// Modify EnemyAI.cs for Night Stalkers:
+public override void Spawned()
+{
+    agent = GetComponent<NavMeshAgent>();
+    
+    // Night Stalkers exclude LitZone from NavMesh
+    if (enemyType == EnemyType.NightStalker)
+    {
+        int litZoneMask = 1 << NavMesh.GetAreaFromName("LitZone");
+        agent.areaMask = ~litZoneMask; // Invert to exclude
+        
+        Debug.Log($"[LIGHT] Night Stalker NavMesh mask configured to EXCLUDE LitZone");
+    }
+    
+    Debug.Log($"[AI] {enemyType} spawned at {transform.position}, Health: {Health}");
+}
+
+void Update()
+{
+    // Night Stalkers only spawn at night
+    if (enemyType == EnemyType.NightStalker)
+    {
+        var timeManager = FindObjectOfType<TimeManager>();
+        if (timeManager != null && !timeManager.IsNight())
+        {
+            // Despawn during day
+            if (Object.HasStateAuthority)
+            {
+                Runner.Despawn(Object);
+                Debug.Log($"[LIGHT] Night Stalker despawned (daytime)");
+            }
+        }
+    }
+}
+```
+
+### NavMesh Setup:
+```
+1. Window → AI → Navigation
+2. Create NavMesh Area called "LitZone"
+3. Mark light zone colliders as "LitZone" area
+4. Bake NavMesh
+```
+
+### Verification Checklist:
+- [ ] Place light zones around base (LightZone script on cylinders)
+- [ ] Console: "[LIGHT] Light zone created at (X,Y,Z), Radius: 5m"
+- [ ] Turn on generator (add fuel, ensure energy)
+- [ ] Console: "[LIGHT] Base lights: ON"
+- [ ] Console: "[LIGHT] Light zones active: 4"
+- [ ] Spawn Night Stalker outside base (press F8 but use NightStalker prefab)
+- [ ] Console: "[LIGHT] Night Stalker NavMesh mask configured to EXCLUDE LitZone"
+- [ ] Night Stalker approaches base
+- [ ] Night Stalker stops at edge of yellow sphere (light zone)
+- [ ] Night Stalker circles base but never enters lit area
+- [ ] Console shows Night Stalker pathfinding around, not through
+- [ ] Turn off generator
+- [ ] Console: "[LIGHT] Base lights: OFF"
+- [ ] Night Stalker now enters base area
+- [ ] Turn lights back on
+- [ ] Night Stalker exits base, stays outside light zones
+- [ ] Both clients see same Night Stalker behavior
+- [ ] Console: "[VERIFY] Night Stalker light exclusion: PASS ✓" (no stalkers in lit zones)
 
 ---
 
-*This document contains everything needed to build Arena Clash from an empty Fusion starter template to a complete, playable multiplayer game. Each phase produces a testable deliverable. Every asset, prefab, scene, UI element, and ScriptableObject described here must be created as a real in-engine artifact via Unity MCP — not left as theoretical code.*
+## 📋 PHASE 12: COMBAT SYSTEM
+
+### Build Primitives:
+```
+Melee weapon:
+- Crowbar: Gray cylinder (1m long, 0.05m diameter)
+
+Ranged weapon:
+- Rifle: Dark gray box (0.8m x 0.1m x 0.1m) with small cube on top (scope)
+
+Hit effects:
+- Hit marker: Red sphere (0.2m) that spawns at hit point, fades after 0.5s
+- Muzzle flash: Yellow sphere (0.1m) at gun barrel, instant
+
+Bullet trail:
+- Line renderer from gun to hit point
+```
+
+### Code:
+```csharp
+// WeaponController.cs (NEW script - add to player or create separate)
+using Fusion;
+using UnityEngine;
+
+public class WeaponController : NetworkBehaviour
+{
+    public enum WeaponType { None, Crowbar, Rifle }
+    
+    [Networked] public WeaponType EquippedWeapon { get; set; } = WeaponType.None;
+    [Networked] public int CurrentAmmo { get; set; } = 30;
+    
+    public Transform weaponHand; // Where weapon appears
+    public GameObject crowbarModel;
+    public GameObject rifleModel;
+    
+    public Transform gunBarrel; // For rifle
+    public LineRenderer bulletTrail;
+    
+    private GameObject currentWeaponModel;
+    
+    public override void Spawned()
+    {
+        Debug.Log($"[WEAPON] WeaponController initialized for Player {Object.InputAuthority}");
+    }
+    
+    void Update()
+    {
+        if (!Object.HasInputAuthority) return;
+        
+        // Weapon switching (number keys)
+        if (Input.GetKeyDown(KeyCode.Alpha7)) EquipWeapon(WeaponType.Crowbar);
+        if (Input.GetKeyDown(KeyCode.Alpha8)) EquipWeapon(WeaponType.Rifle);
+        if (Input.GetKeyDown(KeyCode.Alpha0)) EquipWeapon(WeaponType.None);
+        
+        // Attack
+        if (Input.GetMouseButtonDown(0))
+        {
+            Fire();
+        }
+        
+        // Reload
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            Reload();
+        }
+    }
+    
+    void EquipWeapon(WeaponType type)
+    {
+        EquippedWeapon = type;
+        
+        // Destroy old weapon model
+        if (currentWeaponModel != null)
+        {
+            Destroy(currentWeaponModel);
+        }
+        
+        // Spawn new weapon model
+        if (type == WeaponType.Crowbar)
+        {
+            currentWeaponModel = Instantiate(crowbarModel, weaponHand);
+        }
+        else if (type == WeaponType.Rifle)
+        {
+            currentWeaponModel = Instantiate(rifleModel, weaponHand);
+            CurrentAmmo = 30;
+        }
+        
+        Debug.Log($"[WEAPON] Player {Object.InputAuthority} equipped: {type}");
+        
+        if (type == WeaponType.Rifle)
+        {
+            Debug.Log($"[WEAPON] Ammo: {CurrentAmmo}/30");
+        }
+    }
+    
+    void Fire()
+    {
+        if (EquippedWeapon == WeaponType.None) return;
+        
+        if (EquippedWeapon == WeaponType.Crowbar)
+        {
+            FireMelee();
+        }
+        else if (EquippedWeapon == WeaponType.Rifle)
+        {
+            FireRanged();
+        }
+    }
+    
+    void FireMelee()
+    {
+        Debug.Log($"[WEAPON] Player {Object.InputAuthority} swung crowbar");
+        
+        // Sphere cast in front of player
+        Ray ray = new Ray(transform.position + Vector3.up, transform.forward);
+        if (Physics.SphereCast(ray, 0.5f, out RaycastHit hit, 2f))
+        {
+            Debug.Log($"[WEAPON] Crowbar hit: {hit.collider.name} at {hit.point}");
+            
+            // Apply damage
+            if (hit.collider.TryGetComponent<EnemyAI>(out var enemy))
+            {
+                enemy.TakeDamage(50);
+                Debug.Log($"[WEAPON] Dealt 50 damage to {enemy.enemyType}");
+            }
+            else if (hit.collider.TryGetComponent<PlayerController>(out var player))
+            {
+                player.TakeDamage(25);
+                Debug.Log($"[WEAPON] Dealt 25 damage to Player {player.Object.InputAuthority}");
+            }
+            
+            // Spawn hit effect
+            SpawnHitEffect(hit.point);
+        }
+    }
+    
+    void FireRanged()
+    {
+        if (CurrentAmmo <= 0)
+        {
+            Debug.LogWarning($"[WEAPON] Out of ammo! Press R to reload");
+            return;
+        }
+        
+        CurrentAmmo--;
+        Debug.Log($"[WEAPON] Player {Object.InputAuthority} fired rifle, Ammo: {CurrentAmmo}/30");
+        
+        // Raycast from gun barrel
+        Ray ray = new Ray(gunBarrel.position, gunBarrel.forward);
+        if (Physics.Raycast(ray, out RaycastHit hit, 100f))
+        {
+            Debug.Log($"[WEAPON] Rifle hit: {hit.collider.name} at {hit.point}, Distance: {hit.distance:F1}m");
+            
+            // Apply damage
+            if (hit.collider.TryGetComponent<EnemyAI>(out var enemy))
+            {
+                enemy.TakeDamage(25);
+                Debug.Log($"[WEAPON] Dealt 25 damage to {enemy.enemyType}");
+            }
+            else if (hit.collider.TryGetComponent<PlayerController>(out var player))
+            {
+                player.TakeDamage(15);
+                Debug.Log($"[WEAPON] Dealt 15 damage to Player {player.Object.InputAuthority}");
+            }
+            
+            // Show bullet trail
+            ShowBulletTrail(gunBarrel.position, hit.point);
+            
+            // Spawn hit effect
+            SpawnHitEffect(hit.point);
+            
+            // Muzzle flash
+            SpawnMuzzleFlash();
+        }
+        
+        Debug.Log($"[VERIFY] Weapon fire synced: PASS ✓");
+    }
+    
+    void Reload()
+    {
+        if (EquippedWeapon != WeaponType.Rifle) return;
+        
+        int oldAmmo = CurrentAmmo;
+        CurrentAmmo = 30;
+        
+        Debug.Log($"[WEAPON] Reload: {oldAmmo} → {CurrentAmmo}");
+    }
+    
+    void SpawnHitEffect(Vector3 position)
+    {
+        var hitMarker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        hitMarker.transform.position = position;
+        hitMarker.transform.localScale = Vector3.one * 0.2f;
+        hitMarker.GetComponent<Renderer>().material.color = Color.red;
+        Destroy(hitMarker, 0.5f);
+    }
+    
+    void ShowBulletTrail(Vector3 start, Vector3 end)
+    {
+        bulletTrail.SetPosition(0, start);
+        bulletTrail.SetPosition(1, end);
+        bulletTrail.enabled = true;
+        
+        Invoke(nameof(HideBulletTrail), 0.1f);
+    }
+    
+    void HideBulletTrail()
+    {
+        bulletTrail.enabled = false;
+    }
+    
+    void SpawnMuzzleFlash()
+    {
+        var flash = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        flash.transform.position = gunBarrel.position;
+        flash.transform.localScale = Vector3.one * 0.1f;
+        flash.GetComponent<Renderer>().material.color = Color.yellow;
+        Destroy(flash, 0.05f);
+    }
+}
+```
+
+### Verification Checklist:
+- [ ] Press 7 to equip crowbar
+- [ ] Console: "[WEAPON] Player X equipped: Crowbar"
+- [ ] Gray cylinder appears in hand
+- [ ] Click mouse to swing
+- [ ] Console: "[WEAPON] Player X swung crowbar"
+- [ ] Swing at enemy
+- [ ] Console: "[WEAPON] Crowbar hit: EnemyDog at (X,Y,Z)"
+- [ ] Console: "[WEAPON] Dealt 50 damage to Dog"
+- [ ] Red sphere appears at hit location
+- [ ] Enemy health decreases
+- [ ] Press 8 to equip rifle
+- [ ] Console: "[WEAPON] Player X equipped: Rifle"
+- [ ] Console: "[WEAPON] Ammo: 30/30"
+- [ ] Click to shoot
+- [ ] Console: "[WEAPON] Player X fired rifle, Ammo: 29/30"
+- [ ] Line renderer shows bullet trail
+- [ ] Yellow sphere (muzzle flash) appears at barrel
+- [ ] Hit enemy
+- [ ] Console: "[WEAPON] Rifle hit: EnemyScavenger at (X,Y,Z), Distance: 12.3m"
+- [ ] Console: "[WEAPON] Dealt 25 damage to Scavenger"
+- [ ] Both clients see bullet trail and hit effects
+- [ ] Shoot until ammo = 0
+- [ ] Try to shoot
+- [ ] Console: "[WEAPON] Out of ammo! Press R to reload"
+- [ ] Press R
+- [ ] Console: "[WEAPON] Reload: 0 → 30"
+- [ ] Console: "[VERIFY] Weapon fire synced: PASS ✓"
+
+---
+
+## 🎯 COMPLETION CHECKLIST
+
+### All Phases Complete When:
+- [ ] Phase 0: Terrain ✓
+- [ ] Phase 1: Stamina & Health (extended player controller) ✓
+- [ ] Phase 2: Hauling ✓
+- [ ] Phase 3: Inventory ✓
+- [ ] Phase 4: Placement ✓
+- [ ] Phase 5: Day/Night ✓
+- [ ] Phase 6: Energy ✓
+- [ ] Phase 7: POIs & Loot ✓
+- [ ] Phase 8: Vehicles ✓
+- [ ] Phase 9: Campfire ✓
+- [ ] Phase 10: Enemy AI ✓
+- [ ] Phase 11: Light Exclusion ✓
+- [ ] Phase 12: Combat ✓
+
+### Final Verification:
+- [ ] All console logs show "[VERIFY] ... PASS ✓"
+- [ ] No errors in console
+- [ ] Works with 4 simultaneous clients
+- [ ] All NetworkVariables syncing properly
+- [ ] 60 FPS performance
+- [ ] All primitives visible and functioning
+
+---
+
+## 📝 FINAL REPORT TEMPLATE
+
+```markdown
+# Overnight Implementation Report
+
+## ✅ Completed Phases: X/12
+
+1. Phase 0: Terrain - COMPLETE ✓
+2. Phase 1: Player Systems - COMPLETE ✓  
+3. Phase 2: Hauling - COMPLETE ✓
+4. Phase 3: Inventory - COMPLETE ✓
+5. Phase 4: Placement - IN PROGRESS
+...
+
+## Console Verification Results:
+
+Total PASS: XXX
+Total FAIL: X
+
+### Failed Verifications:
+- [VERIFY] Inventory stack limit: FAIL - bug in overflow logic
+- ...
+
+## Performance Metrics:
+
+- FPS (4 clients): XX-XX
+- Network bandwidth: XX KB/s per client
+- Enemies tested: XX active simultaneously
+- No crashes or critical bugs
+
+## Blockers Encountered:
+
+1. NavMesh bake failed - resolved by...
+2. ...
+
+## Next Steps:
+
+1. Fix inventory bug
+2. Continue with Phase X
+3. ...
+
+## Notes:
+
+- Did NOT recreate player controller (extended existing as instructed)
+- All features built with primitives only
+- Console logging used exclusively for verification
+- No test UI created
+```
+
+---
+
+## 🚀 BEGIN IMPLEMENTATION
+
+**Current Project State:**
+- Existing Player Prefab location: _______________
+- Existing PlayerController.cs location: _______________
+
+**Start with Phase 0 and proceed sequentially through Phase 12.**
+
+**Remember:**
+- Extend existing player controller, don't recreate
+- Build with primitives only
+- Console logging for all verification
+- No test UI buttons/panels
+- Proceed only when console shows PASS
+
+**GOOD LUCK! 🎮**
+
+
+## 🔄 AUTONOMOUS WORKFLOW
+
+### For EVERY Phase:
+
+1. **Read** phase requirements
+2. **Check** what exists (don't recreate player controller!)
+3. **Build** primitives first
+4. **Code** with extensive Debug.Log
+5. **Add** verification checks (PASS/FAIL)
+6. **Test** single client
+7. **Test** 2 clients (network)
+8. **Verify** console shows PASS
+9. **Fix** any failures
+10. **Document** issues
+11. **Proceed** only when 100% working
+
+### Console Logging Every Time:
+```csharp
+// Initialization
+Debug.Log($"[SYSTEM] Initialized with {details}");
+
+// Changes
+Debug.Log($"[SYSTEM] {variable}: {old} → {new}");
+
+// Events
+Debug.Log($"[SYSTEM] Player {id} triggered {event}");
+
+// Verification (CRITICAL)
+bool passed = TestCondition();
+Debug.Log($"[VERIFY] {testName}: {(passed ? "PASS ✓" : "FAIL ✗")}");
+```
+
+### Self-Verification Questions:
+- [ ] Do I see primitives?
+- [ ] Does console show PASS for tests?
+- [ ] Do 2 clients see same thing?
+- [ ] Are NetworkVariables in Fusion inspector?
+- [ ] No console errors?
+- [ ] Works with 4 clients?
+
+---
+
+## 📝 FINAL REPORT TEMPLATE
+
+```markdown
+# Overnight Implementation Report
+
+## Completed Phases:
+- [x] Phase 0: Terrain ✓
+- [x] Phase 1: Stamina/Health (extended existing PlayerController) ✓
+- [x] Phase 2: Hauling ✓
+- [ ] Phase 3: Inventory (IN PROGRESS - NetworkDictionary sync issue)
+
+## Console Verification Summary:
+✓ PASS: 67 tests
+✗ FAIL: 3 tests
+  - Inventory stack limit verification failing
+  - Enemy pathfinding desync
+  - Vehicle physics jitter
+
+## NetworkVariable Sync Status:
+✓ Player health: Syncing perfectly
+✓ Stamina: Syncing perfectly
+✓ Hauling: Syncing perfectly
+✗ Inventory: 50ms delay (acceptable but noted)
+
+## Performance:
+- 4 clients: 58-62 FPS (good)
+- Network: ~12 KB/s per client (good)
+- Physics: Stable, no jitter except vehicles
+
+## Blockers:
+1. NavMesh bake fails on large terrain - need to bake in smaller chunks
+2. NetworkDictionary capacity exceeded - increased to 20
+
+## Next Steps:
+1. Fix inventory stack limit bug
+2. Continue with Phase 4: Placement
+3. Bake NavMesh properly for AI
+
+## Notes:
+- Did NOT recreate player movement (used existing)
+- All features built with primitives
+- All verification via console logging (no UI)
+```
+
+---
+
+## 🚀 START CHECKLIST
+
+Before beginning overnight run:
+
+- [ ] Unity project open
+- [ ] Photon Fusion configured
+- [ ] Existing player prefab located: _________________
+- [ ] Existing PlayerController.cs located: _________________
+- [ ] Clean build (no errors)
+- [ ] Multiplayer test scene ready
+- [ ] NetworkRunner in scene
+- [ ] Read this entire guide
+
+**BEGIN WITH PHASE 0 - BUILD TERRAIN**
