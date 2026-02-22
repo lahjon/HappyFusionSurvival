@@ -10,7 +10,7 @@ namespace Starter.Platformer
 	public sealed class GameManager : NetworkBehaviour, IPlayerJoined, IPlayerLeft
 	{
 		public int MinCoinsToWin = 10;
-		public float GameOverTime = 4f;
+		public float GameOverTime = 5f;
 		public Player PlayerPrefab;
 		public float SpawnRadius = 3f;
 
