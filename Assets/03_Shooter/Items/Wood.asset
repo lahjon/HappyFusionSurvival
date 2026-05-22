@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 215c4744854153b4a948021ef1445cc3, type: 3}
+  m_Name: Wood
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ItemDefinition
+  Id: 1
+  DisplayName: Wood
+  Icon: {fileID: 0}
+  WorldPrefab: {fileID: 2848020348106660934, guid: 8015e7f4c750618478daf9a2337e1e6e, type: 3}
+  HandPrefab: {fileID: 1577575726583460350, guid: 91d766df9aea34d4b9b6360e5ff0a4ba, type: 3}
+  MaxStack: 99

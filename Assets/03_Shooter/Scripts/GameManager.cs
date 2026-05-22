@@ -10,6 +10,7 @@ namespace Starter.Shooter
 	public sealed class GameManager : NetworkBehaviour, IPlayerJoined, IPlayerLeft
 	{
 		public Player PlayerPrefab;
+		public ItemDatabase ItemDatabase;
 
 		[Networked]
 		public PlayerRef BestHunter { get; set; }
@@ -17,6 +18,13 @@ namespace Starter.Shooter
 
 		private List<Player> _players = new(32);
 		private SpawnPoint[] _spawnPoints;
+
+		private void Awake()
+		{
+			// Bind on every client (authority + remotes) so item lookups work without Resources.
+			if (ItemDatabase != null)
+				ItemDatabase.Bind();
+		}
 
 		public override void Spawned()
 		{

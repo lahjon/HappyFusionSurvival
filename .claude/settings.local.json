@@ -16,7 +16,19 @@
       "Bash(cd:*)",
       "mcp__UnityMCP__manage_scene",
       "Bash(git -C \"C:\\\\Unity Projects\\\\HappyFusionSurvival\" status --short)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Read(//c/Users/fredr/.claude/**)",
+      "Bash(tasklist)",
+      "mcp__UnityMCP__manage_prefabs",
+      "mcp__UnityMCP__manage_asset",
+      "mcp__UnityMCP__batch_execute",
+      "mcp__UnityMCP__manage_gameobject",
+      "mcp__UnityMCP__find_gameobjects",
+      "mcp__UnityMCP__manage_components",
+      "mcp__UnityMCP__manage_scriptable_object",
+      "mcp__UnityMCP__refresh_unity",
+      "mcp__UnityMCP__read_console",
+      "mcp__UnityMCP__create_script"
     ]
   }
 }
