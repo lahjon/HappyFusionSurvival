@@ -350,14 +350,17 @@ MonoBehaviour:
   HeadRenderers:
   - {fileID: 2150036199710171595}
   - {fileID: 7177264614736068185}
-  FirstPersonOverlayObjects:
-  - {fileID: 4223813532148550129}
-  - {fileID: 7348894790141556170}
-  - {fileID: 9101397391339694623}
   WalkSpeed: 5
+  SprintSpeed: 8
   JumpImpulse: 10
   UpGravity: -25
   DownGravity: -40
+  MaxStamina: 100
+  StaminaDrainPerSecond: 25
+  StaminaRegenPerSecond: 35
+  StaminaRegenDelay: 1
+  JumpStaminaCost: 15
+  MinStaminaToStartSprint: 5
   GroundAcceleration: 10
   GroundDeceleration: 10
   AirAcceleration: 10
@@ -366,16 +369,17 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 1
   ImpactPrefab: {fileID: 921809749201012083, guid: 7b3d9616a600e0a408561256ba1be9d9, type: 3}
-  MuzzleParticle: {fileID: 2310922988817635306}
+  PunchRange: 1.5
   ChestTargetPosition: {fileID: 536988984119202717}
   ChestBone: {fileID: 1992701519831656905}
   FireSound: {fileID: 3515788271502590058}
   FootstepSound: {fileID: 7822257894759364770}
   JumpAudioClip: {fileID: 8300000, guid: 111193ad93ba31640ba3bdc4695615fa, type: 3}
-  LandAudioClip: {fileID: 8300000, guid: 347d193712b16c64986423be54fb248b, type: 3}
+  LandAudioClip: {fileID: 8300000, guid: 5d389baa695e70746b0c2ad612c4bb81, type: 3}
   DustParticles: {fileID: 4917586891687763835}
   _Nickname: 
   _ChickenKills: 0
+  _Stamina: 0
 --- !u!114 &7362189930313428062
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -488,9 +492,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.Inventory
   PickupRange: 2
-  DropForwardOffset: 1.5
-  DropUpOffset: 0.5
+  DropForwardOffset: 0.2
+  DropUpOffset: 1
+  ThrowForwardSpeed: 0.5
+  ThrowUpSpeed: 0.3
+  ThrowInteractionLock: 1
   HandAnchor: {fileID: 6811691744029035999}
+  _startingItem: {fileID: 11400000, guid: a4b8c9d1e2f34a5b67890c1d2e3f4a50, type: 2}
+  _fallbackHandPrefab: {fileID: 971079267551747863, guid: d9aed784899f06440a56c27ce6a3e152, type: 3}
   _SelectedSlot: 0
 --- !u!114 &7836687535027190686
 MonoBehaviour:
@@ -542,7 +551,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.InteractionScanner
   ScanRadius: 3
-  DefaultPickupRange: 2
+  ViewConeDot: 0.3
+  ToastCooldown: 1
 --- !u!1 &3226221424221943437
 GameObject:
   m_ObjectHideFlags: 0
@@ -16687,6 +16697,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Gun_Pistol
       objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 8e1530ae5a2286341a35e7d289b1847a, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:
@@ -16698,15 +16712,5 @@ PrefabInstance:
 --- !u!4 &3591005714103112523 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 8e1530ae5a2286341a35e7d289b1847a, type: 3}
-  m_PrefabInstance: {fileID: 3917966571787449504}
-  m_PrefabAsset: {fileID: 0}
---- !u!1 &4223813532148550129 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 8e1530ae5a2286341a35e7d289b1847a, type: 3}
-  m_PrefabInstance: {fileID: 3917966571787449504}
-  m_PrefabAsset: {fileID: 0}
---- !u!1 &7348894790141556170 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: -3196450491715960470, guid: 8e1530ae5a2286341a35e7d289b1847a, type: 3}
   m_PrefabInstance: {fileID: 3917966571787449504}
   m_PrefabAsset: {fileID: 0}

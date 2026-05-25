@@ -17,7 +17,9 @@ namespace Starter.Shooter
 		public TextMeshProUGUI BestHunter;
 		public GameObject AliveGroup;
 		public GameObject DeathGroup;
-		public Image[] HealthIndicators;
+		public Image HealthBar;
+		public float HealthLerpSpeed = 6f;
+		public Image StaminaBar;
 		public CanvasGroup HitIndicator;
 
 		[Header("UI Sound Setup")]
@@ -28,6 +30,8 @@ namespace Starter.Shooter
 
 		private int _lastChickens = -1;
 		private int _lastHealth = -1;
+		private float _displayedHealthFraction = 1f;
+		private bool _wasAlive = true;
 		private PlayerRef _bestHunter;
 
 		private void OnEnable()
@@ -73,11 +77,25 @@ namespace Starter.Shooter
 
 				AliveGroup.SetActive(isAlive);
 				DeathGroup.SetActive(isAlive == false);
+			}
 
-				for (int i = 0; i < HealthIndicators.Length; i++)
-				{
-					HealthIndicators[i].enabled = _lastHealth > i;
-				}
+			if (HealthBar != null && player.Health.InitialHealth > 0)
+			{
+				float target = Mathf.Clamp01((float)player.Health.CurrentHealth / player.Health.InitialHealth);
+
+				// Snap on respawn (dead → alive) so the bar doesn't sweep up from 0 noticeably.
+				bool isAlive = player.Health.IsAlive;
+				if (isAlive && _wasAlive == false)
+					_displayedHealthFraction = target;
+				_wasAlive = isAlive;
+
+				_displayedHealthFraction = Mathf.Lerp(_displayedHealthFraction, target, Time.deltaTime * HealthLerpSpeed);
+				HealthBar.fillAmount = _displayedHealthFraction;
+			}
+
+			if (StaminaBar != null && player.MaxStamina > 0f)
+			{
+				StaminaBar.fillAmount = Mathf.Clamp01(player.Stamina / player.MaxStamina);
 			}
 
 			if (_lastChickens != player.ChickenKills)

@@ -1,6 +1,7 @@
 using UnityEngine;
 using Fusion;
 using Starter.Common.Input;
+using Starter.Common.Interactions;
 using Starter.Common.Inventory;
 
 namespace Starter.Shooter
@@ -9,6 +10,7 @@ namespace Starter.Shooter
 	{
 		Jump,
 		Fire,
+		Sprint,
 	}
 
 	/// <summary>
@@ -107,6 +109,7 @@ namespace Starter.Shooter
 
 			_input.Buttons.Set(EInputButton.Fire, _actions.Fire.IsPressed());
 			_input.Buttons.Set(EInputButton.Jump, _actions.Jump.IsPressed());
+			_input.Buttons.Set(EInputButton.Sprint, _actions.Sprint.IsPressed());
 		}
 
 		// AfterTick is called after all FixedUpdateNetwork calls on NetworkBehaviours were executed for this tick.

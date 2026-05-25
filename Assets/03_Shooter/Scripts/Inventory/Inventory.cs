@@ -10,18 +10,32 @@ namespace Starter.Shooter
 	/// State authority owns all slot mutations; clients request actions via RPC.
 	/// </summary>
 	[RequireComponent(typeof(NetworkObject))]
-	public sealed class Inventory : NetworkBehaviour, IPlayerInventory, IInteractionTarget
+	public sealed class Inventory : NetworkBehaviour, IPlayerInventory, IPickupTarget
 	{
 		public const int SlotCount = 8;
 
 		[Header("Tuning")]
 		public float PickupRange = 2f;
-		public float DropForwardOffset = 1.5f;
-		public float DropUpOffset = 0.5f;
+		public float DropForwardOffset = 1.0f;
+		public float DropUpOffset = 1.0f;
+
+		[Header("Throw")]
+		[Tooltip("Forward velocity applied to dropped items (m/s along the player's forward).")]
+		public float ThrowForwardSpeed = 1f;
+		[Tooltip("Upward velocity applied to dropped items (m/s).")]
+		public float ThrowUpSpeed = 1f;
+		[Tooltip("Seconds the dropped item is uninteractable so the thrower can't immediately re-grab it.")]
+		public float ThrowInteractionLock = 1f;
 
 		[Header("References")]
 		[Tooltip("Local-only anchor where the held HandPrefab is parented. Typically under the camera handle.")]
 		public Transform HandAnchor;
+
+		[Tooltip("Item seeded into slot 0 the first time the inventory spawns (state authority only). Usually the starting weapon.")]
+		[SerializeField] private ItemDefinition _startingItem;
+
+		[Tooltip("Local-only hand prefab shown when the selected slot is empty (e.g. fists for the punch attack).")]
+		[SerializeField] private GameObject _fallbackHandPrefab;
 
 		[Networked, Capacity(SlotCount), OnChangedRender(nameof(OnSlotsChanged))]
 		public NetworkArray<InventorySlot> Slots => default;
@@ -36,14 +50,32 @@ namespace Starter.Shooter
 		private short _heldItemId;
 		private GameInputActions _actions;
 
+		public GameObject HeldInstance => _heldInstance;
+		public short SelectedItemId => Slots[SelectedSlot].ItemId;
+
 		public override void Spawned()
 		{
+			if (HasStateAuthority && _startingItem != null && _startingItem.Id != 0 && AllSlotsEmpty())
+			{
+				Slots.Set(0, new InventorySlot { ItemId = _startingItem.Id, Count = 1 });
+				SelectedSlot = 0;
+			}
+
 			if (HasInputAuthority)
 			{
 				_actions = GetComponent<GameInputActions>();
 			}
 
 			RefreshHeldItem();
+		}
+
+		private bool AllSlotsEmpty()
+		{
+			for (int i = 0; i < Slots.Length; i++)
+			{
+				if (Slots[i].IsEmpty == false) return false;
+			}
+			return true;
 		}
 
 		public override void Despawned(NetworkRunner runner, bool hasState)
@@ -87,9 +119,7 @@ namespace Starter.Shooter
 			}
 		}
 
-		float IInteractionTarget.PickupRange => PickupRange;
-
-		void IInteractionTarget.OnPickupRequested(PickupableItem pickup)
+		void IPickupTarget.OnPickupRequested(PickupableItem pickup)
 		{
 			if (pickup == null || pickup.Object == null) return;
 			RPC_RequestPickup(pickup.Object.Id);
@@ -131,6 +161,18 @@ namespace Starter.Shooter
 			DropSelected();
 		}
 
+		[Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
+		public void RPC_RequestDropAt(int slot)
+		{
+			DropAt(slot);
+		}
+
+		public void RequestDropSlot(int slot)
+		{
+			if (slot < 0 || slot >= SlotCount) return;
+			RPC_RequestDropAt(slot);
+		}
+
 		public short TryAdd(short itemId, short count)
 		{
 			return InventoryOps.TryAdd(Slots, itemId, count);
@@ -150,21 +192,41 @@ namespace Starter.Shooter
 
 		public void DropSelected()
 		{
-			var s = Slots[SelectedSlot];
+			DropAt(SelectedSlot);
+		}
+
+		public void DropAt(int slot)
+		{
+			if (slot < 0 || slot >= SlotCount) return;
+
+			var s = Slots[slot];
 			if (s.IsEmpty) return;
 			if (ItemDatabase.Instance == null) return;
 
 			var def = ItemDatabase.Instance.GetById(s.ItemId);
 			if (def == null || def.WorldPrefab == null) return;
+			if (def.WorldPrefab.GetComponent<NetworkObject>() == null)
+			{
+				Debug.LogWarning($"[Inventory] Item '{def.DisplayName}' has WorldPrefab '{def.WorldPrefab.name}' without a NetworkObject component — drop ignored.");
+				return;
+			}
 
-			var pos = transform.position + transform.forward * DropForwardOffset + Vector3.up * DropUpOffset;
+			// Spawn at the player's hand (where the held item visually lives) so the drop
+			// appears to fall out of the hand. Fall back to a chest-height offset on the
+			// player root if HandAnchor isn't wired up.
+			Vector3 pos = HandAnchor != null
+				? HandAnchor.position + transform.forward * DropForwardOffset
+				: transform.position + transform.forward * DropForwardOffset + Vector3.up * DropUpOffset;
+
 			var spawned = Runner.Spawn(def.WorldPrefab, pos, Quaternion.identity);
 			if (spawned != null && spawned.TryGetComponent<PickupableItem>(out var pi))
 			{
 				pi.Initialize(s.ItemId, s.Count);
+				var velocity = transform.forward * ThrowForwardSpeed + Vector3.up * ThrowUpSpeed;
+				pi.Throw(velocity, ThrowInteractionLock);
 			}
 
-			Slots.Set(SelectedSlot, InventorySlot.Empty);
+			Slots.Set(slot, InventorySlot.Empty);
 		}
 
 		public void SelectSlot(int idx)
@@ -200,18 +262,48 @@ namespace Starter.Shooter
 			_heldItemId = 0;
 
 			if (HandAnchor == null) return;
-			if (ItemDatabase.Instance == null) return;
 
 			var s = Slots[SelectedSlot];
-			if (s.IsEmpty) return;
+			GameObject prefab = null;
 
-			var def = ItemDatabase.Instance.GetById(s.ItemId);
-			if (def == null || def.HandPrefab == null) return;
+			if (s.IsEmpty)
+			{
+				prefab = _fallbackHandPrefab;
+			}
+			else if (ItemDatabase.Instance != null)
+			{
+				var def = ItemDatabase.Instance.GetById(s.ItemId);
+				if (def != null)
+				{
+					prefab = def.HandPrefab;
+					_heldItemId = def.Id;
+				}
+			}
 
-			_heldInstance = Instantiate(def.HandPrefab, HandAnchor);
+			if (prefab == null) return;
+
+			_heldInstance = Instantiate(prefab, HandAnchor);
 			_heldInstance.transform.localPosition = Vector3.zero;
 			_heldInstance.transform.localRotation = Quaternion.identity;
-			_heldItemId = def.Id;
+
+			if (HasInputAuthority)
+			{
+				int overlayLayer = LayerMask.NameToLayer("FirstPersonOverlay");
+				if (overlayLayer >= 0)
+				{
+					SetLayerRecursively(_heldInstance, overlayLayer);
+				}
+			}
+		}
+
+		private static void SetLayerRecursively(GameObject go, int layer)
+		{
+			go.layer = layer;
+			var t = go.transform;
+			for (int i = 0; i < t.childCount; i++)
+			{
+				SetLayerRecursively(t.GetChild(i).gameObject, layer);
+			}
 		}
 	}
 }

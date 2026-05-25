@@ -21,13 +21,22 @@ namespace Starter.Shooter
 		public UINameplate Nameplate;
 		public HitboxRoot HitboxRoot;
 		public Renderer[] HeadRenderers;
-		public GameObject[] FirstPersonOverlayObjects;
 
 		[Header("Movement Setup")]
 		public float WalkSpeed = 2f;
+		public float SprintSpeed = 8f;
 		public float JumpImpulse = 10f;
 		public float UpGravity = 25f;
 		public float DownGravity = 40f;
+
+		[Header("Stamina")]
+		public float MaxStamina = 100f;
+		public float StaminaDrainPerSecond = 25f;
+		public float StaminaRegenPerSecond = 35f;
+		public float StaminaRegenDelay = 1f;
+		public float JumpStaminaCost = 15f;
+		[Tooltip("Stamina must reach this value before sprinting can start again after being fully depleted.")]
+		public float MinStaminaToStartSprint = 5f;
 
 		[Header("Movement Accelerations")]
 		public float GroundAcceleration = 55f;
@@ -38,7 +47,8 @@ namespace Starter.Shooter
 		[Header("Fire Setup")]
 		public LayerMask HitMask;
 		public GameObject ImpactPrefab;
-		public ParticleSystem MuzzleParticle;
+		[Tooltip("Effective range for the unarmed punch attack (meters).")]
+		public float PunchRange = 1.5f;
 
 		[Header("Animation Setup")]
 		public Transform ChestTargetPosition;
@@ -57,11 +67,17 @@ namespace Starter.Shooter
 		public string Nickname { get; set; }
 		[Networked, HideInInspector]
 		public int ChickenKills { get; set; }
+		[Networked, HideInInspector]
+		public float Stamina { get; private set; }
 
 		[Networked]
 		private Vector3 _moveVelocity { get; set; }
 		[Networked, OnChangedRender(nameof(OnJumpingChanged))]
 		private NetworkBool _isJumping { get; set; }
+		[Networked]
+		private NetworkBool _wasSprinting { get; set; }
+		[Networked]
+		private TickTimer _staminaRegenTimer { get; set; }
 		[Networked]
 		private Vector3 _hitPosition { get; set; }
 		[Networked]
@@ -78,6 +94,7 @@ namespace Starter.Shooter
 		private int _animIDShoot;
 
 		private int _visibleFireCount;
+		private Inventory _inventory;
 
 		public void Respawn(Vector3 position)
 		{
@@ -89,10 +106,18 @@ namespace Starter.Shooter
 			KCC.SetLookRotation(0f, 0f);
 
 			_moveVelocity = Vector3.zero;
+			Stamina = MaxStamina;
+			_wasSprinting = false;
+			_staminaRegenTimer = default;
 		}
 
 		public override void Spawned()
 		{
+			if (HasStateAuthority)
+			{
+				Stamina = MaxStamina;
+			}
+
 			if (HasInputAuthority)
 			{
 				// Sending player nickname that is saved in UIGameMenu
@@ -114,13 +139,8 @@ namespace Starter.Shooter
 					HeadRenderers[i].shadowCastingMode = ShadowCastingMode.ShadowsOnly;
 				}
 
-				// Some objects (e.g. weapon) are renderer with secondary Overlay camera.
-				// This prevents weapon clipping into the wall when close to the wall.
-				int overlayLayer = LayerMask.NameToLayer("FirstPersonOverlay");
-				for (int i = 0; i < FirstPersonOverlayObjects.Length; i++)
-				{
-					FirstPersonOverlayObjects[i].layer = overlayLayer;
-				}
+				// Held weapon is moved to FirstPersonOverlay layer by Inventory.RefreshHeldItem
+				// to prevent clipping when close to a wall.
 
 				// Look rotation interpolation is skipped for local player.
 				// Look rotation is set manually in Render.
@@ -130,15 +150,22 @@ namespace Starter.Shooter
 
 		public override void FixedUpdateNetwork()
 		{
+			bool drainedThisTick = false;
 			if (Health.IsAlive && GetInput<GameplayInput>(out var input))
 			{
-				ProcessInput(input, Input.PreviousButtons);
+				drainedThisTick = ProcessInput(input, Input.PreviousButtons);
 			}
 			else
 			{
 				// Continue with KCC movement (e.g. fall) even
 				// when player is dead or input is missing.
 				MovePlayer(Vector3.zero, 0f);
+				_wasSprinting = false;
+			}
+
+			if (drainedThisTick == false && _staminaRegenTimer.ExpiredOrNotRunning(Runner))
+			{
+				Stamina = Mathf.Min(MaxStamina, Stamina + StaminaRegenPerSecond * Runner.DeltaTime);
 			}
 
 			if (KCC.IsGrounded)
@@ -180,6 +207,7 @@ namespace Starter.Shooter
 		private void Awake()
 		{
 			AssignAnimationIDs();
+			_inventory = GetComponent<Inventory>();
 		}
 
 		private void LateUpdate()
@@ -206,13 +234,30 @@ namespace Starter.Shooter
 			}
 		}
 
-		private void ProcessInput(GameplayInput input, NetworkButtons previousButtons)
+		private bool ProcessInput(GameplayInput input, NetworkButtons previousButtons)
 		{
 			KCC.SetLookRotation(input.LookRotation, -90f, 90f);
 
 			// Calculate correct move direction from input (rotated based on latest KCC rotation)
 			var moveDirection = KCC.TransformRotation * new Vector3(input.MoveDirection.x, 0f, input.MoveDirection.y);
-			var desiredMoveVelocity = moveDirection * WalkSpeed;
+
+			bool wantsSprint = input.Buttons.IsSet(EInputButton.Sprint);
+			bool isMoving = input.MoveDirection.sqrMagnitude > 0.01f;
+			// Allow continuing a sprint as long as stamina > 0; require MinStaminaToStartSprint to (re)start.
+			float startThreshold = _wasSprinting ? 0f : MinStaminaToStartSprint;
+			bool isSprinting = wantsSprint && isMoving && Stamina > startThreshold;
+
+			float speed = isSprinting ? SprintSpeed : WalkSpeed;
+			var desiredMoveVelocity = moveDirection * speed;
+
+			bool drained = false;
+			if (isSprinting)
+			{
+				Stamina = Mathf.Max(0f, Stamina - StaminaDrainPerSecond * Runner.DeltaTime);
+				_staminaRegenTimer = TickTimer.CreateFromSeconds(Runner, StaminaRegenDelay);
+				drained = true;
+			}
+			_wasSprinting = isSprinting;
 
 			float jumpImpulse = 0f;
 
@@ -222,6 +267,10 @@ namespace Starter.Shooter
 				// Set world space jump vector
 				jumpImpulse = JumpImpulse;
 				_isJumping = true;
+
+				Stamina = Mathf.Max(0f, Stamina - JumpStaminaCost);
+				_staminaRegenTimer = TickTimer.CreateFromSeconds(Runner, StaminaRegenDelay);
+				drained = true;
 			}
 
 			MovePlayer(desiredMoveVelocity, jumpImpulse);
@@ -234,6 +283,8 @@ namespace Starter.Shooter
 			{
 				Fire();
 			}
+
+			return drained;
 		}
 
 		private void MovePlayer(Vector3 desiredMoveVelocity, float jumpImpulse)
@@ -259,18 +310,27 @@ namespace Starter.Shooter
 
 		private void Fire()
 		{
+			var held = GetHeldWeapon();
+			var fist = held == null ? GetHeldFist() : null;
+
+			// Nothing to fire/punch with.
+			if (held == null && fist == null) return;
+
+			float range = held != null ? held.Range : PunchRange;
+			int damage = held != null ? held.Damage : 1;
+
 			// Clear hit position in case nothing will be hit
 			_hitPosition = Vector3.zero;
 
 			var hitOptions = HitOptions.IncludePhysX | HitOptions.IgnoreInputAuthority;
 
 			// Whole projectile path and effects are immediately processed (= hitscan projectile)
-			if (Runner.LagCompensation.Raycast(CameraHandle.position, CameraHandle.forward, 200f,
+			if (Runner.LagCompensation.Raycast(CameraHandle.position, CameraHandle.forward, range,
 				    Object.InputAuthority, out var hit, HitMask, hitOptions, QueryTriggerInteraction.Ignore) == true)
 			{
 				// Deal damage
 				var health = hit.Hitbox != null ? hit.Hitbox.Root.GetComponent<Health>() : null;
-				if (health != null && health.TakeHit(1))
+				if (health != null && health.TakeHit(damage))
 				{
 					if (health.IsAlive == false)
 					{
@@ -300,8 +360,26 @@ namespace Starter.Shooter
 			// local player mispredicted fire (e.g. input got lost) and fireCount property got decreased.
 			if (_visibleFireCount < _fireCount)
 			{
-				FireSound.PlayOneShot(FireSound.clip);
-				MuzzleParticle.Play();
+				var held = GetHeldWeapon();
+				var fist = held == null ? GetHeldFist() : null;
+
+				if (held != null)
+				{
+					if (held.IsMelee)
+					{
+						held.Swing();
+					}
+					else
+					{
+						FireSound.PlayOneShot(FireSound.clip);
+						if (held.MuzzleParticle != null) held.MuzzleParticle.Play();
+					}
+				}
+				else if (fist != null)
+				{
+					fist.Punch();
+				}
+
 				Animator.SetTrigger(_animIDShoot);
 
 				if (_hitPosition != Vector3.zero)
@@ -312,6 +390,20 @@ namespace Starter.Shooter
 			}
 
 			_visibleFireCount = _fireCount;
+		}
+
+		private HeldWeapon GetHeldWeapon()
+		{
+			if (_inventory == null) return null;
+			var instance = _inventory.HeldInstance;
+			return instance != null ? instance.GetComponent<HeldWeapon>() : null;
+		}
+
+		private FistPunchAnimator GetHeldFist()
+		{
+			if (_inventory == null) return null;
+			var instance = _inventory.HeldInstance;
+			return instance != null ? instance.GetComponent<FistPunchAnimator>() : null;
 		}
 
 		private void AssignAnimationIDs()

@@ -10,6 +10,8 @@ No README. `prompt.md` and `MEMORY.md` are the authoritative Survival design doc
 
 **Networked-first.** Default to Fusion 2 patterns (`NetworkBehaviour`, `[Networked]`, RPCs, `INetworkInput`, `TickTimer`) for anything touching gameplay state, player actions, or spawned objects. Plain `MonoBehaviour` only for local-only visuals (camera, UI, cosmetic FX) — call it out when you do. See "Networking conventions" below.
 
+**Replication decision is part of every feature.** Before writing any new gameplay system, state the replication answer up front in your plan: (a) does this state need to be visible/consistent across peers? (b) who is the authority? (c) which Fusion primitive carries it? If the answer to (a) is no, say "local-only, MonoBehaviour" explicitly so the user can challenge it. If yes, pick the right primitive (see decision table below) before writing code — retrofitting replication onto a `MonoBehaviour` later is a rewrite, not an edit.
+
 ## Build / run
 
 No CLI build. Open in Unity 6000.4.8f1:
@@ -49,6 +51,26 @@ Namespaces: `Starter.<ModeName>` (e.g. `Starter.Shooter`, `Starter.Survival`).
 - `OnChangedRender` instead of polling `[Networked]` values (see `Player.Nickname`, `Player._isJumping` in `03_Shooter`).
 - Unity 6 API: `Rigidbody.linearVelocity`/`linearDamping` (not `velocity`/`drag`); `FindFirstObjectByType<T>()` / `FindObjectsByType<T>(FindObjectsSortMode.None)`.
 - `Object.AssignInputAuthority()` / `RemoveInputAuthority()` for vehicle-style possession.
+
+#### Replication decision table
+
+For every new piece of state, classify it before writing the field:
+
+| Kind of state | Primitive | Notes |
+|---|---|---|
+| Per-player gameplay value (health, stamina, ammo, score) | `[Networked]` field on the player's `NetworkBehaviour` | Mutate only in `FixedUpdateNetwork` on state authority. Render-side, use `OnChangedRender` or poll in `Render()`. |
+| Per-player cooldown / duration | `[Networked] TickTimer` | Never `Time.time` — desyncs immediately. |
+| Per-player input intent (held key, axis) | `INetworkInput` struct field + `EInputButton` flag | Sample in `Update()` on input authority, write into the input struct, read in `FixedUpdateNetwork` via `GetInput()`. |
+| One-shot effect that crosses authority (player → server damage) | `[Rpc]` method | Set `RpcSources` / `RpcTargets` explicitly. Don't use RPCs for continuous state — that's what `[Networked]` is for. |
+| One-shot visual that all clients must see at the same moment (muzzle flash sync) | `[Networked]` counter + `OnChangedRender`, or RPC to All | The counter pattern (`Player._fireCount`) tolerates lost ticks better than RPC-to-All. |
+| World object that exists for all peers (loot pickup, chicken) | `NetworkObject` spawned via `Runner.Spawn` | Despawn via `Runner.Despawn`. Don't `Instantiate`/`Destroy` directly. |
+| Variable-length list synced to everyone | `NetworkArray<T>` (fixed cap) or `NetworkDictionary<K,V>` | Declare with `[Capacity(N)]`. Only state authority writes. |
+| Purely cosmetic, local view (camera shake, UI tween, footstep sound for local player) | Plain `MonoBehaviour`, `Time.deltaTime` | Call it out in the plan: "local-only, no replication." |
+| Local input/UX state (cursor lock, menu open, hotbar scroll position) | Plain `MonoBehaviour` | Each client owns their own. |
+
+If a feature has **a UI element that reflects networked state** (stamina bar, health hearts, ammo count), the data field is `[Networked]` on the gameplay component and the UI reads it every frame in `Update()` — the UI itself stays a `MonoBehaviour`. Don't put `[Networked]` on UI scripts.
+
+When unsure, state the assumption in the plan ("Stamina will be `[Networked] float` on Player, mutated only by state authority in `FixedUpdateNetwork`; UI reads it from `GameManager.LocalPlayer`") so the user can correct it before code lands.
 
 ### Movement
 

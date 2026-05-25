@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -26,11 +27,23 @@ namespace Starter.Common.Inventory.UI
 		/// <summary>Layer that hosts the dragging ghost — must have raycast off.</summary>
 		public RectTransform GhostLayer;
 
+		/// <summary>Fires on end-of-drag when no <see cref="DroppableSlot"/> consumed the drop.</summary>
+		public event Action<DraggableSlot> DroppedOutside;
+
 		private GameObject _ghost;
 		private Image _ghostIcon;
+		private bool _dropConsumed;
+
+		/// <summary>Called by <see cref="DroppableSlot"/> to mark that the drop has been handled.</summary>
+		public void ConsumeDrop()
+		{
+			_dropConsumed = true;
+		}
 
 		public void OnBeginDrag(PointerEventData eventData)
 		{
+			_dropConsumed = false;
+
 			if (SourceIcon == null || SourceIcon.enabled == false || SourceIcon.sprite == null)
 				return;
 			if (GhostLayer == null)
@@ -62,11 +75,18 @@ namespace Starter.Common.Inventory.UI
 
 		public void OnEndDrag(PointerEventData eventData)
 		{
+			bool hadGhost = _ghost != null;
+
 			if (_ghost != null)
 			{
 				Destroy(_ghost);
 				_ghost = null;
 				_ghostIcon = null;
+			}
+
+			if (hadGhost && _dropConsumed == false)
+			{
+				DroppedOutside?.Invoke(this);
 			}
 		}
 

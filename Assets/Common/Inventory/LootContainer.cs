@@ -1,5 +1,6 @@
 using System;
 using Fusion;
+using Starter.Common.Interactions;
 using UnityEngine;
 
 namespace Starter.Common.Inventory
@@ -10,7 +11,7 @@ namespace Starter.Common.Inventory
 	/// State authority owns all slot mutations; clients drive interactions via RPCs.
 	/// </summary>
 	[RequireComponent(typeof(NetworkObject))]
-	public sealed class LootContainer : NetworkBehaviour, IPlayerLeft
+	public sealed class LootContainer : NetworkBehaviour, IPlayerLeft, IInteractable
 	{
 		public const int Capacity = 6;
 		public const byte InvPlayer = 0;
@@ -93,6 +94,19 @@ namespace Starter.Common.Inventory
 			{
 				CurrentUser = PlayerRef.None;
 			}
+		}
+
+		// --- IInteractable ---
+
+		float IInteractable.InteractRange => InteractRange;
+		bool IInteractable.CanInteract => CurrentUser == PlayerRef.None;
+		Vector3 IInteractable.InteractionPoint => transform.position;
+		string IInteractable.LockedReason => $"{DisplayName} is in use";
+
+		void IInteractable.OnInteract(InteractionScanner scanner)
+		{
+			var session = scanner.GetComponent<LootSession>();
+			if (session != null) session.TryOpen(this);
 		}
 
 		/// <summary>
@@ -221,5 +235,8 @@ namespace Starter.Common.Inventory
 	{
 		NetworkArray<InventorySlot> Slots { get; }
 		event Action SlotsChanged;
+
+		/// <summary>Local-side request to drop the contents of <paramref name="slot"/> into the world.</summary>
+		void RequestDropSlot(int slot);
 	}
 }

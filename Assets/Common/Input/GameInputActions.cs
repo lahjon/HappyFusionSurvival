@@ -21,6 +21,7 @@ namespace Starter.Common.Input
 		public InputAction Look { get; private set; }
 		public InputAction Fire { get; private set; }
 		public InputAction Jump { get; private set; }
+		public InputAction Sprint { get; private set; }
 		public InputAction Interact { get; private set; }
 		public InputAction Drop { get; private set; }
 		public InputAction HotbarScroll { get; private set; }
@@ -54,6 +55,7 @@ namespace Starter.Common.Input
 			Look = PlayerMap.FindAction("Look", true);
 			Fire = PlayerMap.FindAction("Attack", true);
 			Jump = PlayerMap.FindAction("Jump", true);
+			Sprint = PlayerMap.FindAction("Sprint", true);
 			Interact = PlayerMap.FindAction("Interact", true);
 			Drop = PlayerMap.FindAction("Drop", true);
 			HotbarScroll = PlayerMap.FindAction("HotbarScroll", true);

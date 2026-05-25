@@ -272,12 +272,12 @@ namespace Starter.Shooter
 
 		private void RefreshSelected()
 		{
-			if (_inventory == null || _slotBackgrounds == null)
+			if (_inventory == null || _slotHovers == null)
 				return;
 
 			for (int i = 0; i < Inventory.SlotCount; i++)
 			{
-				_slotBackgrounds[i].color = (i == _inventory.SelectedSlot) ? SelectedColor : NormalColor;
+				_slotHovers[i].SetBaseColor((i == _inventory.SelectedSlot) ? SelectedColor : NormalColor);
 			}
 		}
 	}

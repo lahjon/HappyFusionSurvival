@@ -348,6 +348,7 @@ namespace Starter.Common.Inventory.UI
 				drag.Kind = kind;
 				drag.Index = i;
 				drag.SourceIcon = widget.Icon;
+				drag.DroppedOutside += OnSlotDroppedOutside;
 
 				var drop = widget.Root.gameObject.AddComponent<DroppableSlot>();
 				drop.Kind = kind;
@@ -358,6 +359,15 @@ namespace Starter.Common.Inventory.UI
 			}
 
 			return (RectTransform)gridGO.transform;
+		}
+
+		private void OnSlotDroppedOutside(DraggableSlot src)
+		{
+			if (src == null || _playerInventory == null) return;
+			// Only player-side slots drop into the world. Container slots stay in the container.
+			if (src.Kind != SlotInventoryKind.Player) return;
+
+			_playerInventory.RequestDropSlot(src.Index);
 		}
 
 		private void OnTakeAllClicked()

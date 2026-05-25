@@ -1,6 +1,7 @@
 using System;
 using Fusion;
 using Starter.Common.Input;
+using Starter.Common.Interactions;
 using Starter.Common.Inventory.UI;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -15,8 +16,10 @@ namespace Starter.Common.Inventory
 	/// </summary>
 	[RequireComponent(typeof(GameInputActions))]
 	[RequireComponent(typeof(InputContextController))]
-	public sealed class LootSession : MonoBehaviour
+	public sealed class LootSession : MonoBehaviour, IInteractionGate
 	{
+		bool IInteractionGate.AllowInteractions => Current == null;
+
 		public LootContainer Current { get; private set; }
 
 		/// <summary>True while ANY local LootSession has an open container. Polled by UIGameMenu to suppress menu toggle / cursor lock during looting.</summary>

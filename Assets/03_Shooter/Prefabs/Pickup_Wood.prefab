@@ -121,6 +121,7 @@ GameObject:
   - component: {fileID: 5810687570780950923}
   - component: {fileID: 2089997677248697243}
   - component: {fileID: 4073227502818236196}
+  - component: {fileID: 230246562420303009}
   m_Layer: 0
   m_Name: Pickup_Wood
   m_TagString: Untagged
@@ -177,8 +178,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.PickupableItem
   _initialItem: {fileID: 11400000, guid: 937396294af95d448a9b450b9c0dede9, type: 2}
   _initialCount: 1
+  PickupRange: 2
   _ItemId: 0
   _Count: 0
+  _NetPosition: {x: 0, y: 0, z: 0}
 --- !u!65 &2089997677248697243
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -212,10 +215,37 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6a01df1db20125445860eb1cc6f7f19f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.PickupItemPrompt
-  LocalOffset: {x: 0, y: 0.6, z: 0}
-  CanvasScale: 0.005
-  IndicatorSize: {x: 40, y: 40}
+  LocalOffset: {x: 0, y: 0, z: 0}
+  CameraBias: 0
+  CanvasSortOrder: 100
   VisibilityRange: 2
   ActiveRange: 2
   ActiveColor: {r: 0.3, g: 0.65, b: 1, a: 1}
   InactiveColor: {r: 0.3, g: 0.65, b: 1, a: 0.35}
+--- !u!54 &230246562420303009
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2848020348106660934}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0.1
+  m_AngularDamping: 0.5
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 0
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0

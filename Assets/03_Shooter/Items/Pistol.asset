@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 215c4744854153b4a948021ef1445cc3, type: 3}
+  m_Name: Pistol
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ItemDefinition
+  Id: 4
+  DisplayName: Pistol
+  Icon: {fileID: -498329690, guid: e0bafaad9daa92a4c992e1a41a16a12a, type: 3}
+  Description: Standard-issue sidearm.
+  Stats: []
+  WorldPrefab: {fileID: 2848020348106660934, guid: 50842140ef8362c4caaae956da7e9117, type: 3}
+  HandPrefab: {fileID: 6289258565578411722, guid: 80010673879343c47aa9fd72306b3f20, type: 3}
+  MaxStack: 1

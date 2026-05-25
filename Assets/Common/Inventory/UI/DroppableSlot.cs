@@ -20,6 +20,9 @@ namespace Starter.Common.Inventory.UI
 			if (Session == null || eventData.pointerDrag == null) return;
 			if (!eventData.pointerDrag.TryGetComponent<DraggableSlot>(out var src)) return;
 
+			// Mark the drop as handled so DraggableSlot does not treat it as a drop-to-world.
+			src.ConsumeDrop();
+
 			if (src.Kind == Kind && src.Index == Index) return;
 
 			Session.RequestMove((byte)src.Kind, (byte)src.Index, (byte)Kind, (byte)Index);
