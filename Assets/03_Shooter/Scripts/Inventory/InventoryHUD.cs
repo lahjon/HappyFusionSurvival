@@ -26,6 +26,9 @@ namespace Starter.Shooter
 		private Image[] _slotIcons;
 		private TMP_Text[] _slotLabels;
 		private TMP_Text[] _slotCounts;
+		private InventorySlotHover[] _slotHovers;
+		private InventoryTooltip _tooltip;
+		private int _hoveredSlot = -1;
 
 		private void Awake()
 		{
@@ -60,6 +63,7 @@ namespace Starter.Shooter
 			_slotIcons = new Image[Inventory.SlotCount];
 			_slotLabels = new TMP_Text[Inventory.SlotCount];
 			_slotCounts = new TMP_Text[Inventory.SlotCount];
+			_slotHovers = new InventorySlotHover[Inventory.SlotCount];
 
 			rt.anchorMin = new Vector2(0.5f, 0f);
 			rt.anchorMax = new Vector2(0.5f, 0f);
@@ -80,7 +84,13 @@ namespace Starter.Shooter
 				srt.anchoredPosition = new Vector2(SlotSize * 0.5f + i * (SlotSize + SlotSpacing), 0f);
 				_slotBackgrounds[i] = slot.GetComponent<Image>();
 				_slotBackgrounds[i].color = NormalColor;
-				_slotBackgrounds[i].raycastTarget = false;
+				_slotBackgrounds[i].raycastTarget = true;
+
+				var hover = slot.AddComponent<InventorySlotHover>();
+				hover.SlotIndex = i;
+				hover.Entered += OnSlotEntered;
+				hover.Exited += OnSlotExited;
+				_slotHovers[i] = hover;
 
 				var icon = new GameObject("Icon", typeof(RectTransform), typeof(Image));
 				icon.transform.SetParent(slot.transform, false);
@@ -127,6 +137,60 @@ namespace Starter.Shooter
 				countText.text = string.Empty;
 				_slotCounts[i] = countText;
 			}
+
+			BuildTooltip();
+		}
+
+		private void BuildTooltip()
+		{
+			var canvas = GetComponentInParent<Canvas>();
+			Transform parent = canvas != null ? canvas.transform : transform;
+
+			var go = new GameObject("InventoryTooltip", typeof(RectTransform));
+			go.transform.SetParent(parent, false);
+			go.transform.SetAsLastSibling();
+			_tooltip = go.AddComponent<InventoryTooltip>();
+		}
+
+		private void OnSlotEntered(int slotIndex)
+		{
+			_hoveredSlot = slotIndex;
+			ShowTooltipForSlot(slotIndex);
+		}
+
+		private void OnSlotExited(int slotIndex)
+		{
+			if (_hoveredSlot != slotIndex)
+				return;
+			_hoveredSlot = -1;
+			if (_tooltip != null)
+				_tooltip.Hide();
+		}
+
+		private void ShowTooltipForSlot(int slotIndex)
+		{
+			if (_tooltip == null) return;
+			if (_inventory == null || slotIndex < 0 || slotIndex >= Inventory.SlotCount)
+			{
+				_tooltip.Hide();
+				return;
+			}
+
+			var slot = _inventory.Slots[slotIndex];
+			if (slot.IsEmpty || ItemDatabase.Instance == null)
+			{
+				_tooltip.Hide();
+				return;
+			}
+
+			var def = ItemDatabase.Instance.GetById(slot.ItemId);
+			if (def == null)
+			{
+				_tooltip.Hide();
+				return;
+			}
+
+			_tooltip.Show(def, slot.Count);
 		}
 
 		private void TryBind()
@@ -171,6 +235,9 @@ namespace Starter.Shooter
 					_slotCounts[i].text = slot.Count > 1 ? $"x{slot.Count}" : string.Empty;
 				}
 			}
+
+			if (_hoveredSlot != -1)
+				ShowTooltipForSlot(_hoveredSlot);
 		}
 
 		private void RefreshSelected()

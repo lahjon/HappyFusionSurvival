@@ -2,6 +2,13 @@ using UnityEngine;
 
 namespace Starter.Shooter
 {
+	[System.Serializable]
+	public struct ItemStat
+	{
+		public string Label;
+		public string Value;
+	}
+
 	[CreateAssetMenu(fileName = "Item", menuName = "Shooter/Item Definition", order = 0)]
 	public sealed class ItemDefinition : ScriptableObject
 	{
@@ -10,6 +17,12 @@ namespace Starter.Shooter
 
 		public string DisplayName = "Item";
 		public Sprite Icon;
+
+		[TextArea(2, 6)]
+		public string Description;
+
+		[Tooltip("Optional list of stat rows shown in the tooltip (e.g. Damage / 12).")]
+		public ItemStat[] Stats;
 
 		[Tooltip("World prefab spawned when this item is dropped or seeded as loot. Must have NetworkObject + PickupableItem.")]
 		public GameObject WorldPrefab;
