@@ -14,33 +14,80 @@ namespace Starter.Shooter
 		[Tooltip("Total duration of the forward-and-back punch animation in seconds.")]
 		public float PunchDuration = 0.18f;
 
+		[Header("Charged Attack Visuals")]
+		[Tooltip("How far backward (along -PunchOffset) the fist is pulled while charging.")]
+		[Range(0f, 1.5f)] public float ChargedBackMultiplier = 0.6f;
+		[Tooltip("Smoothing speed for easing into/out of the charge pose.")]
+		public float ChargePoseLerpSpeed = 12f;
+		[Tooltip("Offset multiplier when releasing a fully-charged punch.")]
+		public float ChargedPunchScale = 1.4f;
+		[Tooltip("Duration multiplier when releasing a fully-charged punch.")]
+		public float ChargedDurationScale = 1.2f;
+
 		private float _t = -1f;
 		private Vector3 _restPosition;
+		private bool _restCaptured;
+		private bool _isCharging;
+		private float _chargeProgress;
+		private float _chargePoseT;
+		private float _activeOffsetScale = 1f;
+		private float _activeDurationScale = 1f;
 
-		public void Punch()
+		public void Punch(bool charged = false)
 		{
 			_t = 0f;
+			_activeOffsetScale = charged ? ChargedPunchScale : 1f;
+			_activeDurationScale = charged ? ChargedDurationScale : 1f;
+			_isCharging = false;
+			_chargeProgress = 0f;
+			_chargePoseT = 0f;
+		}
+
+		public void SetCharging(bool charging, float progress)
+		{
+			_isCharging = charging;
+			_chargeProgress = charging ? Mathf.Clamp01(progress) : 0f;
 		}
 
 		private void Start()
 		{
 			_restPosition = transform.localPosition;
+			_restCaptured = true;
 		}
 
 		private void Update()
 		{
-			if (_t < 0f) return;
-
-			_t += Time.deltaTime;
-			float u = Mathf.Clamp01(_t / PunchDuration);
-			float k = u < 0.5f ? u * 2f : (1f - u) * 2f;
-			transform.localPosition = _restPosition + PunchOffset * k;
-
-			if (u >= 1f)
+			if (_t >= 0f)
 			{
-				_t = -1f;
-				transform.localPosition = _restPosition;
+				_t += Time.deltaTime;
+				float duration = Mathf.Max(0.01f, PunchDuration * _activeDurationScale);
+				float u = Mathf.Clamp01(_t / duration);
+				float k = u < 0.5f ? u * 2f : (1f - u) * 2f;
+				transform.localPosition = _restPosition + PunchOffset * _activeOffsetScale * k;
+
+				if (u >= 1f)
+				{
+					_t = -1f;
+					_activeOffsetScale = 1f;
+					_activeDurationScale = 1f;
+					transform.localPosition = _restPosition;
+				}
+				return;
 			}
+
+			if (!_restCaptured) return;
+
+			float target = _isCharging ? _chargeProgress : 0f;
+			float a = 1f - Mathf.Exp(-Mathf.Max(0f, ChargePoseLerpSpeed) * Time.deltaTime);
+			_chargePoseT = Mathf.Lerp(_chargePoseT, target, a);
+
+			if (_chargePoseT < 0.001f && !_isCharging)
+			{
+				transform.localPosition = _restPosition;
+				return;
+			}
+
+			transform.localPosition = _restPosition - PunchOffset * ChargedBackMultiplier * _chargePoseT;
 		}
 	}
 }

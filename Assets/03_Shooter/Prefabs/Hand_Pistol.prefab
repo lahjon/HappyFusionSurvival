@@ -5090,4 +5090,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9e48de1c2d9f88d42a7e1dd191c198b4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.HeldWeapon
+  Range: 200
+  Damage: 1
+  IsMelee: 0
   MuzzleParticle: {fileID: 4552158281464118987}
+  AttackClip: {fileID: 8300000, guid: 4bf4f7f783a5af94fbc3dce27a76d5f9, type: 3}
+  AttackSource: {fileID: 0}
+  AttackVolume: 1
+  SwingArcEuler: {x: -80, y: 0, z: 0}
+  SwingDuration: 0.28
+  KnockbackDistance: 2
+  Cooldown: 0.5

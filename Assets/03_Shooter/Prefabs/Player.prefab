@@ -370,6 +370,17 @@ MonoBehaviour:
     m_Bits: 1
   ImpactPrefab: {fileID: 921809749201012083, guid: 7b3d9616a600e0a408561256ba1be9d9, type: 3}
   PunchRange: 1.5
+  PunchKnockbackDistance: 1.5
+  PunchCooldown: 0.5
+  RagdollImpactThreshold: 5
+  KnockoutSecondsPerUnit: 0.2
+  MinKnockoutDuration: 0.4
+  MaxKnockoutDuration: 3
+  GetUpDuration: 1
+  MinRagdollSpinSpeed: 270
+  MaxRagdollSpinSpeed: 720
+  RagdollAxisVerticalJitter: 0.25
+  DeadRagdollSpinDecay: 360
   ChestTargetPosition: {fileID: 536988984119202717}
   ChestBone: {fileID: 1992701519831656905}
   FireSound: {fileID: 3515788271502590058}
@@ -380,6 +391,7 @@ MonoBehaviour:
   _Nickname: 
   _ChickenKills: 0
   _Stamina: 0
+  _RagdollState: 0
 --- !u!114 &7362189930313428062
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -392,7 +404,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ae32e0fb72bc4428a12ad968c9617526, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  InitialHealth: 4
+  InitialHealth: 10
   DeathTime: 3
   ScalingRoot: {fileID: 2514133352862161986}
   VisualRoot: {fileID: 3041271417471768361}
@@ -496,6 +508,7 @@ MonoBehaviour:
   DropUpOffset: 1
   ThrowForwardSpeed: 0.5
   ThrowUpSpeed: 0.3
+  PlayerVelocityContribution: 1
   ThrowInteractionLock: 1
   HandAnchor: {fileID: 6811691744029035999}
   _startingItem: {fileID: 11400000, guid: a4b8c9d1e2f34a5b67890c1d2e3f4a50, type: 2}

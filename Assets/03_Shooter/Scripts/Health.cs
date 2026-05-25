@@ -18,6 +18,10 @@ namespace Starter.Shooter
 		public GameObject VisualRoot;
 		public GameObject DeathRoot;
 
+		/// <summary>Set by entities that draw their own death visual (e.g. ragdolled player) so
+		/// the default VisualRoot/DeathRoot swap is skipped and the body stays visible past death.</summary>
+		[System.NonSerialized] public bool SuppressDeathVisualSwap;
+
 		public bool IsAlive => CurrentHealth > 0;
 		public bool IsFinished => IsAlive == false && _deathCooldown.Expired(Runner);
 
@@ -61,6 +65,9 @@ namespace Starter.Shooter
 
 		public override void Render()
 		{
+			if (SuppressDeathVisualSwap)
+				return;
+
 			// Use interpolated value when checking if entity is alive in Render.
 			// This will ensure that death effects are played AFTER the death was "confirmed"
 			// on the server in case of mispredictions (e.g. lost fire input) and also helps

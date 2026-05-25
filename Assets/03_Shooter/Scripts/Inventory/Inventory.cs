@@ -21,9 +21,11 @@ namespace Starter.Shooter
 
 		[Header("Throw")]
 		[Tooltip("Forward velocity applied to dropped items (m/s along the player's forward).")]
-		public float ThrowForwardSpeed = 1f;
+		public float ThrowForwardSpeed = 6f;
 		[Tooltip("Upward velocity applied to dropped items (m/s).")]
-		public float ThrowUpSpeed = 1f;
+		public float ThrowUpSpeed = 3f;
+		[Tooltip("How much of the player's current velocity is added to the throw (0 = none, 1 = full). Lets sprinting throws carry further.")]
+		public float PlayerVelocityContribution = 1f;
 		[Tooltip("Seconds the dropped item is uninteractable so the thrower can't immediately re-grab it.")]
 		public float ThrowInteractionLock = 1f;
 
@@ -49,12 +51,15 @@ namespace Starter.Shooter
 		private GameObject _heldInstance;
 		private short _heldItemId;
 		private GameInputActions _actions;
+		private Player _player;
 
 		public GameObject HeldInstance => _heldInstance;
 		public short SelectedItemId => Slots[SelectedSlot].ItemId;
 
 		public override void Spawned()
 		{
+			_player = GetComponent<Player>();
+
 			if (HasStateAuthority && _startingItem != null && _startingItem.Id != 0 && AllSlotsEmpty())
 			{
 				Slots.Set(0, new InventorySlot { ItemId = _startingItem.Id, Count = 1 });
@@ -222,7 +227,10 @@ namespace Starter.Shooter
 			if (spawned != null && spawned.TryGetComponent<PickupableItem>(out var pi))
 			{
 				pi.Initialize(s.ItemId, s.Count);
-				var velocity = transform.forward * ThrowForwardSpeed + Vector3.up * ThrowUpSpeed;
+				Vector3 inherited = _player != null && _player.KCC != null
+					? _player.KCC.RealVelocity * PlayerVelocityContribution
+					: Vector3.zero;
+				var velocity = transform.forward * ThrowForwardSpeed + Vector3.up * ThrowUpSpeed + inherited;
 				pi.Throw(velocity, ThrowInteractionLock);
 			}
 

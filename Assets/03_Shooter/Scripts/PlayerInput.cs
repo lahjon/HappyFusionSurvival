@@ -39,12 +39,14 @@ namespace Starter.Shooter
 
 		private GameplayInput _input;
 		private GameInputActions _actions;
+		private Player _player;
 
 		public override void Spawned()
 		{
 			if (HasInputAuthority == false)
 				return;
 
+			_player = GetComponent<Player>();
 			_actions = GetComponent<GameInputActions>();
 			if (_actions != null)
 			{
@@ -98,6 +100,16 @@ namespace Starter.Shooter
 			if (Cursor.lockState != CursorLockMode.Locked)
 			{
 				_input.MoveDirection = default;
+				return;
+			}
+
+			// While knocked out or getting up, freeze input so the player can't move, fire,
+			// or steer the look direction. Look angle stays where it was so the camera doesn't
+			// snap when control returns.
+			if (_player != null && _player.IsInputLocked)
+			{
+				_input.MoveDirection = default;
+				_input.Buttons = default;
 				return;
 			}
 
