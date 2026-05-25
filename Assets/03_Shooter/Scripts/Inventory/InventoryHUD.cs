@@ -23,7 +23,9 @@ namespace Starter.Shooter
 
 		private Inventory _inventory;
 		private Image[] _slotBackgrounds;
+		private Image[] _slotIcons;
 		private TMP_Text[] _slotLabels;
+		private TMP_Text[] _slotCounts;
 
 		private void Awake()
 		{
@@ -55,7 +57,9 @@ namespace Starter.Shooter
 			}
 
 			_slotBackgrounds = new Image[Inventory.SlotCount];
+			_slotIcons = new Image[Inventory.SlotCount];
 			_slotLabels = new TMP_Text[Inventory.SlotCount];
+			_slotCounts = new TMP_Text[Inventory.SlotCount];
 
 			rt.anchorMin = new Vector2(0.5f, 0f);
 			rt.anchorMax = new Vector2(0.5f, 0f);
@@ -78,20 +82,50 @@ namespace Starter.Shooter
 				_slotBackgrounds[i].color = NormalColor;
 				_slotBackgrounds[i].raycastTarget = false;
 
+				var icon = new GameObject("Icon", typeof(RectTransform), typeof(Image));
+				icon.transform.SetParent(slot.transform, false);
+				var irt = (RectTransform)icon.transform;
+				irt.anchorMin = Vector2.zero;
+				irt.anchorMax = Vector2.one;
+				irt.offsetMin = new Vector2(4f, 4f);
+				irt.offsetMax = new Vector2(-4f, -4f);
+				var iconImg = icon.GetComponent<Image>();
+				iconImg.raycastTarget = false;
+				iconImg.preserveAspect = true;
+				iconImg.enabled = false;
+				_slotIcons[i] = iconImg;
+
 				var label = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
 				label.transform.SetParent(slot.transform, false);
 				var lrt = (RectTransform)label.transform;
-				lrt.anchorMin = Vector2.zero;
-				lrt.anchorMax = Vector2.one;
-				lrt.offsetMin = Vector2.zero;
-				lrt.offsetMax = Vector2.zero;
+				lrt.anchorMin = new Vector2(0f, 1f);
+				lrt.anchorMax = new Vector2(0f, 1f);
+				lrt.pivot = new Vector2(0f, 1f);
+				lrt.anchoredPosition = new Vector2(4f, -2f);
+				lrt.sizeDelta = new Vector2(20f, 18f);
 				var text = label.GetComponent<TextMeshProUGUI>();
-				text.alignment = TextAlignmentOptions.Center;
+				text.alignment = TextAlignmentOptions.TopLeft;
 				text.fontSize = 14f;
 				text.color = LabelColor;
 				text.raycastTarget = false;
 				text.text = (i + 1).ToString();
 				_slotLabels[i] = text;
+
+				var countGO = new GameObject("Count", typeof(RectTransform), typeof(TextMeshProUGUI));
+				countGO.transform.SetParent(slot.transform, false);
+				var crt = (RectTransform)countGO.transform;
+				crt.anchorMin = new Vector2(1f, 0f);
+				crt.anchorMax = new Vector2(1f, 0f);
+				crt.pivot = new Vector2(1f, 0f);
+				crt.anchoredPosition = new Vector2(-4f, 2f);
+				crt.sizeDelta = new Vector2(30f, 18f);
+				var countText = countGO.GetComponent<TextMeshProUGUI>();
+				countText.alignment = TextAlignmentOptions.BottomRight;
+				countText.fontSize = 14f;
+				countText.color = LabelColor;
+				countText.raycastTarget = false;
+				countText.text = string.Empty;
+				_slotCounts[i] = countText;
 			}
 		}
 
@@ -120,15 +154,21 @@ namespace Starter.Shooter
 			for (int i = 0; i < Inventory.SlotCount; i++)
 			{
 				var slot = _inventory.Slots[i];
+				_slotLabels[i].text = (i + 1).ToString();
+
 				if (slot.IsEmpty)
 				{
-					_slotLabels[i].text = (i + 1).ToString();
+					_slotIcons[i].enabled = false;
+					_slotIcons[i].sprite = null;
+					_slotCounts[i].text = string.Empty;
 				}
 				else
 				{
 					var def = ItemDatabase.Instance != null ? ItemDatabase.Instance.GetById(slot.ItemId) : null;
-					string itemName = def != null ? def.DisplayName : $"#{slot.ItemId}";
-					_slotLabels[i].text = $"{i + 1}\n{itemName}\nx{slot.Count}";
+					var sprite = def != null ? def.Icon : null;
+					_slotIcons[i].sprite = sprite;
+					_slotIcons[i].enabled = sprite != null;
+					_slotCounts[i].text = slot.Count > 1 ? $"x{slot.Count}" : string.Empty;
 				}
 			}
 		}
