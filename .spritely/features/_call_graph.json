@@ -1,0 +1,279 @@
+{
+  "version": 1,
+  "edges": {
+    "initialize": [
+      "addchannelsfromdefines"
+    ],
+    "shutdown": [
+      "shutdownall"
+    ],
+    "movegameobjecttoscene": [
+      "getsceneref",
+      "runner"
+    ],
+    "getsceneref": [
+      "error"
+    ],
+    "move": [
+      "runner"
+    ],
+    "emit": [
+      "import"
+    ],
+    "getexistingelementreaderwriter": [
+      "trygetexistingelementreaderwriter"
+    ],
+    "trygetexistingelementreaderwriter": [
+      "importreference",
+      "resolve"
+    ],
+    "weave": [
+      "weavebehaviour",
+      "weaveinput",
+      "weavesimulation",
+      "weavestruct"
+    ],
+    "calculatestructwordcount": [
+      "resolve"
+    ],
+    "weaveinput": [
+      "resolve"
+    ],
+    "weavestruct": [
+      "resolve"
+    ],
+    "getbehaviourwordcount": [
+      "resolve"
+    ],
+    "weavebehaviour": [
+      "getbehaviourwordcount",
+      "getfieldorthrow",
+      "isfieldoperand",
+      "removeat",
+      "resolve"
+    ],
+    "getfieldorthrow": [
+      "importreference"
+    ],
+    "getgetterorthrow": [
+      "importreference"
+    ],
+    "getmethod": [
+      "trygetmethod"
+    ],
+    "trygetmethod": [
+      "importreference",
+      "resolve"
+    ],
+    "getgenericmethod": [
+      "getmethod"
+    ],
+    "import": [
+      "importreference"
+    ],
+    "dispose": [
+      "clear"
+    ],
+    "resolve": [
+      "ilweaverassembly"
+    ],
+    "addassembly": [
+      "ilweaverassembly"
+    ],
+    "process": [
+      "error",
+      "ilweaver",
+      "weave"
+    ],
+    "iseditorassemblypath": [
+      "contains"
+    ],
+    "is": [
+      "clear",
+      "emit",
+      "getfieldorthrow",
+      "import",
+      "importreference",
+      "removeat",
+      "resolve"
+    ],
+    "tostring": [
+      "typereference"
+    ],
+    "loadfixedbufferaddress": [
+      "resolve"
+    ],
+    "loadrunner": [
+      "getgetterorthrow"
+    ],
+    "verifyrawnetworkunwrap": [
+      "getmethod"
+    ],
+    "verifyrawnetworkwrap": [
+      "getmethod"
+    ],
+    "containsrequiredreferences": [
+      "contains"
+    ],
+    "adddefaultconstructor": [
+      "importreference"
+    ],
+    "isenumtype": [
+      "resolve"
+    ],
+    "isfixedbuffer": [
+      "resolve"
+    ],
+    "setposition": [
+      "setvalue"
+    ],
+    "tryresolve": [
+      "resolve"
+    ],
+    "getinfo": [
+      "importreference"
+    ],
+    "oninspectorgui": [
+      "destroystatisticspanel",
+      "localplayer",
+      "oneditorchange",
+      "runner",
+      "setupstatisticspanel"
+    ],
+    "getpropertyheight": [
+      "acquire"
+    ],
+    "acquire": [
+      "propertyentry"
+    ],
+    "drawsourceobjectpicker": [
+      "drawnetworkprefabpicker"
+    ],
+    "ongui": [
+      "contains",
+      "getpropertyheight",
+      "getscriptheadercolor",
+      "setvalue"
+    ],
+    "drawnetworkprefabpicker": [
+      "contains",
+      "networkprojectconfigimporter"
+    ],
+    "addaddressableassetswithlabelmonitor": [
+      "clear"
+    ],
+    "setlabel": [
+      "removeat"
+    ],
+    "registercustomdependencywithmppmworkaround": [
+      "send"
+    ],
+    "draw": [
+      "clear",
+      "contains"
+    ],
+    "ensureinitialized": [
+      "getvalue"
+    ],
+    "invalidatecache": [
+      "clear"
+    ],
+    "refresh": [
+      "clear",
+      "import"
+    ],
+    "oninspectorupdate": [
+      "getcontenthash"
+    ],
+    "getheight": [
+      "contains",
+      "rawdatastyle",
+      "removeat"
+    ],
+    "getmethodorthrow": [
+      "getmethod"
+    ],
+    "gethashcodeforpropertypathwithoutarrayindex": [
+      "getvalue"
+    ],
+    "setattribute": [
+      "setvalue"
+    ],
+    "setfieldinfo": [
+      "setvalue"
+    ],
+    "processchildmemberattributes": [
+      "removeat"
+    ],
+    "postprocessanimator": [
+      "error"
+    ],
+    "trycreateprefabsource": [
+      "error"
+    ],
+    "getcsharpvisibility": [
+      "getmethod"
+    ],
+    "rebuildprefabtable": [
+      "networkprojectconfigimporter"
+    ],
+    "findactiverunners": [
+      "clear"
+    ],
+    "load": [
+      "release"
+    ],
+    "bake": [
+      "clear",
+      "removeat",
+      "spawned"
+    ],
+    "create": [
+      "clear"
+    ],
+    "unregisternode": [
+      "contains"
+    ],
+    "onimportasset": [
+      "loadconfigfromfile"
+    ],
+    "shutdownall": [
+      "shutdown",
+      "stage"
+    ],
+    "addsharedclient": [
+      "addclient"
+    ],
+    "acquireprefabinstance": [
+      "error",
+      "load",
+      "makedontdestroyonload"
+    ],
+    "applycustomstatsconfig": [
+      "fusionstatistics"
+    ],
+    "destroycombinedgraph": [
+      "monitornetworkobject"
+    ],
+    "oneditorchange": [
+      "setcanvasanchor"
+    ],
+    "setupstatisticspanel": [
+      "localplayer",
+      "runner",
+      "setupheader"
+    ],
+    "setworldanchor": [
+      "setworldcanvasscale"
+    ],
+    "destroystatisticspanel": [
+      "clear",
+      "monitornetworkobject",
+      "runner"
+    ],
+    "monitornetworkobject": [
+      "runner",
+      "setupnetworkobject"
+    ]
+  }
+}

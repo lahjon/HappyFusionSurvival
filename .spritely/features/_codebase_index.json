@@ -1,0 +1,2155 @@
+{
+  "version": 1,
+  "symbols": {
+    "uimainmenu": {
+      "featureId": "main-menu",
+      "filePath": "Assets/00_MainMenu/UIMainMenu.cs",
+      "kind": "Class",
+      "shortSignature": "class UIMainMenu : MonoBehaviour"
+    },
+    "loadscene": {
+      "featureId": "network-scene-management",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkSceneManagerDefault.cs",
+      "kind": "Method",
+      "shortSignature": "LoadScene(SceneRef sceneRef, NetworkLoadSceneParameters parameters) -\u003E NetworkSceneAsyncOp"
+    },
+    "quitgame": {
+      "featureId": "main-menu",
+      "filePath": "Assets/00_MainMenu/UIMainMenu.cs",
+      "kind": "Method",
+      "shortSignature": "QuitGame() -\u003E void"
+    },
+    "destroyafter": {
+      "featureId": "common-utilities",
+      "filePath": "Assets/Common/DestroyAfter.cs",
+      "kind": "Class",
+      "shortSignature": "class DestroyAfter : MonoBehaviour"
+    },
+    "rotateobject": {
+      "featureId": "common-utilities",
+      "filePath": "Assets/Common/RotateObject.cs",
+      "kind": "Class",
+      "shortSignature": "class RotateObject : MonoBehaviour"
+    },
+    "uigamemenu": {
+      "featureId": "shooter-ui",
+      "filePath": "Assets/Common/UIGameMenu.cs",
+      "kind": "Class",
+      "shortSignature": "class UIGameMenu : MonoBehaviour"
+    },
+    "startgame": {
+      "featureId": "shooter-ui",
+      "filePath": "Assets/Common/UIGameMenu.cs",
+      "kind": "Method",
+      "shortSignature": "StartGame() -\u003E void"
+    },
+    "disconnectclicked": {
+      "featureId": "shooter-ui",
+      "filePath": "Assets/Common/UIGameMenu.cs",
+      "kind": "Method",
+      "shortSignature": "DisconnectClicked() -\u003E void"
+    },
+    "backtomenu": {
+      "featureId": "shooter-ui",
+      "filePath": "Assets/Common/UIGameMenu.cs",
+      "kind": "Method",
+      "shortSignature": "BackToMenu() -\u003E void"
+    },
+    "togglepanelvisibility": {
+      "featureId": "shooter-ui",
+      "filePath": "Assets/Common/UIGameMenu.cs",
+      "kind": "Method",
+      "shortSignature": "TogglePanelVisibility() -\u003E void"
+    },
+    "disconnect": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/SocketWebTcp.cs",
+      "kind": "Method",
+      "shortSignature": "Disconnect() -\u003E bool"
+    },
+    "uinameplate": {
+      "featureId": "shooter-ui",
+      "filePath": "Assets/Common/UINameplate.cs",
+      "kind": "Class",
+      "shortSignature": "class UINameplate : MonoBehaviour"
+    },
+    "setnickname": {
+      "featureId": "shooter-ui",
+      "filePath": "Assets/Common/UINameplate.cs",
+      "kind": "Method",
+      "shortSignature": "SetNickname(string nickname) -\u003E void"
+    },
+    "chicken": {
+      "featureId": "chicken-enemy",
+      "filePath": "Assets/03_Shooter/Scripts/Chicken.cs",
+      "kind": "Class",
+      "shortSignature": "class Chicken : NetworkBehaviour"
+    },
+    "respawn": {
+      "featureId": "player-system",
+      "filePath": "Assets/03_Shooter/Scripts/Player.cs",
+      "kind": "Method",
+      "shortSignature": "Respawn(Vector3 position) -\u003E void"
+    },
+    "fixedupdatenetwork": {
+      "featureId": "player-system",
+      "filePath": "Assets/03_Shooter/Scripts/Player.cs",
+      "kind": "Method",
+      "shortSignature": "FixedUpdateNetwork() -\u003E void"
+    },
+    "render": {
+      "featureId": "network-character-controller",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkCharacterController.cs",
+      "kind": "Method",
+      "shortSignature": "Render() -\u003E void"
+    },
+    "chickenspawner": {
+      "featureId": "chicken-enemy",
+      "filePath": "Assets/03_Shooter/Scripts/ChickenSpawner.cs",
+      "kind": "Class",
+      "shortSignature": "class ChickenSpawner : NetworkBehaviour"
+    },
+    "spawned": {
+      "featureId": "network-character-controller",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkCharacterController.cs",
+      "kind": "Method",
+      "shortSignature": "Spawned() -\u003E void"
+    },
+    "gamemanager": {
+      "featureId": "game-management",
+      "filePath": "Assets/03_Shooter/Scripts/GameManager.cs",
+      "kind": "Class",
+      "shortSignature": "class GameManager : NetworkBehaviour, IPlayerJoined, IPlayerLeft"
+    },
+    "besthunter": {
+      "featureId": "game-management",
+      "filePath": "Assets/03_Shooter/Scripts/GameManager.cs",
+      "kind": "Property",
+      "shortSignature": "BestHunter: PlayerRef"
+    },
+    "localplayer": {
+      "featureId": "game-management",
+      "filePath": "Assets/03_Shooter/Scripts/GameManager.cs",
+      "kind": "Property",
+      "shortSignature": "LocalPlayer: Player"
+    },
+    "despawned": {
+      "featureId": "inventory-system",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/Inventory.cs",
+      "kind": "Method",
+      "shortSignature": "Despawned(NetworkRunner runner, bool hasState) -\u003E void"
+    },
+    "playerjoined": {
+      "featureId": "game-management",
+      "filePath": "Assets/03_Shooter/Scripts/GameManager.cs",
+      "kind": "Method",
+      "shortSignature": "PlayerJoined(PlayerRef playerRef) -\u003E void"
+    },
+    "playerleft": {
+      "featureId": "game-management",
+      "filePath": "Assets/03_Shooter/Scripts/GameManager.cs",
+      "kind": "Method",
+      "shortSignature": "PlayerLeft(PlayerRef playerRef) -\u003E void"
+    },
+    "health": {
+      "featureId": "health-system",
+      "filePath": "Assets/03_Shooter/Scripts/Health.cs",
+      "kind": "Class",
+      "shortSignature": "class Health : NetworkBehaviour"
+    },
+    "currenthealth": {
+      "featureId": "health-system",
+      "filePath": "Assets/03_Shooter/Scripts/Health.cs",
+      "kind": "Property",
+      "shortSignature": "CurrentHealth: int"
+    },
+    "takehit": {
+      "featureId": "health-system",
+      "filePath": "Assets/03_Shooter/Scripts/Health.cs",
+      "kind": "Method",
+      "shortSignature": "TakeHit(int damage) -\u003E bool"
+    },
+    "revive": {
+      "featureId": "health-system",
+      "filePath": "Assets/03_Shooter/Scripts/Health.cs",
+      "kind": "Method",
+      "shortSignature": "Revive() -\u003E void"
+    },
+    "player": {
+      "featureId": "player-system",
+      "filePath": "Assets/03_Shooter/Scripts/Player.cs",
+      "kind": "Class",
+      "shortSignature": "class Player : NetworkBehaviour"
+    },
+    "nickname": {
+      "featureId": "player-system",
+      "filePath": "Assets/03_Shooter/Scripts/Player.cs",
+      "kind": "Property",
+      "shortSignature": "Nickname: string"
+    },
+    "chickenkills": {
+      "featureId": "player-system",
+      "filePath": "Assets/03_Shooter/Scripts/Player.cs",
+      "kind": "Property",
+      "shortSignature": "ChickenKills: int"
+    },
+    "einputbutton": {
+      "featureId": "player-system",
+      "filePath": "Assets/03_Shooter/Scripts/PlayerInput.cs",
+      "kind": "Enum",
+      "shortSignature": "enum EInputButton"
+    },
+    "gameplayinput": {
+      "featureId": "player-system",
+      "filePath": "Assets/03_Shooter/Scripts/PlayerInput.cs",
+      "kind": "Struct",
+      "shortSignature": "struct GameplayInput : INetworkInput"
+    },
+    "playerinput": {
+      "featureId": "player-system",
+      "filePath": "Assets/03_Shooter/Scripts/PlayerInput.cs",
+      "kind": "Class",
+      "shortSignature": "class PlayerInput : NetworkBehaviour, IBeforeUpdate, IAfterTick"
+    },
+    "previousbuttons": {
+      "featureId": "player-system",
+      "filePath": "Assets/03_Shooter/Scripts/PlayerInput.cs",
+      "kind": "Property",
+      "shortSignature": "PreviousButtons: NetworkButtons"
+    },
+    "spawnpoint": {
+      "featureId": "spawn-system",
+      "filePath": "Assets/03_Shooter/Scripts/SpawnPoint.cs",
+      "kind": "Class",
+      "shortSignature": "class SpawnPoint : MonoBehaviour"
+    },
+    "uishooter": {
+      "featureId": "shooter-ui",
+      "filePath": "Assets/03_Shooter/Scripts/UIShooter.cs",
+      "kind": "Class",
+      "shortSignature": "class UIShooter : MonoBehaviour"
+    },
+    "readme": {
+      "featureId": "tutorial-readme",
+      "filePath": "Assets/TutorialInfo/Scripts/Readme.cs",
+      "kind": "Class",
+      "shortSignature": "class Readme : ScriptableObject"
+    },
+    "section": {
+      "featureId": "tutorial-readme",
+      "filePath": "Assets/TutorialInfo/Scripts/Readme.cs",
+      "kind": "Class",
+      "shortSignature": "class Section"
+    },
+    "inventory": {
+      "featureId": "inventory-system",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/Inventory.cs",
+      "kind": "Class",
+      "shortSignature": "class Inventory : NetworkBehaviour"
+    },
+    "slotcount": {
+      "featureId": "inventory-system",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/Inventory.cs",
+      "kind": "Const",
+      "shortSignature": "SlotCount: int = 8"
+    },
+    "selectedslot": {
+      "featureId": "inventory-system",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/Inventory.cs",
+      "kind": "Property",
+      "shortSignature": "SelectedSlot: int"
+    },
+    "rpc_requestselect": {
+      "featureId": "inventory-system",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/Inventory.cs",
+      "kind": "Method",
+      "shortSignature": "RPC_RequestSelect(int idx) -\u003E void"
+    },
+    "rpc_requestpickup": {
+      "featureId": "inventory-system",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/Inventory.cs",
+      "kind": "Method",
+      "shortSignature": "RPC_RequestPickup(NetworkId worldItemId) -\u003E void"
+    },
+    "rpc_requestdrop": {
+      "featureId": "inventory-system",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/Inventory.cs",
+      "kind": "Method",
+      "shortSignature": "RPC_RequestDrop() -\u003E void"
+    },
+    "tryadd": {
+      "featureId": "inventory-system",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/Inventory.cs",
+      "kind": "Method",
+      "shortSignature": "TryAdd(short itemId, short count) -\u003E short"
+    },
+    "removeat": {
+      "featureId": "inventory-system",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/Inventory.cs",
+      "kind": "Method",
+      "shortSignature": "RemoveAt(int slot, short count) -\u003E bool"
+    },
+    "dropselected": {
+      "featureId": "inventory-system",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/Inventory.cs",
+      "kind": "Method",
+      "shortSignature": "DropSelected() -\u003E void"
+    },
+    "selectslot": {
+      "featureId": "inventory-system",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/Inventory.cs",
+      "kind": "Method",
+      "shortSignature": "SelectSlot(int idx) -\u003E void"
+    },
+    "inventoryhud": {
+      "featureId": "shooter-ui",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/InventoryHUD.cs",
+      "kind": "Class",
+      "shortSignature": "class InventoryHUD : MonoBehaviour"
+    },
+    "inventoryslot": {
+      "featureId": "inventory-system",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/InventorySlot.cs",
+      "kind": "Struct",
+      "shortSignature": "struct InventorySlot : INetworkStruct"
+    },
+    "itemdatabase": {
+      "featureId": "item-database",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/ItemDatabase.cs",
+      "kind": "Class",
+      "shortSignature": "class ItemDatabase : ScriptableObject"
+    },
+    "instance": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Property",
+      "shortSignature": "Instance: FusionRunnerVisibilityControlsWindow"
+    },
+    "bind": {
+      "featureId": "item-database",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/ItemDatabase.cs",
+      "kind": "Method",
+      "shortSignature": "Bind() -\u003E void"
+    },
+    "getbyid": {
+      "featureId": "item-database",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/ItemDatabase.cs",
+      "kind": "Method",
+      "shortSignature": "GetById(short id) -\u003E ItemDefinition"
+    },
+    "itemdefinition": {
+      "featureId": "item-database",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/ItemDefinition.cs",
+      "kind": "Class",
+      "shortSignature": "class ItemDefinition : ScriptableObject"
+    },
+    "itemview": {
+      "featureId": "shooter-ui",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/ItemView.cs",
+      "kind": "Class",
+      "shortSignature": "class ItemView : MonoBehaviour"
+    },
+    "pickupableitem": {
+      "featureId": "inventory-system",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/PickupableItem.cs",
+      "kind": "Class",
+      "shortSignature": "class PickupableItem : NetworkBehaviour"
+    },
+    "initialize": {
+      "featureId": "network-scene-management",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkSceneManagerDefault.cs",
+      "kind": "Method",
+      "shortSignature": "Initialize(NetworkRunner runner) -\u003E void"
+    },
+    "emit": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "Emit(ILProcessor il) -\u003E void"
+    },
+    "ilmacrostruct": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "ILMacroStruct(Action\u003CILProcessor\u003E generator) -\u003E implicit operator"
+    },
+    "getexistingelementreaderwriter": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "GetExistingElementReaderWriter(TypeDefinition declaringType, ICustomAttributeProvider member, NetworkTypeInfo typeInfo) -\u003E TypeReference"
+    },
+    "trygetexistingelementreaderwriter": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "TryGetExistingElementReaderWriter(TypeReference declaringType, ICustomAttributeProvider member, NetworkTypeInfo typeInfo) -\u003E TypeReference"
+    },
+    "ilweaver": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Property",
+      "shortSignature": "ILWeaver: unsafe partial class"
+    },
+    "weavesimulation": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "WeaveSimulation(ILWeaverAssembly asm, TypeDefinition type) -\u003E void"
+    },
+    "isfieldoperand": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "IsFieldOperand(Instruction instruction, FieldDefinition field, TypeReference declaringType) -\u003E bool"
+    },
+    "weave": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "Weave(ILWeaverAssembly asm) -\u003E bool"
+    },
+    "calculatestructwordcount": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "CalculateStructWordCount(TypeReference typeRef) -\u003E int"
+    },
+    "weaveinput": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "WeaveInput(ILWeaverAssembly asm, TypeReference typeRef) -\u003E bool"
+    },
+    "weavestruct": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "WeaveStruct(ILWeaverAssembly asm, TypeReference typeRef) -\u003E bool"
+    },
+    "getbehaviourwordcount": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "GetBehaviourWordCount(ILWeaverAssembly asm, TypeReference type) -\u003E int"
+    },
+    "weavebehaviour": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "WeaveBehaviour(ILWeaverAssembly asm, TypeDefinition type) -\u003E int"
+    },
+    "ilweaverimportedtype": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Class",
+      "shortSignature": "class ILWeaverImportedType"
+    },
+    "typereference": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "TypeReference(ILWeaverImportedType type) -\u003E implicit operator"
+    },
+    "getfieldorthrow": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "GetFieldOrThrow(string name) -\u003E FieldReference"
+    },
+    "getgetterorthrow": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "GetGetterOrThrow(string name) -\u003E MethodReference"
+    },
+    "getmethod": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "GetMethod(string name, int? argsCount = null, int? genericArgsCount = null) -\u003E MethodReference"
+    },
+    "trygetmethod": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "TryGetMethod(string name, out MethodReference method, int? argsCount = null, int? genericArgsCount = null) -\u003E bool"
+    },
+    "getgenericmethod": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "GetGenericMethod(string name, int? argsCount = null, params TypeReference[] types) -\u003E GenericInstanceMethod"
+    },
+    "ilweaverassembly": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Class",
+      "shortSignature": "class ILWeaverAssembly"
+    },
+    "import": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "Import(Type type) -\u003E TypeReference"
+    },
+    "dispose": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/SocketWebTcp.cs",
+      "kind": "Method",
+      "shortSignature": "Dispose() -\u003E void"
+    },
+    "ilweaverassemblyresolver": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Class",
+      "shortSignature": "class ILWeaverAssemblyResolver : IAssemblyResolver"
+    },
+    "resolve": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "Resolve(AssemblyNameReference name) -\u003E AssemblyDefinition"
+    },
+    "clear": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "Clear() -\u003E void"
+    },
+    "contains": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "Contains(CompilerAssembly compilerAssembly) -\u003E bool"
+    },
+    "addassembly": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "AddAssembly(AssemblyDefinition assembly, CompilerAssembly compilerAssembly) -\u003E ILWeaverAssembly"
+    },
+    "getinstance": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "GetInstance() -\u003E ILPostProcessor"
+    },
+    "process": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "Process(ICompiledAssembly compiledAssembly) -\u003E ILPostProcessResult"
+    },
+    "willprocess": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "WillProcess(ICompiledAssembly compiledAssembly) -\u003E bool"
+    },
+    "getreflectionimporter": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "GetReflectionImporter(ModuleDefinition module) -\u003E IReflectionImporter"
+    },
+    "importreference": {
+      "featureId": "fusion-il-weaver",
+      "filePath": "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs",
+      "kind": "Method",
+      "shortSignature": "ImportReference(AssemblyName name) -\u003E AssemblyNameReference"
+    },
+    "assetobjecteditor": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Class",
+      "shortSignature": "class AssetObjectEditor : UnityEditor.Editor"
+    },
+    "oninspectorgui": {
+      "featureId": "tutorial-readme",
+      "filePath": "Assets/TutorialInfo/Scripts/Editor/ReadmeEditor.cs",
+      "kind": "Method",
+      "shortSignature": "OnInspectorGUI() -\u003E void"
+    },
+    "behavioureditor": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Class",
+      "shortSignature": "class BehaviourEditor : FusionEditor"
+    },
+    "changedllmanager": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Class",
+      "shortSignature": "class ChangeDllManager"
+    },
+    "fusionruntimedllguid": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Const",
+      "shortSignature": "FusionRuntimeDllGuid: string = \u0022e725a070cec140c4caffb81624c8c787\u0022"
+    },
+    "filelist": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Const",
+      "shortSignature": "FileList: string[] = { \u0022Fusion.Common.dll\u0022, \u0022Fusion.Runtim..."
+    },
+    "changedllmodetoshareddebug": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Method",
+      "shortSignature": "ChangeDllModeToSharedDebug() -\u003E void"
+    },
+    "changedllmodetosharedrelease": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Method",
+      "shortSignature": "ChangeDllModeToSharedRelease() -\u003E void"
+    },
+    "fixedbufferfieldname": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Const",
+      "shortSignature": "FixedBufferFieldName: string = \u0022Data\u0022"
+    },
+    "wrappersurrogatedatapath": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Const",
+      "shortSignature": "WrapperSurrogateDataPath: string = \u0022Surrogate.Data\u0022"
+    },
+    "spacingsublabel": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Const",
+      "shortSignature": "SpacingSubLabel: float = 2"
+    },
+    "_multifieldprefixid": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Const",
+      "shortSignature": "_multiFieldPrefixId: int = \u0022MultiFieldPrefixId\u0022.GetHashCode()"
+    },
+    "getpropertyheight": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Method",
+      "shortSignature": "GetPropertyHeight(SerializedProperty property, GUIContent label) -\u003E float"
+    },
+    "maxttl": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Const",
+      "shortSignature": "MaxTTL: int = 10"
+    },
+    "flush": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Property",
+      "shortSignature": "Flush: bool"
+    },
+    "wasused": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Property",
+      "shortSignature": "WasUsed: bool"
+    },
+    "acquire": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Method",
+      "shortSignature": "Acquire(bool synchronous) -\u003E void"
+    },
+    "propertyentry": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Class",
+      "shortSignature": "class PropertyEntry"
+    },
+    "drawthumbnailprefix": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Method",
+      "shortSignature": "DrawThumbnailPrefix(Rect position, INetworkPrefabSource source) -\u003E Rect"
+    },
+    "drawthumbnail": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Method",
+      "shortSignature": "DrawThumbnail(Rect position, INetworkPrefabSource source) -\u003E void"
+    },
+    "drawsourceobjectpicker": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Method",
+      "shortSignature": "DrawSourceObjectPicker(Rect position, GUIContent label, INetworkPrefabSource source) -\u003E INetworkPrefabSource"
+    },
+    "networkbooldrawer": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Class",
+      "shortSignature": "class NetworkBoolDrawer : PropertyDrawer"
+    },
+    "ongui": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Method",
+      "shortSignature": "OnGUI(Rect position, SerializedProperty property, GUIContent label) -\u003E void"
+    },
+    "getvalue": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Method",
+      "shortSignature": "GetValue(SerializedProperty property) -\u003E unsafe NetworkObjectGuid"
+    },
+    "setvalue": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Method",
+      "shortSignature": "SetValue(SerializedProperty property, NetworkObjectGuid guid) -\u003E unsafe void"
+    },
+    "drawnetworkprefabpicker": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Method",
+      "shortSignature": "DrawNetworkPrefabPicker(Rect position, GUIContent label, NetworkObject prefab) -\u003E NetworkObject"
+    },
+    "normalizedrectattributedrawer": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Class",
+      "shortSignature": "class NormalizedRectAttributeDrawer : PropertyDrawer"
+    },
+    "scenerefdrawer": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Class",
+      "shortSignature": "class SceneRefDrawer : PropertyDrawer"
+    },
+    "checkboxwidth": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Const",
+      "shortSignature": "CheckboxWidth: int = 16"
+    },
+    "tickratedrawer": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Class",
+      "shortSignature": "class TickRateDrawer : PropertyDrawer"
+    },
+    "pad": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Const",
+      "shortSignature": "PAD: int = 0"
+    },
+    "_reusableratioguiarrays": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Const",
+      "shortSignature": "_reusableRatioGUIArrays: GUIContent[][] = new GUIContent[4][] { new GUIContent[..."
+    },
+    "_reusableratiointarrays": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Const",
+      "shortSignature": "_reusableRatioIntArrays: int[][] = new int[4][] { new int[1], new int[2]..."
+    },
+    "_reusableserverguiarrays": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Const",
+      "shortSignature": "_reusableServerGUIArrays: GUIContent[][] = new GUIContent[4][] { new GUIContent[..."
+    },
+    "_reusableserverintarrays": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Const",
+      "shortSignature": "_reusableServerIntArrays: int[][] = new int[4][] { new int[1], new int[2]..."
+    },
+    "editorrecompilehook": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Class",
+      "shortSignature": "class EditorRecompileHook"
+    },
+    "priority": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Const",
+      "shortSignature": "PRIORITY: int = 0"
+    },
+    "priority_low": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Const",
+      "shortSignature": "PRIORITY_LOW: int = 1000"
+    },
+    "ensurecomponentsexistinscene": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Method",
+      "shortSignature": "EnsureComponentsExistInScene(string preferredGameObjectName, params Type[] components) -\u003E GameObject"
+    },
+    "getobjectid": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Method",
+      "shortSignature": "GetObjectId(this HierarchyIterator iterator) -\u003E int"
+    },
+    "getassetguid": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs",
+      "kind": "Method",
+      "shortSignature": "GetAssetGuid(this HierarchyIterator iterator) -\u003E GUID"
+    },
+    "onimportasset": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/NetworkProjectConfigImporter.cs",
+      "kind": "Method",
+      "shortSignature": "OnImportAsset(AssetImportContext ctx) -\u003E void"
+    },
+    "infoicon": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionEditorSkin.cs",
+      "kind": "Const",
+      "shortSignature": "InfoIcon: LazyAsset\u003CTexture2D\u003E = LazyAsset.Create(() =\u003E FindTextureOrT..."
+    },
+    "warningicon": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionEditorSkin.cs",
+      "kind": "Const",
+      "shortSignature": "WarningIcon: LazyAsset\u003CTexture2D\u003E = LazyAsset.Create(() =\u003E FindTextureOrT..."
+    },
+    "erroricon": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionEditorSkin.cs",
+      "kind": "Const",
+      "shortSignature": "ErrorIcon: LazyAsset\u003CTexture2D\u003E = LazyAsset.Create(() =\u003E FindTextureOrT..."
+    },
+    "loadstateicon": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionEditorSkin.cs",
+      "kind": "Const",
+      "shortSignature": "LoadStateIcon: LazyAsset\u003CTexture2D\u003E = LazyAsset.Create(() =\u003E FindTextureOrT..."
+    },
+    "refreshicon": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionEditorSkin.cs",
+      "kind": "Const",
+      "shortSignature": "RefreshIcon: LazyAsset\u003CTexture2D\u003E = LazyAsset.Create(() =\u003E FindTextureOrT..."
+    },
+    "rawdatastyle": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionEditorSkin.cs",
+      "kind": "Const",
+      "shortSignature": "RawDataStyle: LazyGUIStyle = LazyGUIStyle.Create(_ =\u003E new GUIStyle..."
+    },
+    "dropdownliststyle": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionEditorSkin.cs",
+      "kind": "Const",
+      "shortSignature": "DropDownListStyle: LazyGUIStyle = LazyGUIStyle.Create(_ =\u003E FindBuiltInS..."
+    },
+    "getscriptheadercolor": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionEditorSkin.cs",
+      "kind": "Method",
+      "shortSignature": "GetScriptHeaderColor(ScriptHeaderBackColor settingsBackColor) -\u003E Color"
+    },
+    "fusionhubwindow": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionHubWindow.cs",
+      "kind": "Class",
+      "shortSignature": "class FusionHubWindow : EditorWindow"
+    },
+    "navwidth": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionHubWindow.cs",
+      "kind": "Const",
+      "shortSignature": "NavWidth: int = 256 \u002B 2"
+    },
+    "open": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionHubWindow.cs",
+      "kind": "Method",
+      "shortSignature": "Open() -\u003E void"
+    },
+    "fusionrunnervisibilitycontrolswindow": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Class",
+      "shortSignature": "class FusionRunnerVisibilityControlsWindow : EditorWindow"
+    },
+    "window_min_w": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "WINDOW_MIN_W: int = 82"
+    },
+    "window_min_h": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "WINDOW_MIN_H: int = 48"
+    },
+    "stats_bttn_wide": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "STATS_BTTN_WIDE: int = 66"
+    },
+    "stats_bttn_slim": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "STATS_BTTN_SLIM: int = 24"
+    },
+    "runnr_bttn_wide": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "RUNNR_BTTN_WIDE: int = 60"
+    },
+    "runnr_bttn_slim": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "RUNNR_BTTN_SLIM: int = 24"
+    },
+    "font_size": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "FONT_SIZE: int = 9"
+    },
+    "text_switch_width": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "TEXT_SWITCH_WIDTH: float = 200"
+    },
+    "wide_switch_width": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "WIDE_SWITCH_WIDTH: float = 380"
+    },
+    "refresh_rate": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "REFRESH_RATE: double = 1f"
+    },
+    "noactiverunner": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "NoActiveRunner: string = \u0022No Active Runner\u0022"
+    },
+    "norunners": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "NoRunners: string = \u0022No Runners\u0022"
+    },
+    "sp": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "SP: string = \u0022SP\u0022"
+    },
+    "h": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "H: string = \u0022H\u0022"
+    },
+    "s": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "S: string = \u0022S\u0022"
+    },
+    "c": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "C: string = \u0022C\u0022"
+    },
+    "p": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "P: string = \u0022P\u0022"
+    },
+    "dash": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "Dash: string = \u0022--\u0022"
+    },
+    "providinginputs": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "ProvidingInputs: string = \u0022\\u2002Providing Inputs\u0022"
+    },
+    "noinputs": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "NoInputs: string = \u0022\\u2002(No Inputs)\u0022"
+    },
+    "statsleft": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "StatsLeft: string = \u0022\u003C\u003C Stats\u0022"
+    },
+    "statsright": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "StatsRight: string = \u0022Stats \u003E\u003E\u0022"
+    },
+    "arrowsleft": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "ArrowsLeft: string = \u0022\u003C\u003C\u0022"
+    },
+    "arrowsright": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "ArrowsRight: string = \u0022\u003E\u003E\u0022"
+    },
+    "userid": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "UserID: string = \u0022UserID: \u0022"
+    },
+    "statstooltip": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "StatsTooltip: string = \u0022Clicking this button at runtime will..."
+    },
+    "runnertooltip": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "RunnerTooltip: string = \u0022The name of the NetworkRunner this r..."
+    },
+    "holdshift": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "HoldShift: string = \u0022Hold Shift while clicking to solo Vi..."
+    },
+    "runnervisibilitynotenabled": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs",
+      "kind": "Const",
+      "shortSignature": "RunnerVisibilityNotEnabled: string = $\u0022Runner visibility not enabled. Add ..."
+    },
+    "showwindow": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/NetworkPrefabsInspector.cs",
+      "kind": "Method",
+      "shortSignature": "ShowWindow() -\u003E void"
+    },
+    "fusionweavertriggerimporter": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/FusionWeaverTriggerImporter.cs",
+      "kind": "Class",
+      "shortSignature": "class FusionWeaverTriggerImporter : ScriptedImporter"
+    },
+    "extension": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/NetworkProjectConfigImporter.cs",
+      "kind": "Const",
+      "shortSignature": "Extension: string = \u0022.\u0022 \u002B ExtensionWithoutDot"
+    },
+    "extensionwithoutdot": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/NetworkProjectConfigImporter.cs",
+      "kind": "Const",
+      "shortSignature": "ExtensionWithoutDot: string = \u0022fusion\u0022"
+    },
+    "networkprefabsinspector": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/NetworkPrefabsInspector.cs",
+      "kind": "Class",
+      "shortSignature": "class NetworkPrefabsInspector : EditorWindow"
+    },
+    "targetobject": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/NetworkPrefabsInspector.cs",
+      "kind": "Property",
+      "shortSignature": "TargetObject: Object"
+    },
+    "description": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Property",
+      "shortSignature": "Description: string"
+    },
+    "loadstate": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/NetworkPrefabsInspector.cs",
+      "kind": "Property",
+      "shortSignature": "LoadState: LoadState"
+    },
+    "getcontenthash": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/NetworkPrefabsInspector.cs",
+      "kind": "Method",
+      "shortSignature": "GetContentHash() -\u003E int"
+    },
+    "networkprojectconfigimporter": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/NetworkProjectConfigImporter.cs",
+      "kind": "Class",
+      "shortSignature": "class NetworkProjectConfigImporter : ScriptedImporter"
+    },
+    "importqueueoffset": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/NetworkProjectConfigImporter.cs",
+      "kind": "Const",
+      "shortSignature": "ImportQueueOffset: int = 1000"
+    },
+    "fusionprefabtag": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/NetworkProjectConfigImporter.cs",
+      "kind": "Const",
+      "shortSignature": "FusionPrefabTag: string = \u0022FusionPrefab\u0022"
+    },
+    "fusionprefabtagsearchterm": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/NetworkProjectConfigImporter.cs",
+      "kind": "Const",
+      "shortSignature": "FusionPrefabTagSearchTerm: string = \u0022l:FusionPrefab\u0022"
+    },
+    "loadconfigfromfile": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/NetworkProjectConfigImporter.cs",
+      "kind": "Method",
+      "shortSignature": "LoadConfigFromFile(string path) -\u003E NetworkProjectConfig"
+    },
+    "rebuildprefabhash": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/NetworkProjectConfigImporter.cs",
+      "kind": "Method",
+      "shortSignature": "RebuildPrefabHash() -\u003E void"
+    },
+    "networkprojectconfigimportereditor": {
+      "featureId": "fusion-editor-tools",
+      "filePath": "Assets/Photon/Fusion/Editor/NetworkProjectConfigImporterEditor.cs",
+      "kind": "Class",
+      "shortSignature": "class NetworkProjectConfigImporterEditor : ScriptedImporterEditor"
+    },
+    "address": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Property",
+      "shortSignature": "Address: string"
+    },
+    "release": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Method",
+      "shortSignature": "Release() -\u003E void"
+    },
+    "waitforresult": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Method",
+      "shortSignature": "WaitForResult() -\u003E T"
+    },
+    "iscompleted": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Property",
+      "shortSignature": "IsCompleted: bool"
+    },
+    "prefab": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Property",
+      "shortSignature": "Prefab: LazyLoadReference\u003CT\u003E"
+    },
+    "fusionglobalscriptableobjectaddressattribute": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Class",
+      "shortSignature": "class FusionGlobalScriptableObjectAddressAttribute : FusionGlobalScriptableObjectSourceAttribute"
+    },
+    "load": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Method",
+      "shortSignature": "Load(Type type) -\u003E FusionGlobalScriptableObjectLoadResult"
+    },
+    "fusionglobalscriptableobjectresourceattribute": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Class",
+      "shortSignature": "class FusionGlobalScriptableObjectResourceAttribute : FusionGlobalScriptableObjectSourceAttribute"
+    },
+    "resourcepath": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Property",
+      "shortSignature": "ResourcePath: string"
+    },
+    "instantiateifloadedineditor": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Property",
+      "shortSignature": "InstantiateIfLoadedInEditor: bool"
+    },
+    "fusioncoroutine": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Class",
+      "shortSignature": "class FusionCoroutine : ICoroutine, IDisposable"
+    },
+    "isdone": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Property",
+      "shortSignature": "IsDone: bool"
+    },
+    "error": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/WebSocket.cs",
+      "kind": "Property",
+      "shortSignature": "Error: string"
+    },
+    "fusionunitylogger": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Class",
+      "shortSignature": "class FusionUnityLogger : FusionUnityLoggerBase"
+    },
+    "fusionprofiler": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Class",
+      "shortSignature": "class FusionProfiler"
+    },
+    "category": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Const",
+      "shortSignature": "Category: ProfilerCategory = ProfilerCategory.Scripts"
+    },
+    "interpolationoffset": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Const",
+      "shortSignature": "InterpolationOffset: IntPtr = CreateCounter(\u0022F Interp Offset\u0022, Prof..."
+    },
+    "inputsize": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Const",
+      "shortSignature": "InputSize: IntPtr = CreateCounter(\u0022F Client Input Size\u0022, ..."
+    },
+    "inputqueue": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Const",
+      "shortSignature": "InputQueue: IntPtr = CreateCounter(\u0022F Client Input Queue\u0022,..."
+    },
+    "worldsnapshotsize": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Const",
+      "shortSignature": "WorldSnapshotSize: IntPtr = CreateCounter(\u0022F Client Snapshot Size..."
+    },
+    "resimulations": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Const",
+      "shortSignature": "Resimulations: IntPtr = CreateCounter(\u0022F Client Resims\u0022, Prof..."
+    },
+    "roundtriptime": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Const",
+      "shortSignature": "RoundTripTime: IntPtr = CreateCounter(\u0022F Client RTT\u0022, Profile..."
+    },
+    "rpcin": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Const",
+      "shortSignature": "RpcIn: IntPtr = CreateCounterValue(\u0022F RPCs In\u0022, Profi..."
+    },
+    "rpcout": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Const",
+      "shortSignature": "RpcOut: IntPtr = CreateCounterValue(\u0022F RPCs Out\u0022, Prof..."
+    },
+    "inputrecvdelta": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Const",
+      "shortSignature": "InputRecvDelta: IntPtr = CreateCounter(\u0022F Input Recv Delta\u0022, P..."
+    },
+    "inputrecvdeltadeviation": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Const",
+      "shortSignature": "InputRecvDeltaDeviation: IntPtr = CreateCounter(\u0022F Input Recv Delta Dev..."
+    },
+    "objectallocatorusage": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Const",
+      "shortSignature": "ObjectAllocatorUsage: IntPtr = CreateCounterValue(\u0022F Object Allocato..."
+    },
+    "miscallocatorusage": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Const",
+      "shortSignature": "MiscAllocatorUsage: IntPtr = CreateCounterValue(\u0022F Misc Allocator\u0022..."
+    },
+    "readonly": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Method",
+      "shortSignature": "readonly(IntPtr Updates, IntPtr Destroys, IntPtr Count) -\u003E static"
+    },
+    "addchannelsfromdefines": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Method",
+      "shortSignature": "AddChannelsFromDefines(this TraceChannels traceChannels) -\u003E TraceChannels"
+    },
+    "jsonutilityextensions": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs",
+      "kind": "Class",
+      "shortSignature": "class JsonUtilityExtensions"
+    },
+    "fusionaddressableprefabspreloader": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionAddressablePrefabsPreloader.cs",
+      "kind": "Class",
+      "shortSignature": "class FusionAddressablePrefabsPreloader : MonoBehaviour"
+    },
+    "fusionbasicbillboard": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBasicBillboard.cs",
+      "kind": "Class",
+      "shortSignature": "class FusionBasicBillboard : Fusion.Behaviour"
+    },
+    "updatelookat": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBasicBillboard.cs",
+      "kind": "Method",
+      "shortSignature": "UpdateLookAt() -\u003E void"
+    },
+    "fusionbootstrap": {
+      "featureId": "fusion-bootstrap",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs",
+      "kind": "Class",
+      "shortSignature": "class FusionBootstrap : Fusion.Behaviour"
+    },
+    "startmodes": {
+      "featureId": "fusion-bootstrap",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs",
+      "kind": "Enum",
+      "shortSignature": "enum StartModes"
+    },
+    "stage": {
+      "featureId": "fusion-bootstrap",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs",
+      "kind": "Enum",
+      "shortSignature": "enum Stage"
+    },
+    "execute": {
+      "featureId": "fusion-bootstrap",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs",
+      "kind": "Method",
+      "shortSignature": "Execute() -\u003E void"
+    },
+    "currentstage": {
+      "featureId": "fusion-bootstrap",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs",
+      "kind": "Property",
+      "shortSignature": "CurrentStage: Stage"
+    },
+    "lastcreatedclientindex": {
+      "featureId": "fusion-bootstrap",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs",
+      "kind": "Property",
+      "shortSignature": "LastCreatedClientIndex: int"
+    },
+    "currentservermode": {
+      "featureId": "fusion-bootstrap",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs",
+      "kind": "Property",
+      "shortSignature": "CurrentServerMode: GameMode"
+    },
+    "startsingleplayer": {
+      "featureId": "fusion-bootstrap",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs",
+      "kind": "Method",
+      "shortSignature": "StartSinglePlayer() -\u003E void"
+    },
+    "startserver": {
+      "featureId": "fusion-bootstrap",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs",
+      "kind": "Method",
+      "shortSignature": "StartServer() -\u003E void"
+    },
+    "starthost": {
+      "featureId": "fusion-bootstrap",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs",
+      "kind": "Method",
+      "shortSignature": "StartHost() -\u003E void"
+    },
+    "startclient": {
+      "featureId": "fusion-bootstrap",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs",
+      "kind": "Method",
+      "shortSignature": "StartClient() -\u003E void"
+    },
+    "startsharedclient": {
+      "featureId": "fusion-bootstrap",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs",
+      "kind": "Method",
+      "shortSignature": "StartSharedClient() -\u003E void"
+    },
+    "startautoclient": {
+      "featureId": "fusion-bootstrap",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs",
+      "kind": "Method",
+      "shortSignature": "StartAutoClient() -\u003E void"
+    },
+    "startserverplusclients": {
+      "featureId": "fusion-bootstrap",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs",
+      "kind": "Method",
+      "shortSignature": "StartServerPlusClients(int clientCount) -\u003E void"
+    },
+    "starthostplusclients": {
+      "featureId": "fusion-bootstrap",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs",
+      "kind": "Method",
+      "shortSignature": "StartHostPlusClients(int clientCount) -\u003E void"
+    },
+    "shutdown": {
+      "featureId": "network-scene-management",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkSceneManagerDefault.cs",
+      "kind": "Method",
+      "shortSignature": "Shutdown() -\u003E void"
+    },
+    "startmultipleclients": {
+      "featureId": "fusion-bootstrap",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs",
+      "kind": "Method",
+      "shortSignature": "StartMultipleClients(int clientCount) -\u003E void"
+    },
+    "startmultiplesharedclients": {
+      "featureId": "fusion-bootstrap",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs",
+      "kind": "Method",
+      "shortSignature": "StartMultipleSharedClients(int clientCount) -\u003E void"
+    },
+    "startmultipleautoclients": {
+      "featureId": "fusion-bootstrap",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs",
+      "kind": "Method",
+      "shortSignature": "StartMultipleAutoClients(int clientCount) -\u003E void"
+    },
+    "shutdownall": {
+      "featureId": "fusion-bootstrap",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs",
+      "kind": "Method",
+      "shortSignature": "ShutdownAll() -\u003E void"
+    },
+    "addclient": {
+      "featureId": "fusion-bootstrap",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs",
+      "kind": "Method",
+      "shortSignature": "AddClient(GameMode serverMode, SceneRef sceneRef) -\u003E Task"
+    },
+    "addsharedclient": {
+      "featureId": "fusion-bootstrap",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs",
+      "kind": "Method",
+      "shortSignature": "AddSharedClient() -\u003E void"
+    },
+    "fusionbootstrapdebuggui": {
+      "featureId": "fusion-networking",
+      "filePath": "Assets/Photon/Fusion/Runtime/FusionBootstrapDebugGUI.cs",
+      "kind": "Class",
+      "shortSignature": "class FusionBootstrapDebugGUI : Fusion.Behaviour"
+    },
+    "words": {
+      "featureId": "network-character-controller",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkCharacterController.cs",
+      "kind": "Const",
+      "shortSignature": "WORDS: int = NetworkTRSPData.WORDS \u002B 4"
+    },
+    "size": {
+      "featureId": "network-character-controller",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkCharacterController.cs",
+      "kind": "Const",
+      "shortSignature": "SIZE: int = WORDS * 4"
+    },
+    "grounded": {
+      "featureId": "network-character-controller",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkCharacterController.cs",
+      "kind": "Property",
+      "shortSignature": "Grounded: bool"
+    },
+    "velocity": {
+      "featureId": "network-character-controller",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkCharacterController.cs",
+      "kind": "Property",
+      "shortSignature": "Velocity: Vector3"
+    },
+    "teleport": {
+      "featureId": "network-character-controller",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkCharacterController.cs",
+      "kind": "Method",
+      "shortSignature": "Teleport(Vector3? position = null, Quaternion? rotation = null) -\u003E void"
+    },
+    "jump": {
+      "featureId": "network-character-controller",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkCharacterController.cs",
+      "kind": "Method",
+      "shortSignature": "Jump(bool ignoreGrounded = false, float? overrideImpulse = null) -\u003E void"
+    },
+    "move": {
+      "featureId": "network-character-controller",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkCharacterController.cs",
+      "kind": "Method",
+      "shortSignature": "Move(Vector3 direction) -\u003E void"
+    },
+    "networkobjectproviderdefault": {
+      "featureId": "network-object-provider",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkObjectProviderDefault.cs",
+      "kind": "Class",
+      "shortSignature": "class NetworkObjectProviderDefault : Fusion.Behaviour, INetworkObjectProvider"
+    },
+    "acquireprefabinstance": {
+      "featureId": "network-object-provider",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkObjectProviderDefault.cs",
+      "kind": "Method",
+      "shortSignature": "AcquirePrefabInstance(NetworkRunner runner, in NetworkPrefabAcquireContext context, out NetworkObject instance) -\u003E NetworkObjectAcquireResult"
+    },
+    "releaseinstance": {
+      "featureId": "network-object-provider",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkObjectProviderDefault.cs",
+      "kind": "Method",
+      "shortSignature": "ReleaseInstance(NetworkRunner runner, in NetworkObjectReleaseContext context) -\u003E void"
+    },
+    "getprefabid": {
+      "featureId": "network-object-provider",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkObjectProviderDefault.cs",
+      "kind": "Method",
+      "shortSignature": "GetPrefabId(NetworkRunner runner, NetworkObjectGuid prefabGuid) -\u003E NetworkPrefabId"
+    },
+    "networkscenemanagerdefault": {
+      "featureId": "network-scene-management",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkSceneManagerDefault.cs",
+      "kind": "Class",
+      "shortSignature": "class NetworkSceneManagerDefault : Fusion.Behaviour, INetworkSceneManager"
+    },
+    "multipeerscene": {
+      "featureId": "network-scene-management",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkSceneManagerDefault.cs",
+      "kind": "Property",
+      "shortSignature": "MultiPeerScene: Scene"
+    },
+    "multipeerdontdestroyonloadroot": {
+      "featureId": "network-scene-management",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkSceneManagerDefault.cs",
+      "kind": "Property",
+      "shortSignature": "MultiPeerDontDestroyOnLoadRoot: Transform"
+    },
+    "runner": {
+      "featureId": "network-scene-management",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkSceneManagerDefault.cs",
+      "kind": "Property",
+      "shortSignature": "Runner: NetworkRunner"
+    },
+    "isbusy": {
+      "featureId": "network-scene-management",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkSceneManagerDefault.cs",
+      "kind": "Property",
+      "shortSignature": "IsBusy: bool"
+    },
+    "mainrunnerscene": {
+      "featureId": "network-scene-management",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkSceneManagerDefault.cs",
+      "kind": "Property",
+      "shortSignature": "MainRunnerScene: Scene"
+    },
+    "isrunnerscene": {
+      "featureId": "network-scene-management",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkSceneManagerDefault.cs",
+      "kind": "Method",
+      "shortSignature": "IsRunnerScene(Scene scene) -\u003E bool"
+    },
+    "trygetphysicsscene2d": {
+      "featureId": "network-scene-management",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkSceneManagerDefault.cs",
+      "kind": "Method",
+      "shortSignature": "TryGetPhysicsScene2D(out PhysicsScene2D scene2D) -\u003E bool"
+    },
+    "trygetphysicsscene3d": {
+      "featureId": "network-scene-management",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkSceneManagerDefault.cs",
+      "kind": "Method",
+      "shortSignature": "TryGetPhysicsScene3D(out PhysicsScene scene3D) -\u003E bool"
+    },
+    "makedontdestroyonload": {
+      "featureId": "network-scene-management",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkSceneManagerDefault.cs",
+      "kind": "Method",
+      "shortSignature": "MakeDontDestroyOnLoad(GameObject obj) -\u003E void"
+    },
+    "movegameobjecttoscene": {
+      "featureId": "network-scene-management",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkSceneManagerDefault.cs",
+      "kind": "Method",
+      "shortSignature": "MoveGameObjectToScene(GameObject gameObject, SceneRef sceneRef) -\u003E bool"
+    },
+    "unloadscene": {
+      "featureId": "network-scene-management",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkSceneManagerDefault.cs",
+      "kind": "Method",
+      "shortSignature": "UnloadScene(SceneRef sceneRef) -\u003E NetworkSceneAsyncOp"
+    },
+    "getsceneref": {
+      "featureId": "network-scene-management",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkSceneManagerDefault.cs",
+      "kind": "Method",
+      "shortSignature": "GetSceneRef(GameObject gameObject) -\u003E SceneRef"
+    },
+    "onsceneinfochanged": {
+      "featureId": "network-scene-management",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkSceneManagerDefault.cs",
+      "kind": "Method",
+      "shortSignature": "OnSceneInfoChanged(NetworkSceneInfo sceneInfo, NetworkSceneInfoChangeSource changeSource) -\u003E bool"
+    },
+    "loadaddressablescenepathsasync": {
+      "featureId": "network-scene-management",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkSceneManagerDefault.cs",
+      "kind": "Method",
+      "shortSignature": "LoadAddressableScenePathsAsync() -\u003E Task"
+    },
+    "getaddressablescenesresult": {
+      "featureId": "network-scene-management",
+      "filePath": "Assets/Photon/Fusion/Runtime/NetworkSceneManagerDefault.cs",
+      "kind": "Method",
+      "shortSignature": "GetAddressableScenesResult(Task\u003Cstring[]\u003E task) -\u003E implicit operator"
+    },
+    "socketwebtcp": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/SocketWebTcp.cs",
+      "kind": "Class",
+      "shortSignature": "class SocketWebTcp : IPhotonSocket, IDisposable"
+    },
+    "connect": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/WebSocket.cs",
+      "kind": "Method",
+      "shortSignature": "Connect() -\u003E void"
+    },
+    "send": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/WebSocket.cs",
+      "kind": "Method",
+      "shortSignature": "Send(byte[] buffer) -\u003E void"
+    },
+    "receive": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/SocketWebTcp.cs",
+      "kind": "Method",
+      "shortSignature": "Receive(out byte[] data) -\u003E PhotonSocketError"
+    },
+    "receivecallback": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/SocketWebTcp.cs",
+      "kind": "Method",
+      "shortSignature": "ReceiveCallback(byte[] buf, int len) -\u003E void"
+    },
+    "websocket": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/WebSocket.cs",
+      "kind": "Class",
+      "shortSignature": "class WebSocket"
+    },
+    "url": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/WebSocket.cs",
+      "kind": "Property",
+      "shortSignature": "Url: Uri"
+    },
+    "proxyaddress": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/WebSocket.cs",
+      "kind": "Property",
+      "shortSignature": "ProxyAddress: string"
+    },
+    "connected": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/WebSocket.cs",
+      "kind": "Property",
+      "shortSignature": "Connected: bool"
+    },
+    "debugreturn": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/WebSocket.cs",
+      "kind": "Property",
+      "shortSignature": "DebugReturn: Action\u003CDebugLevel, string\u003E"
+    },
+    "implementation": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/WebSocket.cs",
+      "kind": "Const",
+      "shortSignature": "Implementation: string = \u0022JsLib\u0022"
+    },
+    "close": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/WebSocket.cs",
+      "kind": "Method",
+      "shortSignature": "Close() -\u003E void"
+    },
+    "socketerrorbuffersize": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/WebSocket.cs",
+      "kind": "Const",
+      "shortSignature": "SocketErrorBufferSize: int = 1024"
+    },
+    "recvcallbackstatic": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/WebSocket.cs",
+      "kind": "Method",
+      "shortSignature": "RecvCallbackStatic(int instance, IntPtr p, int len) -\u003E void"
+    },
+    "recvcallbackinstance": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/WebSocket.cs",
+      "kind": "Method",
+      "shortSignature": "RecvCallbackInstance(IntPtr p, int len) -\u003E void"
+    },
+    "opencallbackstatic": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/WebSocket.cs",
+      "kind": "Method",
+      "shortSignature": "OpenCallbackStatic(int instance) -\u003E void"
+    },
+    "opencallbackinstance": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/WebSocket.cs",
+      "kind": "Method",
+      "shortSignature": "OpenCallbackInstance() -\u003E void"
+    },
+    "errorcallbackstatic": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/WebSocket.cs",
+      "kind": "Method",
+      "shortSignature": "ErrorCallbackStatic(int instance, int code) -\u003E void"
+    },
+    "errorcallbackinstance": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/WebSocket.cs",
+      "kind": "Method",
+      "shortSignature": "ErrorCallbackInstance(int code, string msg) -\u003E void"
+    },
+    "closecallbackstatic": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/WebSocket.cs",
+      "kind": "Method",
+      "shortSignature": "CloseCallbackStatic(int instance, int code) -\u003E void"
+    },
+    "closecallbackinstance": {
+      "featureId": "websocket-transport",
+      "filePath": "Assets/Photon/PhotonLibs/WebSocket/WebSocket.cs",
+      "kind": "Method",
+      "shortSignature": "CloseCallbackInstance(int code, string msg) -\u003E void"
+    },
+    "readmeeditor": {
+      "featureId": "tutorial-readme",
+      "filePath": "Assets/TutorialInfo/Scripts/Editor/ReadmeEditor.cs",
+      "kind": "Class",
+      "shortSignature": "class ReadmeEditor : Editor"
+    },
+    "fusionnetworkobjectstatistics": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionNetworkObjectStatistics.cs",
+      "kind": "Class",
+      "shortSignature": "class FusionNetworkObjectStatistics : MonoBehaviour"
+    },
+    "networkobjectstat": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionNetworkObjectStatsGraph.cs",
+      "kind": "Enum",
+      "shortSignature": "enum NetworkObjectStat"
+    },
+    "fusionnetworkobjectstatsgraph": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionNetworkObjectStatsGraph.cs",
+      "kind": "Class",
+      "shortSignature": "class FusionNetworkObjectStatsGraph : FusionStatsGraphBase"
+    },
+    "updategraph": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatsGraphDefault.cs",
+      "kind": "Method",
+      "shortSignature": "UpdateGraph(NetworkRunner runner, FusionStatisticsManager statisticsManager, ref DateTime now) -\u003E void"
+    },
+    "fusionnetworkobjectstatsgraphcombine": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionNetworkObjectStatsGraphCombine.cs",
+      "kind": "Class",
+      "shortSignature": "class FusionNetworkObjectStatsGraphCombine : MonoBehaviour"
+    },
+    "setupnetworkobject": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionNetworkObjectStatsGraphCombine.cs",
+      "kind": "Method",
+      "shortSignature": "SetupNetworkObject(NetworkObject networkObject, FusionStatistics fusionStatistics, FusionNetworkObjectStatistics objectStatisticsInstance) -\u003E void"
+    },
+    "togglerenderdisplay": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionNetworkObjectStatsGraphCombine.cs",
+      "kind": "Method",
+      "shortSignature": "ToggleRenderDisplay() -\u003E void"
+    },
+    "destroycombinedgraph": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionNetworkObjectStatsGraphCombine.cs",
+      "kind": "Method",
+      "shortSignature": "DestroyCombinedGraph() -\u003E void"
+    },
+    "fusionstatistics": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatistics.cs",
+      "kind": "Class",
+      "shortSignature": "class FusionStatistics : SimulationBehaviour, ISpawned"
+    },
+    "stats_canvas_prefab_path": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatistics.cs",
+      "kind": "Const",
+      "shortSignature": "STATS_CANVAS_PREFAB_PATH: string = \u0022FusionStatsResources/FusionStatsRend..."
+    },
+    "stats_object_combine_prefab_path": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatistics.cs",
+      "kind": "Const",
+      "shortSignature": "STATS_OBJECT_COMBINE_PREFAB_PATH: string = \u0022FusionStatsResources/NetworkObjectSt..."
+    },
+    "fusionstatisticsstatcustomconfig": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatistics.cs",
+      "kind": "Struct",
+      "shortSignature": "struct FusionStatisticsStatCustomConfig"
+    },
+    "setstatscustomconfig": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatistics.cs",
+      "kind": "Method",
+      "shortSignature": "SetStatsCustomConfig(List\u003CFusionStatisticsStatCustomConfig\u003E customConfig) -\u003E void"
+    },
+    "setcanvasanchor": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatistics.cs",
+      "kind": "Method",
+      "shortSignature": "SetCanvasAnchor(CanvasAnchor anchor) -\u003E void"
+    },
+    "oneditorchange": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatistics.cs",
+      "kind": "Method",
+      "shortSignature": "OnEditorChange() -\u003E void"
+    },
+    "setupstatisticspanel": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatistics.cs",
+      "kind": "Method",
+      "shortSignature": "SetupStatisticsPanel() -\u003E void"
+    },
+    "setworldanchor": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatistics.cs",
+      "kind": "Method",
+      "shortSignature": "SetWorldAnchor(FusionStatsWorldAnchor anchor, float scale) -\u003E void"
+    },
+    "destroystatisticspanel": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatistics.cs",
+      "kind": "Method",
+      "shortSignature": "DestroyStatisticsPanel() -\u003E void"
+    },
+    "monitornetworkobject": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatistics.cs",
+      "kind": "Method",
+      "shortSignature": "MonitorNetworkObject(NetworkObject networkObject, FusionNetworkObjectStatistics objectStatisticsInstance, bool monitor) -\u003E bool"
+    },
+    "registergraph": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatistics.cs",
+      "kind": "Method",
+      "shortSignature": "RegisterGraph(FusionStatsGraphBase graph) -\u003E void"
+    },
+    "unregistergraph": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatistics.cs",
+      "kind": "Method",
+      "shortSignature": "UnregisterGraph(FusionStatsGraphBase graph) -\u003E void"
+    },
+    "canvasanchor": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatsCanvas.cs",
+      "kind": "Enum",
+      "shortSignature": "enum CanvasAnchor"
+    },
+    "fusionstatsconfig": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatsConfig.cs",
+      "kind": "Class",
+      "shortSignature": "class FusionStatsConfig : MonoBehaviour"
+    },
+    "toggleconfigpanel": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatsConfig.cs",
+      "kind": "Method",
+      "shortSignature": "ToggleConfigPanel() -\u003E void"
+    },
+    "toggleuseworldanchor": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatsConfig.cs",
+      "kind": "Method",
+      "shortSignature": "ToggleUseWorldAnchor(bool value) -\u003E void"
+    },
+    "setworldcanvasscale": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatsConfig.cs",
+      "kind": "Method",
+      "shortSignature": "SetWorldCanvasScale(float value) -\u003E void"
+    },
+    "fusionstatsgraphdefault": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatsGraphDefault.cs",
+      "kind": "Class",
+      "shortSignature": "class FusionStatsGraphDefault : FusionStatsGraphBase"
+    },
+    "applycustomstatsconfig": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatsGraphDefault.cs",
+      "kind": "Method",
+      "shortSignature": "ApplyCustomStatsConfig(FusionStatistics.FusionStatisticsStatCustomConfig config) -\u003E void"
+    },
+    "rendersimstats": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatsPanelHeader.cs",
+      "kind": "Enum",
+      "shortSignature": "enum RenderSimStats"
+    },
+    "fusionstatspanelheader": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatsPanelHeader.cs",
+      "kind": "Class",
+      "shortSignature": "class FusionStatsPanelHeader : MonoBehaviour"
+    },
+    "setupheader": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatsPanelHeader.cs",
+      "kind": "Method",
+      "shortSignature": "SetupHeader(string title, FusionStatistics fusionStatistics) -\u003E void"
+    },
+    "fusionstatsworldanchor": {
+      "featureId": "fusion-statistics",
+      "filePath": "Assets/Photon/Fusion/Runtime/Statistics/FusionStatsWorldAnchor.cs",
+      "kind": "Class",
+      "shortSignature": "class FusionStatsWorldAnchor : MonoBehaviour"
+    },
+    "enableonsinglerunner": {
+      "featureId": "runner-visibility",
+      "filePath": "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/EnableOnSingleRunner.cs",
+      "kind": "Class",
+      "shortSignature": "class EnableOnSingleRunner : Fusion.Behaviour"
+    },
+    "findrecognizedtypes": {
+      "featureId": "runner-visibility",
+      "filePath": "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/EnableOnSingleRunner.cs",
+      "kind": "Method",
+      "shortSignature": "FindRecognizedTypes() -\u003E void"
+    },
+    "findnestedrecognizedtypes": {
+      "featureId": "runner-visibility",
+      "filePath": "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/EnableOnSingleRunner.cs",
+      "kind": "Method",
+      "shortSignature": "FindNestedRecognizedTypes() -\u003E void"
+    },
+    "reusablecomponentslist": {
+      "featureId": "runner-visibility",
+      "filePath": "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/EnableOnSingleRunner.cs",
+      "kind": "Const",
+      "shortSignature": "reusableComponentsList: List\u003CComponent\u003E = new List\u003CUnityEngine.Component\u003E()"
+    },
+    "reusablecomponentslist2": {
+      "featureId": "runner-visibility",
+      "filePath": "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/EnableOnSingleRunner.cs",
+      "kind": "Const",
+      "shortSignature": "reusableComponentsList2: List\u003CComponent\u003E = new List\u003CUnityEngine.Component\u003E()"
+    },
+    "runneraoigizmos": {
+      "featureId": "runner-visibility",
+      "filePath": "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/RunnerAOIGizmos.cs",
+      "kind": "Class",
+      "shortSignature": "class RunnerAOIGizmos : SimulationBehaviour"
+    },
+    "gizmooptionsenum": {
+      "featureId": "runner-visibility",
+      "filePath": "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/RunnerAOIGizmos.cs",
+      "kind": "Enum",
+      "shortSignature": "enum GizmoOptionsEnum"
+    },
+    "customoptions": {
+      "featureId": "runner-visibility",
+      "filePath": "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/RunnerAOIGizmos.cs",
+      "kind": "Struct",
+      "shortSignature": "struct CustomOptions"
+    },
+    "runnerenablevisibility": {
+      "featureId": "runner-visibility",
+      "filePath": "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/RunnerEnableVisibility.cs",
+      "kind": "Class",
+      "shortSignature": "class RunnerEnableVisibility : Behaviour, INetworkRunnerCallbacks"
+    },
+    "onreliabledataprogress": {
+      "featureId": "runner-visibility",
+      "filePath": "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/RunnerEnableVisibility.cs",
+      "kind": "Method",
+      "shortSignature": "OnReliableDataProgress(NetworkRunner runner, PlayerRef player, ReliableKey key, float progress) -\u003E void"
+    },
+    "runnerlagcompensationgizmos": {
+      "featureId": "runner-visibility",
+      "filePath": "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/RunnerLagCompensationGizmos.cs",
+      "kind": "Class",
+      "shortSignature": "class RunnerLagCompensationGizmos : Behaviour"
+    },
+    "irunnervisibilityrecognizedtype": {
+      "featureId": "runner-visibility",
+      "filePath": "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/RunnerVisibilityLink.cs",
+      "kind": "Interface",
+      "shortSignature": "interface IRunnerVisibilityRecognizedType"
+    },
+    "runnervisibilitylink": {
+      "featureId": "runner-visibility",
+      "filePath": "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/RunnerVisibilityLink.cs",
+      "kind": "Class",
+      "shortSignature": "class RunnerVisibilityLink : MonoBehaviour"
+    },
+    "preferredrunners": {
+      "featureId": "runner-visibility",
+      "filePath": "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/RunnerVisibilityLink.cs",
+      "kind": "Enum",
+      "shortSignature": "enum PreferredRunners"
+    },
+    "isonsinglerunner": {
+      "featureId": "runner-visibility",
+      "filePath": "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/RunnerVisibilityLink.cs",
+      "kind": "Property",
+      "shortSignature": "IsOnSingleRunner: bool"
+    },
+    "defaultstate": {
+      "featureId": "runner-visibility",
+      "filePath": "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/RunnerVisibilityLink.cs",
+      "kind": "Property",
+      "shortSignature": "DefaultState: bool"
+    },
+    "setenabled": {
+      "featureId": "runner-visibility",
+      "filePath": "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/RunnerVisibilityLink.cs",
+      "kind": "Method",
+      "shortSignature": "SetEnabled(bool enabled) -\u003E void"
+    },
+    "runnervisibilitylinksroot": {
+      "featureId": "runner-visibility",
+      "filePath": "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/RunnerVisibilityLinksRoot.cs",
+      "kind": "Class",
+      "shortSignature": "class RunnerVisibilityLinksRoot : MonoBehaviour"
+    }
+  },
+  "fileHashes": {
+    "Assets/00_MainMenu/UIMainMenu.cs": "0d30dd1a667a9011b0f0787008f670eae26005dd32b41320c5ae3876d7c2ee4f",
+    "Assets/Common/DestroyAfter.cs": "cd33ad58cdb2747ddb997bfa13c43d7cecd85c01e46819c0d4c15a3e5bbce458",
+    "Assets/Common/RotateObject.cs": "1674d1801c63d596d6e62123c37a718c4159c95c5c1fb7f632e37d22d975dfa4",
+    "Assets/Common/UIGameMenu.cs": "9fef2fd6f62fffa539db9e36af4bf892d1224fcf0a72122c1aba3d21c2e656db",
+    "Assets/Common/UINameplate.cs": "0f05bc8bd64b57ae8205548258b4a00f77fa7f099e781f6e1581b9e24522066a",
+    "Assets/03_Shooter/Scripts/Chicken.cs": "930dc627467e7331996b32b4a586a832ea77408c59756657ba3685191748fdac",
+    "Assets/03_Shooter/Scripts/ChickenSpawner.cs": "15d3979c1b58b533974244a31b5107f1c5e25e71f53d4cccd96a5c02683b114c",
+    "Assets/03_Shooter/Scripts/GameManager.cs": "dbb2fa45a472e73413d55006927f731c7a427be1e41500b9f8fb075dc5b872fd",
+    "Assets/03_Shooter/Scripts/Health.cs": "f483ff34451dda36b1844ecf1b4d59110940949890ca8cc0b31c961b9f29f812",
+    "Assets/03_Shooter/Scripts/Player.cs": "2d31ecefc96dd64e8bfbb9d8ec992704f5f1d49112fdbecc6061c51de87638af",
+    "Assets/03_Shooter/Scripts/PlayerInput.cs": "e7ed742dcb3336c3aa68397ffa6ad2e9ceedb157a5a723e0d6b15190a5a00f78",
+    "Assets/03_Shooter/Scripts/SpawnPoint.cs": "6ee85ee9115c2924da78e852e183cb82f4409f3d9bf93d703f103f46d4589ea7",
+    "Assets/03_Shooter/Scripts/UIShooter.cs": "87c1d3457d26ba10fb836fca663b7a71b5c56695a4909cb304a1925e63c581d2",
+    "Assets/TutorialInfo/Scripts/Readme.cs": "baa133f5baae44c1217e10c64061f8fb7d56878477339d746470502165d35019",
+    "Assets/03_Shooter/Scripts/Inventory/Inventory.cs": "9562205483e860ea89568e172fba362dbf337a36322d4786b7e7527a776fcfed",
+    "Assets/03_Shooter/Scripts/Inventory/InventoryHUD.cs": "4c96404b2d6e7859404152a456571ca87a83298a1214166528bc77dc4b02a5c9",
+    "Assets/03_Shooter/Scripts/Inventory/InventorySlot.cs": "d71c844952475efd88bdb1693d65b6d9477a41cae04d21450e09fabeaff22bff",
+    "Assets/03_Shooter/Scripts/Inventory/ItemDatabase.cs": "23626af54dee7cae316709a04633685ebdd4717da9c8fed408904bff27f495ac",
+    "Assets/03_Shooter/Scripts/Inventory/ItemDefinition.cs": "66a832b5aa031f04845a3505b9e4ba8cb1e88194f983c55c0829ab44b458e8e2",
+    "Assets/03_Shooter/Scripts/Inventory/ItemView.cs": "4a3611707926a6a3c7e5087a935d4bdf3e846a2e5b6fe102b52ac6ab0b78f916",
+    "Assets/03_Shooter/Scripts/Inventory/PickupableItem.cs": "e4de6f0e77fd1fd45bc4aeadc5abca39f3418e3bc4ea3131e1f20717d0c4b2ca",
+    "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.cs": "112426607811a8c61cf59ef232cca80e9b64597353562c256f858a5f42456c90",
+    "Assets/Photon/Fusion/CodeGen/Fusion.CodeGen.User.cs": "586c5502b50c4bd32f4d24636baeb885bf8677f94a3f1cf7677cc98cee87e07c",
+    "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.AssemblyAttributes.cs": "488dfd560c57b59b29641e77843b83f85f2ed22d8bb0c94f5534f7ce519fe558",
+    "Assets/Photon/Fusion/Editor/Fusion.Unity.Editor.cs": "bb8858a2d55351407d4e29d84b83d80ccbed8eb4c5d673dfaf7041b83efe0499",
+    "Assets/Photon/Fusion/Editor/FusionEditorConfigImporter.cs": "f5516057693af5b27154c86cf94e82835985b43bc90ee12d8f911da6683b793d",
+    "Assets/Photon/Fusion/Editor/FusionEditorSkin.cs": "65c0d85e114b2571b278d08c6c56d75e7fc9af8bb50f8ead363f2a54ff04ba5a",
+    "Assets/Photon/Fusion/Editor/FusionHubWindow.cs": "8047fa911e44a7782ef05a739eb174ad7923433cfd59a6f139cb96a4a91d45d8",
+    "Assets/Photon/Fusion/Editor/FusionRunnerVisibilityControlsWindow.cs": "19ce2f765e560ddcc7c6561acf87dfd09f75ad36210bcc7df75e21a6d53c2537",
+    "Assets/Photon/Fusion/Editor/FusionWeaverTriggerImporter.cs": "b73a8357d7b8746e0d0e8e0fb8388380c7a3036537d68811555d51036a4cf419",
+    "Assets/Photon/Fusion/Editor/NetworkPrefabsInspector.cs": "3932050f2804ca12f14e5774df7fd41cbaf72bfea1aaba2f67df842cd46d7d30",
+    "Assets/Photon/Fusion/Editor/NetworkProjectConfigImporter.cs": "be9a3d1bb76e2cf6003db33f3b9ad8321c113affc77439b40f9444e1fa9dc43c",
+    "Assets/Photon/Fusion/Editor/NetworkProjectConfigImporterEditor.cs": "9f5db9b596904140b07a6a7a9ed3f7413862fe9486a6d68399798880f980be79",
+    "Assets/Photon/Fusion/Runtime/Fusion.Unity.AssemblyAttributes.cs": "389059a7b0228141b82e7754b2885666b52143e529fdf5b9089674a27fffaea1",
+    "Assets/Photon/Fusion/Runtime/Fusion.Unity.cs": "3e82a8b10fc8e8b2bf2fa3bc1f236d9b48c23709672739de3fe3664c8719b73d",
+    "Assets/Photon/Fusion/Runtime/FusionAddressablePrefabsPreloader.cs": "b6082d4497b6ef46ebf630f65aee993b19c3ae76f6caf025cfddae17ab95d06c",
+    "Assets/Photon/Fusion/Runtime/FusionBasicBillboard.cs": "6df6517ccd9b0dee265aed2f0173942dc6bddc3c60ca70238362be59f336ab83",
+    "Assets/Photon/Fusion/Runtime/FusionBootstrap.cs": "bdfac2ae123c7c6a072dab9d9bf2bdac9fce71013a5278f5fb29db35d402be15",
+    "Assets/Photon/Fusion/Runtime/FusionBootstrapDebugGUI.cs": "e78d5bc9fc9ddda18ac551ec4495572164f0026b473a9f387edf6e75c3e47fea",
+    "Assets/Photon/Fusion/Runtime/NetworkCharacterController.cs": "58bd21c3b1e4b3f502ef781c5dd52a6448d650033690b4ff3c8c574192840cb1",
+    "Assets/Photon/Fusion/Runtime/NetworkObjectProviderDefault.cs": "2ee6ba4188e0139f1936cc76eb8357b2ef625ba771dacc982ad6171731bfb775",
+    "Assets/Photon/Fusion/Runtime/NetworkSceneManagerDefault.cs": "b76e194724ec75354f8a6fc6ed06886f42d5d0b68936d79c56f0ab997ebbf0de",
+    "Assets/Photon/PhotonLibs/WebSocket/SocketWebTcp.cs": "ca70e326d6449f27b1af7bd8ef21b91a2899e9595a7c521453af9a5303f85bae",
+    "Assets/Photon/PhotonLibs/WebSocket/WebSocket.cs": "42881e32b4a855a6e6b275152d143da9321f26b85fe36306a36cf2e5e6327ad3",
+    "Assets/TutorialInfo/Scripts/Editor/ReadmeEditor.cs": "b1b509be41113e31b8ee3c30ca0a00aaf006fdcae69aac749899eed2c4cc4a7d",
+    "Assets/Photon/Fusion/Runtime/Statistics/FusionNetworkObjectStatistics.cs": "25dfc834e855b5f183e2bb133787be7e29112fde8a186028c977582930a07d27",
+    "Assets/Photon/Fusion/Runtime/Statistics/FusionNetworkObjectStatsGraph.cs": "a0db04d391b44175ca0b6276c0288cf61c8a0646d527da4254914897ef763405",
+    "Assets/Photon/Fusion/Runtime/Statistics/FusionNetworkObjectStatsGraphCombine.cs": "b4696d31529a58a670975571f5b02a3e2371bbeba0edfc90f05defd1d81b577f",
+    "Assets/Photon/Fusion/Runtime/Statistics/FusionStatistics.cs": "8262fdf5f32a04a5df5590d123f9a7adf1ed0df2ed8e5fe8cf9c1989c70ef7f7",
+    "Assets/Photon/Fusion/Runtime/Statistics/FusionStatsCanvas.cs": "272ccb81927008f8fcce20fd5aa3a3421adc3b909309982cdabb0f842e4ad1b1",
+    "Assets/Photon/Fusion/Runtime/Statistics/FusionStatsConfig.cs": "4a4c9ff82d652187d02d31724ef311d33b798f2f3eb40bf53e617bd63d417459",
+    "Assets/Photon/Fusion/Runtime/Statistics/FusionStatsGraphDefault.cs": "259c105e1a58626b41817843e5bbde761020dcd97c868c539fb3553a37a3de1f",
+    "Assets/Photon/Fusion/Runtime/Statistics/FusionStatsPanelHeader.cs": "9b1c2b205e74018076f15547fa12dc33b802aa7a2b70150817e395298bd44160",
+    "Assets/Photon/Fusion/Runtime/Statistics/FusionStatsWorldAnchor.cs": "b3716042d41ffd356b91a89621dfe839be31b1bd3fe4628f8b6d3752bd5be0fa",
+    "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/EnableOnSingleRunner.cs": "d939bb8cb1774bed82581c45fd5d7b87f4d3657d948e2c02fb438ca528e66daa",
+    "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/RunnerAOIGizmos.cs": "cdf4deb9cdf2416c4278796a7b846109abdf878673390f75bb32c3beece69978",
+    "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/RunnerEnableVisibility.cs": "f45a5255e3c73e72ca5a4784290b1114a04aef31b074b2245f0a9b67d8d47013",
+    "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/RunnerLagCompensationGizmos.cs": "759910f0d5c95fcaa8eb7e432a29a9546cfb2499ab005e6ae6c6691ae31cab1f",
+    "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/RunnerVisibilityLink.cs": "8fbf69844580a45359500515dc0850745cdeb302a01f729e720b7bcf1481ac91",
+    "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/RunnerVisibilityLinksRoot.cs": "50f6ec61299e0aff45312ab41be6ba2e109bd743c3d7e8dacbdd6144caffd7d0"
+  }
+}
