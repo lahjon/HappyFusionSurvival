@@ -2088,6 +2088,42 @@
       "filePath": "Assets/Photon/Fusion/Runtime/Utilities/RunnerVisibility/RunnerVisibilityLinksRoot.cs",
       "kind": "Class",
       "shortSignature": "class RunnerVisibilityLinksRoot : MonoBehaviour"
+    },
+    "inventoryslothover": {
+      "featureId": "inventory-tooltip-system",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/InventorySlotHover.cs",
+      "kind": "Class",
+      "shortSignature": "class InventorySlotHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler"
+    },
+    "onpointerenter": {
+      "featureId": "inventory-tooltip-system",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/InventorySlotHover.cs",
+      "kind": "Method",
+      "shortSignature": "OnPointerEnter(PointerEventData eventData) -\u003E void"
+    },
+    "onpointerexit": {
+      "featureId": "inventory-tooltip-system",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/InventorySlotHover.cs",
+      "kind": "Method",
+      "shortSignature": "OnPointerExit(PointerEventData eventData) -\u003E void"
+    },
+    "inventorytooltip": {
+      "featureId": "inventory-tooltip-system",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/InventoryTooltip.cs",
+      "kind": "Class",
+      "shortSignature": "class InventoryTooltip : MonoBehaviour"
+    },
+    "show": {
+      "featureId": "inventory-tooltip-system",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/InventoryTooltip.cs",
+      "kind": "Method",
+      "shortSignature": "Show(ItemDefinition def, short count) -\u003E void"
+    },
+    "hide": {
+      "featureId": "inventory-tooltip-system",
+      "filePath": "Assets/03_Shooter/Scripts/Inventory/InventoryTooltip.cs",
+      "kind": "Method",
+      "shortSignature": "Hide() -\u003E void"
     }
   },
   "fileHashes": {

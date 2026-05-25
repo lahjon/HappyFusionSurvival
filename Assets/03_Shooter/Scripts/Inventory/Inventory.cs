@@ -1,4 +1,6 @@
 using Fusion;
+using Starter.Common.Input;
+using Starter.Common.Inventory;
 using UnityEngine;
 
 namespace Starter.Shooter
@@ -8,7 +10,7 @@ namespace Starter.Shooter
 	/// State authority owns all slot mutations; clients request actions via RPC.
 	/// </summary>
 	[RequireComponent(typeof(NetworkObject))]
-	public sealed class Inventory : NetworkBehaviour
+	public sealed class Inventory : NetworkBehaviour, IPlayerInventory, IInteractionTarget
 	{
 		public const int SlotCount = 8;
 
@@ -32,9 +34,15 @@ namespace Starter.Shooter
 
 		private GameObject _heldInstance;
 		private short _heldItemId;
+		private GameInputActions _actions;
 
 		public override void Spawned()
 		{
+			if (HasInputAuthority)
+			{
+				_actions = GetComponent<GameInputActions>();
+			}
+
 			RefreshHeldItem();
 		}
 
@@ -53,16 +61,19 @@ namespace Starter.Shooter
 				return;
 			if (Cursor.lockState != CursorLockMode.Locked)
 				return;
+			if (_actions == null || _actions.IsInitialized == false)
+				return;
 
-			for (int i = 0; i < SlotCount; i++)
+			var slots = _actions.HotbarSlots;
+			for (int i = 0; i < SlotCount && i < slots.Length; i++)
 			{
-				if (Input.GetKeyDown(KeyCode.Alpha1 + i) && SelectedSlot != i)
+				if (slots[i].WasPressedThisFrame() && SelectedSlot != i)
 				{
 					RPC_RequestSelect(i);
 				}
 			}
 
-			float scroll = Input.GetAxisRaw("Mouse ScrollWheel");
+			float scroll = _actions.HotbarScroll.ReadValue<float>();
 			if (scroll != 0f)
 			{
 				int step = scroll > 0f ? -1 : 1;
@@ -70,35 +81,18 @@ namespace Starter.Shooter
 				RPC_RequestSelect(next);
 			}
 
-			if (Input.GetKeyDown(KeyCode.E) && TryFindNearestPickup(out var pickup))
-			{
-				RPC_RequestPickup(pickup.Object.Id);
-			}
-
-			if (Input.GetKeyDown(KeyCode.Q))
+			if (_actions.Drop.WasPressedThisFrame())
 			{
 				RPC_RequestDrop();
 			}
 		}
 
-		private bool TryFindNearestPickup(out PickupableItem nearest)
-		{
-			nearest = null;
-			float bestSq = PickupRange * PickupRange;
-			var hits = Physics.OverlapSphere(transform.position, PickupRange);
-			for (int i = 0; i < hits.Length; i++)
-			{
-				if (!hits[i].TryGetComponent<PickupableItem>(out var pi))
-					continue;
+		float IInteractionTarget.PickupRange => PickupRange;
 
-				float dsq = (pi.transform.position - transform.position).sqrMagnitude;
-				if (dsq <= bestSq)
-				{
-					bestSq = dsq;
-					nearest = pi;
-				}
-			}
-			return nearest != null;
+		void IInteractionTarget.OnPickupRequested(PickupableItem pickup)
+		{
+			if (pickup == null || pickup.Object == null) return;
+			RPC_RequestPickup(pickup.Object.Id);
 		}
 
 		[Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
@@ -139,39 +133,7 @@ namespace Starter.Shooter
 
 		public short TryAdd(short itemId, short count)
 		{
-			if (itemId == 0 || count <= 0) return count;
-			if (ItemDatabase.Instance == null) return count;
-
-			var def = ItemDatabase.Instance.GetById(itemId);
-			if (def == null) return count;
-
-			short remaining = count;
-
-			for (int i = 0; i < SlotCount && remaining > 0; i++)
-			{
-				var s = Slots[i];
-				if (s.ItemId != itemId) continue;
-
-				short room = (short)(def.MaxStack - s.Count);
-				if (room <= 0) continue;
-
-				short add = (short)Mathf.Min(room, remaining);
-				s.Count += add;
-				Slots.Set(i, s);
-				remaining -= add;
-			}
-
-			for (int i = 0; i < SlotCount && remaining > 0; i++)
-			{
-				var s = Slots[i];
-				if (!s.IsEmpty) continue;
-
-				short add = (short)Mathf.Min(def.MaxStack, remaining);
-				Slots.Set(i, new InventorySlot { ItemId = itemId, Count = add });
-				remaining -= add;
-			}
-
-			return remaining;
+			return InventoryOps.TryAdd(Slots, itemId, count);
 		}
 
 		public bool RemoveAt(int slot, short count)

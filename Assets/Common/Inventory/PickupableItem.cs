@@ -1,7 +1,7 @@
 using Fusion;
 using UnityEngine;
 
-namespace Starter.Shooter
+namespace Starter.Common.Inventory
 {
 	/// <summary>
 	/// Networked world object representing a single dropped/lootable stack.

@@ -1,6 +1,6 @@
 using Fusion;
 
-namespace Starter.Shooter
+namespace Starter.Common.Inventory
 {
 	/// <summary>
 	/// Network-friendly cell for a single hotbar slot. ItemId == 0 means empty.

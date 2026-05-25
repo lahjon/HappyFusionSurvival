@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Starter.Shooter
+namespace Starter.Common.Inventory
 {
 	/// <summary>
 	/// Local-only visual for an item. Used both as a child of a world PickupableItem

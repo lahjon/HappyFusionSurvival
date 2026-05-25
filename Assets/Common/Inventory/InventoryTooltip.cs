@@ -1,9 +1,10 @@
 using System.Text;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
-namespace Starter.Shooter
+namespace Starter.Common.Inventory
 {
 	/// <summary>
 	/// Local-only tooltip widget that follows the cursor and renders an
@@ -99,7 +100,13 @@ namespace Starter.Shooter
 		{
 			if (_canvas == null) return;
 
-			Vector2 cursor = Input.mousePosition;
+			var mouse = Mouse.current;
+			if (mouse == null)
+			{
+				Hide();
+				return;
+			}
+			Vector2 cursor = mouse.position.ReadValue();
 			Vector2 local;
 			var parentRT = _rt.parent as RectTransform;
 			if (parentRT == null) return;

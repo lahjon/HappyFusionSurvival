@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-namespace Starter.Shooter
+namespace Starter.Common.Inventory
 {
 	/// <summary>
 	/// Pointer-enter/exit relay attached to each inventory slot. Notifies the

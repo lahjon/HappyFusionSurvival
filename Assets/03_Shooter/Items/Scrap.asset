@@ -14,7 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ItemDefinition
   Id: 2
   DisplayName: Scrap
-  Icon: {fileID: 0}
+  Icon: {fileID: 21300000, guid: f8b3194f397d8934697497c4c07cf47e, type: 3}
+  Description: 
+  Stats: []
   WorldPrefab: {fileID: 2848020348106660934, guid: 309560856a74c4c4b855eb779d84710b, type: 3}
   HandPrefab: {fileID: 1577575726583460350, guid: a1106dd3df9576345a3e15d858c4f953, type: 3}
   MaxStack: 99

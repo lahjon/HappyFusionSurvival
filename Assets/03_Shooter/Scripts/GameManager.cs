@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using Fusion;
+using Starter.Common.Inventory;
 
 namespace Starter.Shooter
 {

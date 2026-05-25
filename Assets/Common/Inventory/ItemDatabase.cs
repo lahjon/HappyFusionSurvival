@@ -1,14 +1,14 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace Starter.Shooter
+namespace Starter.Common.Inventory
 {
 	/// <summary>
 	/// Asset-backed registry of every ItemDefinition the game knows about. A bootstrap
 	/// MonoBehaviour (GameManager) holds the reference and calls Bind() in Awake so
 	/// runtime lookups go through ItemDatabase.Instance without using Resources.
 	/// </summary>
-	[CreateAssetMenu(fileName = "ItemDatabase", menuName = "Shooter/Item Database", order = 1)]
+	[CreateAssetMenu(fileName = "ItemDatabase", menuName = "Inventory/Item Database", order = 1)]
 	public sealed class ItemDatabase : ScriptableObject
 	{
 		public static ItemDatabase Instance { get; private set; }

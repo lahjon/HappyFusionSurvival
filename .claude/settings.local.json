@@ -30,7 +30,9 @@
       "mcp__UnityMCP__read_console",
       "mcp__UnityMCP__create_script",
       "PowerShell(Get-Command *)",
-      "PowerShell(python --version; python -m pip --version)"
+      "PowerShell(python --version; python -m pip --version)",
+      "Bash(python *)",
+      "PowerShell(try { $j = Get-Content -Raw 'Assets/InputSystem_Actions.inputactions' | ConvertFrom-Json; Write-Output 'JSON OK'; Write-Output \\('maps: ' + \\(\\($j.maps | ForEach-Object { $_.name }\\) -join ', '\\)\\); $player = $j.maps | Where-Object { $_.name -eq 'Player' }; Write-Output \\('Player actions: ' + \\(\\($player.actions | ForEach-Object { $_.name }\\) -join ', '\\)\\); $inv = $j.maps | Where-Object { $_.name -eq 'Inventory' }; Write-Output \\('Inventory actions: ' + \\(\\($inv.actions | ForEach-Object { $_.name }\\) -join ', '\\)\\) } catch { Write-Output \\('JSON ERROR: ' + $_.Exception.Message\\) })"
     ]
   }
 }

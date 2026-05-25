@@ -1,3 +1,4 @@
+using Starter.Common.Inventory;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -22,6 +23,7 @@ namespace Starter.Shooter
 		public Color LabelColor = Color.white;
 
 		private Inventory _inventory;
+		private LootSession _lootSession;
 		private Image[] _slotBackgrounds;
 		private Image[] _slotIcons;
 		private TMP_Text[] _slotLabels;
@@ -29,6 +31,7 @@ namespace Starter.Shooter
 		private InventorySlotHover[] _slotHovers;
 		private InventoryTooltip _tooltip;
 		private int _hoveredSlot = -1;
+		private GameObject _slotsRoot;
 
 		private void Awake()
 		{
@@ -44,10 +47,15 @@ namespace Starter.Shooter
 
 		private void OnDestroy()
 		{
-			if (_inventory == null)
-				return;
-			_inventory.SlotsChanged -= RefreshSlots;
-			_inventory.SelectedChanged -= RefreshSelected;
+			if (_inventory != null)
+			{
+				_inventory.SlotsChanged -= RefreshSlots;
+				_inventory.SelectedChanged -= RefreshSelected;
+			}
+			if (_lootSession != null)
+			{
+				_lootSession.OpenedChanged -= OnLootOpenedChanged;
+			}
 		}
 
 		private void BuildSlots()
@@ -208,6 +216,28 @@ namespace Starter.Shooter
 			_inventory.SelectedChanged += RefreshSelected;
 			RefreshSlots();
 			RefreshSelected();
+
+			_lootSession = gm.LocalPlayer.GetComponent<LootSession>();
+			if (_lootSession != null)
+			{
+				_lootSession.OpenedChanged += OnLootOpenedChanged;
+			}
+		}
+
+		private void OnLootOpenedChanged(LootContainer container)
+		{
+			SetVisible(container == null);
+		}
+
+		private void SetVisible(bool visible)
+		{
+			if (_slotBackgrounds == null) return;
+			for (int i = 0; i < _slotBackgrounds.Length; i++)
+			{
+				if (_slotBackgrounds[i] == null) continue;
+				_slotBackgrounds[i].gameObject.SetActive(visible);
+			}
+			if (_tooltip != null && !visible) _tooltip.Hide();
 		}
 
 		private void RefreshSlots()

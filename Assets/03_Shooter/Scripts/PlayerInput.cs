@@ -1,5 +1,7 @@
-﻿using UnityEngine;
+using UnityEngine;
 using Fusion;
+using Starter.Common.Input;
+using Starter.Common.Inventory;
 
 namespace Starter.Shooter
 {
@@ -23,18 +25,41 @@ namespace Starter.Shooter
 	/// PlayerInput handles accumulating player input from Unity and passes the accumulated input to Fusion.
 	/// This version of PlayerInput showcases usage of IBeforeUpdate and IAfterTick callbacks.
 	/// </summary>
+	[RequireComponent(typeof(GameInputActions))]
 	public sealed class PlayerInput : NetworkBehaviour, IBeforeUpdate, IAfterTick
 	{
+		[Range(0.01f, 1f)]
+		public float LookSensitivity = 0.1f;
+
 		[Networked]
 		public NetworkButtons PreviousButtons { get; private set; }
 		public Vector2 LookRotation => _input.LookRotation;
 
 		private GameplayInput _input;
+		private GameInputActions _actions;
 
 		public override void Spawned()
 		{
 			if (HasInputAuthority == false)
 				return;
+
+			_actions = GetComponent<GameInputActions>();
+			if (_actions != null)
+			{
+				_actions.EnableForLocalPlayer();
+			}
+
+			var lootSession = GetComponent<LootSession>();
+			if (lootSession != null)
+			{
+				lootSession.Initialize(Runner, Object.InputAuthority);
+			}
+
+			var scanner = GetComponent<InteractionScanner>();
+			if (scanner != null)
+			{
+				scanner.Initialize();
+			}
 
 			// Register to Fusion input poll callback
 			var networkEvents = Runner.GetComponent<NetworkEvents>();
@@ -64,6 +89,9 @@ namespace Starter.Shooter
 			if (HasInputAuthority == false)
 				return;
 
+			if (_actions == null || _actions.IsInitialized == false)
+				return;
+
 			// Accumulate input only if the cursor is locked.
 			if (Cursor.lockState != CursorLockMode.Locked)
 			{
@@ -71,13 +99,14 @@ namespace Starter.Shooter
 				return;
 			}
 
-			_input.LookRotation += new Vector2(-Input.GetAxisRaw("Mouse Y"), Input.GetAxisRaw("Mouse X"));
+			var look = _actions.Look.ReadValue<Vector2>();
+			_input.LookRotation += new Vector2(-look.y, look.x) * LookSensitivity;
 
-			var moveDirection = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+			var moveDirection = _actions.Move.ReadValue<Vector2>();
 			_input.MoveDirection = moveDirection.normalized;
 
-			_input.Buttons.Set(EInputButton.Fire, Input.GetButton("Fire1"));
-			_input.Buttons.Set(EInputButton.Jump, Input.GetButton("Jump"));
+			_input.Buttons.Set(EInputButton.Fire, _actions.Fire.IsPressed());
+			_input.Buttons.Set(EInputButton.Jump, _actions.Jump.IsPressed());
 		}
 
 		// AfterTick is called after all FixedUpdateNetwork calls on NetworkBehaviours were executed for this tick.

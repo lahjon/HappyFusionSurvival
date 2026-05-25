@@ -120,6 +120,7 @@ GameObject:
   - component: {fileID: 168420300920990783}
   - component: {fileID: 5810687570780950923}
   - component: {fileID: 2089997677248697243}
+  - component: {fileID: 3319376924989928307}
   m_Layer: 0
   m_Name: Pickup_Scrap
   m_TagString: Untagged
@@ -199,3 +200,22 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.3, y: 0.3, z: 0.3}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &3319376924989928307
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2848020348106660934}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a01df1db20125445860eb1cc6f7f19f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.PickupItemPrompt
+  LocalOffset: {x: 0, y: 0.6, z: 0}
+  CanvasScale: 0.005
+  IndicatorSize: {x: 40, y: 40}
+  VisibilityRange: 2
+  ActiveRange: 2
+  ActiveColor: {r: 0.3, g: 0.65, b: 1, a: 1}
+  InactiveColor: {r: 0.3, g: 0.65, b: 1, a: 0.35}

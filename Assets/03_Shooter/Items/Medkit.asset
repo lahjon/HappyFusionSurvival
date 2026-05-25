@@ -14,7 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ItemDefinition
   Id: 3
   DisplayName: Medkit
-  Icon: {fileID: 0}
+  Icon: {fileID: -1269624124, guid: a6271bc89b55e954aafdfc2301e6f9a2, type: 3}
+  Description: 
+  Stats: []
   WorldPrefab: {fileID: 2848020348106660934, guid: ec47405aed6d22547a8cc544c296a81d, type: 3}
   HandPrefab: {fileID: 1577575726583460350, guid: 10c12c981bd947d4999af491d4f5c847, type: 3}
   MaxStack: 5

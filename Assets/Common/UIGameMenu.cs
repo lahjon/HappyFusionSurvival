@@ -1,8 +1,10 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Fusion;
+using Starter.Common.Inventory;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
 namespace Starter
@@ -114,8 +116,13 @@ namespace Starter
 
 		private void Update()
 		{
+			// While a loot container is open, Esc/Enter and cursor management belong to the inventory.
+			if (LootSession.IsAnyLooting)
+				return;
+
 			// Enter/Esc key is used for locking/unlocking cursor in game view.
-			if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.Escape))
+			var keyboard = Keyboard.current;
+			if (keyboard != null && (keyboard.enterKey.wasPressedThisFrame || keyboard.escapeKey.wasPressedThisFrame))
 			{
 				TogglePanelVisibility();
 			}
