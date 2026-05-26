@@ -70,6 +70,12 @@ namespace Starter.Shooter
 				lootSession.Initialize(Runner, Object.InputAuthority);
 			}
 
+			var craftingSession = GetComponent<CraftingSession>();
+			if (craftingSession != null)
+			{
+				craftingSession.Initialize();
+			}
+
 			var scanner = GetComponent<InteractionScanner>();
 			if (scanner != null)
 			{

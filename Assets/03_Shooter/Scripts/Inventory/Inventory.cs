@@ -59,6 +59,22 @@ namespace Starter.Shooter
 		public GameObject HeldInstance => _heldInstance;
 		public short SelectedItemId => Slots[SelectedSlot].ItemId;
 
+		/// <summary>
+		/// Local-only flag. While true, RefreshHeldItem leaves no held visual in the hand —
+		/// used by PlacementController so the ghost preview is the only thing the player sees.
+		/// </summary>
+		public bool SuppressHeldVisual
+		{
+			get => _suppressHeldVisual;
+			set
+			{
+				if (_suppressHeldVisual == value) return;
+				_suppressHeldVisual = value;
+				RefreshHeldItem();
+			}
+		}
+		private bool _suppressHeldVisual;
+
 		public ItemDefinition SelectedDefinition
 		{
 			get
@@ -197,6 +213,65 @@ namespace Starter.Shooter
 			TryUseAt(slot);
 		}
 
+		[Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
+		public void RPC_RequestPlace(int slot, Vector3 position, Quaternion rotation)
+		{
+			TryPlaceAt(slot, position, rotation);
+		}
+
+		/// <summary>
+		/// Local-side entry for "place the selected item at the given pose".
+		/// Validation runs on the state authority via the RPC.
+		/// </summary>
+		public void RequestPlaceSelected(Vector3 position, Quaternion rotation)
+		{
+			RPC_RequestPlace(SelectedSlot, position, rotation);
+		}
+
+		private bool TryPlaceAt(int slot, Vector3 position, Quaternion rotation)
+		{
+			if (slot < 0 || slot >= SlotCount) return false;
+			var s = Slots[slot];
+			if (s.IsEmpty || ItemDatabase.Instance == null) return false;
+
+			var def = ItemDatabase.Instance.GetById(s.ItemId) as PlaceableDefinition;
+			if (def == null || def.PlacedPrefab == null) return false;
+			if (def.PlacedPrefab.GetComponent<NetworkObject>() == null)
+			{
+				Debug.LogWarning($"[Inventory] Placeable '{def.DisplayName}' has PlacedPrefab '{def.PlacedPrefab.name}' without a NetworkObject component — place ignored.");
+				return false;
+			}
+
+			// Range check tolerates camera height + a little network jitter.
+			const float RangeSlack = 2f;
+			float maxDist = def.PlacementRange + RangeSlack;
+			if ((position - transform.position).sqrMagnitude > maxDist * maxDist) return false;
+
+			if (def.Footprint > 0f && IsObstructed(position, def.Footprint)) return false;
+
+			Runner.Spawn(def.PlacedPrefab, position, rotation);
+
+			s.Count -= 1;
+			Slots.Set(slot, s.Count <= 0 ? InventorySlot.Empty : s);
+			return true;
+		}
+
+		private static readonly Collider[] s_overlapBuffer = new Collider[16];
+
+		private bool IsObstructed(Vector3 position, float radius)
+		{
+			int count = Physics.OverlapSphereNonAlloc(position, radius, s_overlapBuffer, ~0, QueryTriggerInteraction.Ignore);
+			Transform self = transform.root;
+			for (int i = 0; i < count; i++)
+			{
+				var col = s_overlapBuffer[i];
+				if (col == null) continue;
+				if (col.transform.root == self) continue;
+				return true;
+			}
+			return false;
+		}
+
 		/// <summary>
 		/// Local-side entry for "use this slot's item" (e.g. right-click in the HUD).
 		/// Routes to state authority via RPC; no-op if the slot isn't a consumable.
@@ -326,6 +401,7 @@ namespace Starter.Shooter
 			_heldItemId = 0;
 
 			if (HandAnchor == null) return;
+			if (_suppressHeldVisual) return;
 
 			var s = Slots[SelectedSlot];
 			GameObject prefab = null;

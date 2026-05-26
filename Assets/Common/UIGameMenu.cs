@@ -116,8 +116,9 @@ namespace Starter
 
 		private void Update()
 		{
-			// While a loot container is open, Esc/Enter and cursor management belong to the inventory.
-			if (LootSession.IsAnyLooting)
+			// While a loot container or crafting bench is open, Esc/Enter and cursor
+			// management belong to that UI — the menu must not steal Escape.
+			if (LootSession.IsAnyLooting || Starter.Shooter.CraftingSession.IsAnyCrafting)
 				return;
 
 			// Enter/Esc key is used for locking/unlocking cursor in game view.

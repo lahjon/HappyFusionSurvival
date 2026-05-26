@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79df8f16751454d45adc1cf7b22a9142, type: 3}
+  m_Name: Crate
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.PlaceableDefinition
+  Id: 10
+  DisplayName: Crate
+  Icon: {fileID: 0}
+  Description: A simple test crate. Place it on flat ground.
+  Stats: []
+  WorldPrefab: {fileID: 7810697307764163876, guid: 942cb8a9d2c061543a4366d19843c434, type: 3}
+  HandPrefab: {fileID: 0}
+  MaxStack: 99
+  PlacedPrefab: {fileID: 10196581954467927, guid: 9e65893ce4f3e0b4ca36aa1f568f7e3f, type: 3}
+  GhostPrefab: {fileID: 0}
+  AllowedSurfaces: 1
+  PlacementMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  PlacementRange: 5
+  Footprint: 0.4
+  MaxGroundAngle: 30
+  AlignToSurface: 1
+  RotationSpeed: 90

@@ -99,6 +99,67 @@ namespace Starter.Common.Inventory
 		}
 
 		/// <summary>
+		/// Total count of <paramref name="itemId"/> across every slot in <paramref name="arr"/>.
+		/// Used for crafting ingredient checks where the requirement may span multiple stacks.
+		/// </summary>
+		public static int CountItem(NetworkArray<InventorySlot> arr, short itemId)
+		{
+			if (itemId == 0) return 0;
+			int total = 0;
+			for (int i = 0; i < arr.Length; i++)
+			{
+				var s = arr[i];
+				if (s.ItemId == itemId) total += s.Count;
+			}
+			return total;
+		}
+
+		/// <summary>
+		/// Remove <paramref name="count"/> of <paramref name="itemId"/> from <paramref name="arr"/>,
+		/// draining stacks in slot order. Returns false (and does nothing) if the inventory does
+		/// not contain enough — callers can pre-flight without partial consumption. State authority only.
+		/// </summary>
+		public static bool TryRemoveItem(NetworkArray<InventorySlot> arr, short itemId, short count)
+		{
+			if (itemId == 0 || count <= 0) return false;
+			if (CountItem(arr, itemId) < count) return false;
+
+			short remaining = count;
+			for (int i = 0; i < arr.Length && remaining > 0; i++)
+			{
+				var s = arr[i];
+				if (s.ItemId != itemId) continue;
+				short take = (short)Mathf.Min(s.Count, remaining);
+				s.Count -= take;
+				arr.Set(i, s.Count <= 0 ? InventorySlot.Empty : s);
+				remaining -= take;
+			}
+			return true;
+		}
+
+		/// <summary>
+		/// How many of <paramref name="itemId"/> could be added to <paramref name="arr"/> right
+		/// now without overflowing — considering existing matching stacks (room up to MaxStack)
+		/// plus empty slots (MaxStack each). Conservative: ignores space that would be freed by
+		/// consuming ingredients during the same craft.
+		/// </summary>
+		public static int RoomFor(NetworkArray<InventorySlot> arr, short itemId)
+		{
+			if (itemId == 0 || ItemDatabase.Instance == null) return 0;
+			var def = ItemDatabase.Instance.GetById(itemId);
+			if (def == null) return 0;
+
+			int total = 0;
+			for (int i = 0; i < arr.Length; i++)
+			{
+				var s = arr[i];
+				if (s.IsEmpty) total += def.MaxStack;
+				else if (s.ItemId == itemId) total += Mathf.Max(0, def.MaxStack - s.Count);
+			}
+			return total;
+		}
+
+		/// <summary>
 		/// Right-click / Take-All semantics: try to push the whole stack at <c>from[fromIdx]</c>
 		/// into <paramref name="to"/> via <see cref="TryAdd"/>. Leftover (e.g. <paramref name="to"/>
 		/// full) is written back to <c>from[fromIdx]</c>. Returns true if anything actually moved.

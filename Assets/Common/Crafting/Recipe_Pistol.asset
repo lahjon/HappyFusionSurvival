@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1c928c5b3fb913044ad31023bb8400b9, type: 3}
+  m_Name: Recipe_Pistol
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Crafting.RecipeDefinition
+  Id: 104
+  DisplayName: Pistol
+  Icon: {fileID: 0}
+  Description: Hand-built from salvaged scrap. Better than throwing rocks.
+  Ingredients:
+  - Item: {fileID: 11400000, guid: 79683915c9c0e314aae32371617049f1, type: 2}
+    Count: 5
+  Output: {fileID: 11400000, guid: a4b8c9d1e2f34a5b67890c1d2e3f4a50, type: 2}
+  OutputCount: 1
+  UnlockedByDefault: 1

@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1c928c5b3fb913044ad31023bb8400b9, type: 3}
+  m_Name: Recipe_Crate
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Crafting.RecipeDefinition
+  Id: 102
+  DisplayName: Crate
+  Icon: {fileID: 0}
+  Description: A simple wooden crate. Place it on flat ground.
+  Ingredients:
+  - Item: {fileID: 11400000, guid: 937396294af95d448a9b450b9c0dede9, type: 2}
+    Count: 5
+  Output: {fileID: 11400000, guid: 0cb2ee84da1a30e44b7b12a7e4286260, type: 2}
+  OutputCount: 1
+  UnlockedByDefault: 1

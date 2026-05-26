@@ -25,6 +25,7 @@ namespace Starter.Common.Input
 		public InputAction Crouch { get; private set; }
 		public InputAction Interact { get; private set; }
 		public InputAction Drop { get; private set; }
+		public InputAction Rotate { get; private set; }
 		public InputAction HotbarScroll { get; private set; }
 		public InputAction[] HotbarSlots { get; private set; }
 
@@ -60,6 +61,7 @@ namespace Starter.Common.Input
 			Crouch = PlayerMap.FindAction("Crouch", true);
 			Interact = PlayerMap.FindAction("Interact", true);
 			Drop = PlayerMap.FindAction("Drop", true);
+			Rotate = PlayerMap.FindAction("Rotate", true);
 			HotbarScroll = PlayerMap.FindAction("HotbarScroll", true);
 
 			HotbarSlots = new InputAction[8];

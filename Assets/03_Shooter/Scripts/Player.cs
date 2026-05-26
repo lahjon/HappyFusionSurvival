@@ -224,6 +224,24 @@ namespace Starter.Shooter
 			}
 		}
 
+		/// <summary>Surface normal of the wall the player is currently anchored to. Zero when not climbing.</summary>
+		public Vector3 ClimbWallNormal => _climbWallNormal;
+		/// <summary>World-space start position of the current mantle (set when the timer starts).</summary>
+		public Vector3 MantleStart => _mantleStart;
+		/// <summary>World-space end position of the current mantle (the ledge target).</summary>
+		public Vector3 MantleEnd => _mantleEnd;
+		/// <summary>0..1 progress through the current mantle. 0 when not mantling.</summary>
+		public float MantleProgress
+		{
+			get
+			{
+				if (Runner == null || MantleDuration <= 0f) return 0f;
+				float? remaining = _mantleTimer.RemainingTime(Runner);
+				if (!remaining.HasValue) return 0f;
+				return 1f - Mathf.Clamp01(remaining.Value / MantleDuration);
+			}
+		}
+
 		/// <summary>True while the player is knocked out, getting up, or mantling onto a ledge — input and active control are suppressed.</summary>
 		public bool IsInputLocked => RagdollState != ERagdollState.Normal || IsMantling;
 
@@ -382,6 +400,18 @@ namespace Starter.Shooter
 				KCC.SetLookRotation(Input.LookRotation, -90f, 90f);
 			}
 
+			// Hide the held weapon visual whenever the player is on a wall or mantling. Driven every
+			// render frame rather than only on the OnChangedRender hook, so a missed change event
+			// (race against Awake / first-frame ordering) can't strand the weapon visible.
+			if (_inventory != null)
+			{
+				bool shouldSuppressHeld = IsClimbing || IsMantling;
+				if (_inventory.SuppressHeldVisual != shouldSuppressHeld)
+				{
+					_inventory.SuppressHeldVisual = shouldSuppressHeld;
+				}
+			}
+
 			// Transform velocity vector to local space.
 			var moveSpeed = transform.InverseTransformVector(KCC.RealVelocity);
 
@@ -420,6 +450,8 @@ namespace Starter.Shooter
 			AssignAnimationIDs();
 			_inventory = GetComponent<Inventory>();
 			if (ActionInvoker == null) ActionInvoker = GetComponent<ActionInvoker>();
+			// Auto-attach the procedural climbing-hand visual so the Player prefab doesn't need editing.
+			if (GetComponent<ClimbingHands>() == null) gameObject.AddComponent<ClimbingHands>();
 		}
 
 		private void LateUpdate()
@@ -629,6 +661,14 @@ namespace Starter.Shooter
 
 		private void ProcessFireInput(GameplayInput input, NetworkButtons previousButtons)
 		{
+			// Placeable in hand: LMB is handled locally by PlacementController (which sends
+			// the place RPC directly). Suppress weapon-fire logic and cancel any stale charge.
+			if (_inventory != null && _inventory.SelectedDefinition is PlaceableDefinition)
+			{
+				if (ActionInvoker != null && ActionInvoker.IsCharging) ActionInvoker.CancelCharge();
+				return;
+			}
+
 			// Consumable in hand: LMB press consumes one and applies its effect.
 			// Cancel any stale charge so re-equipping a melee weapon can't release a charged swing.
 			if (_inventory != null && _inventory.SelectedDefinition is ConsumableDefinition)
@@ -759,9 +799,12 @@ namespace Starter.Shooter
 			}
 			_climbWallNormal = hit.normal;
 
-			// Wall tangent basis: right is horizontal along the wall, up is along the wall going skyward.
-			Vector3 right = Vector3.Cross(Vector3.up, _climbWallNormal);
-			if (right.sqrMagnitude < 0.0001f)
+			// Wall-surface fallback basis: horizontal along wall, vertical along wall. Used when the
+			// camera is looking straight at (or directly away from) the wall and the projected look
+			// direction degenerates to zero. Cross order is (wallNormal, up) — produces the player's
+			// real right (not their left) when facing INTO the wall (i.e. opposite the wall normal).
+			Vector3 surfaceRight = Vector3.Cross(_climbWallNormal, Vector3.up);
+			if (surfaceRight.sqrMagnitude < 0.0001f)
 			{
 				// Wall normal is nearly vertical (i.e. ceiling/floor) — shouldn't happen given the
 				// entry angle check, but bail rather than divide by zero on a degenerate basis.
@@ -769,8 +812,29 @@ namespace Starter.Shooter
 				MovePlayer(Vector3.zero, 0f);
 				return false;
 			}
-			right.Normalize();
-			Vector3 up = Vector3.Cross(_climbWallNormal, right).normalized;
+			surfaceRight.Normalize();
+			Vector3 surfaceUp = Vector3.Cross(surfaceRight, _climbWallNormal).normalized;
+
+			// View-relative basis: project the camera look direction onto the wall plane and use
+			// that as the "forward" (W) axis. So looking up at the wall and pressing W climbs up,
+			// looking sideways and pressing W moves sideways. Falls back to surfaceUp when the player
+			// is looking directly at or directly away from the wall (projection collapses to zero).
+			float pitch = Mathf.Clamp(input.LookRotation.x, -90f, 90f);
+			float yaw = input.LookRotation.y;
+			Vector3 lookDir = Quaternion.Euler(pitch, yaw, 0f) * Vector3.forward;
+			Vector3 wallForward = lookDir - Vector3.Dot(lookDir, _climbWallNormal) * _climbWallNormal;
+			Vector3 up;
+			Vector3 right;
+			if (wallForward.sqrMagnitude < 0.01f)
+			{
+				up = surfaceUp;
+				right = surfaceRight;
+			}
+			else
+			{
+				up = wallForward.normalized;
+				right = Vector3.Cross(_climbWallNormal, up).normalized;
+			}
 
 			bool isMoving = input.MoveDirection.sqrMagnitude > 0.01f;
 			Vector3 wallVel = (right * input.MoveDirection.x + up * input.MoveDirection.y) * ClimbSpeed;
@@ -1211,7 +1275,8 @@ namespace Starter.Shooter
 
 		private void OnIsClimbingChanged()
 		{
-			// Hook for VFX / SFX / animator state. Behavior is driven by IsClimbing in FixedUpdateNetwork.
+			// Held-weapon suppression is driven from Render() every frame to avoid timing races.
+			// This hook is kept for future per-peer SFX/animator triggers tied to the climb edge.
 		}
 
 		private void OnRagdollStateChanged()

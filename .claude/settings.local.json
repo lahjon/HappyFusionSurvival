@@ -38,7 +38,8 @@
       "Bash(xxd)",
       "mcp__UnityMCP__manage_editor",
       "mcp__UnityMCP__execute_menu_item",
-      "Bash(powershell *)"
+      "Bash(powershell *)",
+      "mcp__UnityMCP__set_active_instance"
     ]
   }
 }

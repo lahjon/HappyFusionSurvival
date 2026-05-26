@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using Fusion;
+using Starter.Common.Crafting;
 using Starter.Common.Inventory;
 
 namespace Starter.Shooter
@@ -12,6 +13,7 @@ namespace Starter.Shooter
 	{
 		public Player PlayerPrefab;
 		public ItemDatabase ItemDatabase;
+		public RecipeDatabase RecipeDatabase;
 
 		[Networked]
 		public PlayerRef BestHunter { get; set; }
@@ -25,6 +27,8 @@ namespace Starter.Shooter
 			// Bind on every client (authority + remotes) so item lookups work without Resources.
 			if (ItemDatabase != null)
 				ItemDatabase.Bind();
+			if (RecipeDatabase != null)
+				RecipeDatabase.Bind();
 		}
 
 		public override void Spawned()

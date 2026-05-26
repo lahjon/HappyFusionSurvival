@@ -43,6 +43,16 @@ Namespaces: `Starter.<ModeName>` (e.g. `Starter.Shooter`, `Starter.Survival`).
 - `UIGameMenu.cs` (`Starter`) — connect/disconnect, nickname (`PlayerPrefs["PlayerName"]`), cursor lock, scene reload on shutdown. **`GameModeIdentifier` is critical** — set as `SessionProperty` so modes don't share rooms.
 - `UINameplate.cs` (`Starter`) — billboard nickname. Needs `using Starter;`.
 
+### Interaction system
+
+Shared in `Assets/Common/Interactions/`. Any in-world object the player can "use" (chests, pickups, doors, crafting benches, NPCs) **must** plug into this — don't roll a parallel path.
+
+- `IInteractable` — `InteractRange`, `CanInteract`, `InteractionPoint`, `LockedReason`, `OnInteract(InteractionScanner)`. Implement on the `NetworkBehaviour`.
+- `InteractionScanner` — local-only, on the player. Picks the best in-range, in-view-cone candidate each frame and routes the Interact key to its `OnInteract`. Reads `IInteractionGate` siblings (e.g. `LootSession`) to suppress scanning while a UI panel is open.
+- `InteractionPrompt` — local-only camera-facing indicator. Add to every interactable's prefab; it builds its own world-space canvas and brightens when the scanner has picked this target. Standardized size + colors — don't tweak per-prefab.
+- Authority pattern in `OnInteract`: route into a per-player networked session component via `scanner.GetComponent<TSession>()`. See `LootContainer.OnInteract` → `LootSession.TryOpen` for the canonical example.
+- Re-validate range on the host in any RPC the interaction kicks off (`InteractRange * 1.25f` is the convention) — never trust the client-side scan alone.
+
 ### Networking conventions (Fusion 2)
 
 - Only **State Authority** mutates `[Networked]` / `NetworkArray` / `NetworkDictionary`. Input flows via `INetworkInput` + `GetInput()` in `FixedUpdateNetwork()`.
