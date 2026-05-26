@@ -107,7 +107,17 @@ namespace Starter.Shooter
 		{
 			var spawnPoint = _spawnPoints[Random.Range(0, _spawnPoints.Length)];
 			var randomPositionOffset = Random.insideUnitCircle * spawnPoint.Radius;
-			return spawnPoint.transform.position + new Vector3(randomPositionOffset.x, 0f, randomPositionOffset.y);
+			Vector3 position = spawnPoint.transform.position + new Vector3(randomPositionOffset.x, 0f, randomPositionOffset.y);
+
+			// Snap to the floor: cast down from a few meters above so a misplaced spawn
+			// point (e.g. below the ground plane) can't drop the player past the y<-15
+			// kill plane checked in FixedUpdateNetwork.
+			Vector3 castOrigin = position + Vector3.up * 5f;
+			if (Physics.Raycast(castOrigin, Vector3.down, out RaycastHit hit, 25f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+			{
+				position.y = hit.point.y + 0.1f;
+			}
+			return position;
 		}
 	}
 }

@@ -9,14 +9,16 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 215c4744854153b4a948021ef1445cc3, type: 3}
+  m_Script: {fileID: 11500000, guid: 8742eaf6275ef7c419c7ba5f35e349d4, type: 3}
   m_Name: Medkit
-  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ItemDefinition
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.HealingConsumable
   Id: 3
   DisplayName: Medkit
   Icon: {fileID: -1269624124, guid: a6271bc89b55e954aafdfc2301e6f9a2, type: 3}
-  Description: 
+  Description:
   Stats: []
   WorldPrefab: {fileID: 2848020348106660934, guid: ec47405aed6d22547a8cc544c296a81d, type: 3}
   HandPrefab: {fileID: 1577575726583460350, guid: 10c12c981bd947d4999af491d4f5c847, type: 3}
   MaxStack: 5
+  UseCooldownSeconds: 1
+  HealAmount: 1

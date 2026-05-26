@@ -1,33 +1,29 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Starter.Shooter
 {
 	/// <summary>
-	/// Authoring component on a weapon's HandPrefab. Marks the prefab as a usable weapon
-	/// and carries tuning that Player.Fire reads — range, damage, and (for melee) a
-	/// procedural swing animation. Inventory moves the whole instance to the
-	/// FirstPersonOverlay layer when held by the local player.
+	/// Authoring component on a weapon's HandPrefab. Carries the list of CombatActions
+	/// the weapon can perform (most weapons use just <see cref="Actions"/>[0]) plus
+	/// the visual/animation tuning for ranged kick or melee swing. Inventory moves
+	/// the whole instance to the FirstPersonOverlay layer when held by the local player.
 	/// </summary>
-	public sealed class HeldWeapon : MonoBehaviour
+	public sealed class HeldWeapon : MonoBehaviour, IActionProvider
 	{
 		[Header("Combat")]
-		[Tooltip("Hitscan range in meters. Ranged weapons (pistol) use ~200; melee weapons (bat) use ~2.")]
-		public float Range = 200f;
-		[Tooltip("Damage dealt per hit.")]
-		public int Damage = 1;
-		[Tooltip("If true, Fire triggers Swing() instead of muzzle FX; no fire sound is played.")]
-		public bool IsMelee = false;
+		[Tooltip("Ordered list of actions this weapon can perform. Most weapons have one; the first is used by default.")]
+		[SerializeField] private List<CombatAction> _actions = new List<CombatAction>();
 
-		[Header("Ranged FX")]
-		[Tooltip("Plays when the weapon fires. Ranged only.")]
-		public ParticleSystem MuzzleParticle;
+		public IReadOnlyList<CombatAction> Actions => _actions;
 
 		[Header("Audio")]
-		[Tooltip("Sound played on attack (gunshot for ranged, whoosh/impact for melee). Lives on the held visual so audio is spatial to the weapon, not the player root.")]
-		public AudioClip AttackClip;
 		[Tooltip("Optional AudioSource on the held visual. If left empty, one is auto-added at runtime configured for 3D playback.")]
 		public AudioSource AttackSource;
-		[Range(0f, 1f)] public float AttackVolume = 1f;
+
+		[Header("Ranged FX")]
+		[Tooltip("Plays when the weapon fires. Used when the fired action's Style is Ranged.")]
+		public ParticleSystem MuzzleParticle;
 
 		[Header("Melee Swing")]
 		[Tooltip("Local-space rotation arc at the peak of the swing (in euler degrees).")]
@@ -45,21 +41,31 @@ namespace Starter.Shooter
 		[Tooltip("Duration multiplier when releasing a fully-charged swing.")]
 		public float ChargedSwingDurationScale = 1.2f;
 
-		[Header("Knockback (melee only)")]
-		[Tooltip("Distance (meters) the target is pushed away from the attacker. Ignored for non-melee weapons. 0 = no knockback. Duration is derived on the receiver from its KnockbackDeceleration.")]
-		public float KnockbackDistance = 2f;
-
-		[Header("Fire Rate")]
-		[Tooltip("Minimum seconds between attacks with this weapon. 0 = no cooldown.")]
-		public float Cooldown = 0.5f;
-
 		[Header("Recoil (ranged only)")]
-		[Tooltip("Distance (meters) the weapon kicks backward along local -Z at peak. Ignored for melee.")]
+		[Tooltip("Distance (meters) the weapon kicks backward along local -Z at peak.")]
 		public float RecoilBackKick = 0.06f;
-		[Tooltip("Muzzle-up pitch (degrees, around local X). Negative tilts the muzzle up — that's the usual sign for recoil. Ignored for melee.")]
+		[Tooltip("Muzzle-up pitch (degrees, around local X). Negative tilts the muzzle up — that's the usual sign for recoil.")]
 		public float RecoilPitchDegrees = -8f;
 		[Tooltip("Total recoil duration in seconds (kick out + return).")]
 		public float RecoilDuration = 0.12f;
+
+		[Header("Aim Sway (ranged only)")]
+		[Tooltip("Slight oscillating wobble of the aim that makes it harder to keep on target. 0 = no sway, 1 = max sway.")]
+		[Range(0f, 1f)] public float WeaponSway = 0f;
+		[Tooltip("Max sway amplitude in degrees when WeaponSway = 1.")]
+		public float SwayMaxDegrees = 1.25f;
+		[Tooltip("Sway oscillation frequency in Hz. Lower = slower wobble.")]
+		public float SwayFrequency = 0.9f;
+
+		[Header("Aim Recoil (ranged only, CS-style)")]
+		[Tooltip("Per-shot recoil kick applied to the camera/crosshair. 0 = no recoil, 1 = max. Aim is lerped toward the new offset; the kick is sticky until the player compensates.")]
+		[Range(0f, 1f)] public float AimRecoil = 0f;
+		[Tooltip("Vertical pitch-up (degrees) per shot at AimRecoil = 1.")]
+		public float AimRecoilPitchPerShot = 3.5f;
+		[Tooltip("Horizontal random spread (± degrees) per shot at AimRecoil = 1.")]
+		public float AimRecoilHorizontalRandom = 1.5f;
+		[Tooltip("How fast the aim lerps to the new recoil target. Larger = snappier kick.")]
+		public float AimRecoilLerpSpeed = 18f;
 
 		private float _t = -1f;
 		private float _recoilT = -1f;
@@ -100,23 +106,28 @@ namespace Starter.Shooter
 			_restCaptured = true;
 		}
 
-		/// <summary>Kicks the weapon back + up briefly. Called by Player.ShowFireEffects on every peer when a ranged shot lands; no-op for melee.</summary>
-		public void Recoil()
+		public void PlayAttackSound(CombatAction action)
 		{
-			if (IsMelee) return;
-			_recoilT = 0f;
+			if (action == null || action.AttackClip == null || AttackSource == null) return;
+			AttackSource.PlayOneShot(action.AttackClip, action.AttackVolume);
 		}
 
-		/// <summary>Plays <see cref="AttackClip"/> on the local AudioSource. Called by Player.ShowFireEffects.</summary>
-		public void PlayAttackSound()
+		public void PlayMeleeFeedback(bool charged) => Swing(charged);
+
+		public void PlayRangedFeedback()
 		{
-			if (AttackClip == null || AttackSource == null) return;
-			AttackSource.PlayOneShot(AttackClip, AttackVolume);
+			if (MuzzleParticle != null) MuzzleParticle.Play();
+			Recoil();
 		}
 
-		public void Swing(bool charged = false)
+		public void SetCharging(bool charging, float progress)
 		{
-			if (!IsMelee) return;
+			_isCharging = charging;
+			_chargeProgress = charging ? Mathf.Clamp01(progress) : 0f;
+		}
+
+		private void Swing(bool charged)
+		{
 			if (!_restCaptured)
 			{
 				_restRotation = transform.localRotation;
@@ -131,12 +142,7 @@ namespace Starter.Shooter
 			_chargePoseT = 0f;
 		}
 
-		public void SetCharging(bool charging, float progress)
-		{
-			if (!IsMelee) return;
-			_isCharging = charging;
-			_chargeProgress = charging ? Mathf.Clamp01(progress) : 0f;
-		}
+		private void Recoil() => _recoilT = 0f;
 
 		private void Update()
 		{

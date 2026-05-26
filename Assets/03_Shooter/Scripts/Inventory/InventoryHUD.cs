@@ -98,6 +98,7 @@ namespace Starter.Shooter
 				hover.SlotIndex = i;
 				hover.Entered += OnSlotEntered;
 				hover.Exited += OnSlotExited;
+				hover.RightClicked += OnSlotRightClicked;
 				_slotHovers[i] = hover;
 
 				var icon = new GameObject("Icon", typeof(RectTransform), typeof(Image));
@@ -173,6 +174,12 @@ namespace Starter.Shooter
 			_hoveredSlot = -1;
 			if (_tooltip != null)
 				_tooltip.Hide();
+		}
+
+		private void OnSlotRightClicked(int slotIndex)
+		{
+			if (_inventory == null) return;
+			_inventory.RequestUseSlot(slotIndex);
 		}
 
 		private void ShowTooltipForSlot(int slotIndex)

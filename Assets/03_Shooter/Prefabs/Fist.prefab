@@ -101,7 +101,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 38e45ae5d6caa4840aca25323c5212f5, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.FistPunchAnimator
+  _actions:
+  - {fileID: 11400000, guid: fddbb2429d384923b847df68bf789f37, type: 2}
+  AttackSource: {fileID: 0}
   PunchOffset: {x: 0, y: 0, z: 0.3}
   PunchDuration: 0.18

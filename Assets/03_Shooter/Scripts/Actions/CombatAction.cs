@@ -1,0 +1,116 @@
+using System;
+using Fusion;
+using UnityEngine;
+
+namespace Starter.Shooter
+{
+	public enum EFeedbackStyle : byte
+	{
+		Ranged = 0, // muzzle particle + recoil kick on the holder
+		Melee  = 1, // swing/punch animation on the holder
+	}
+
+	[Serializable]
+	public class ChargeProfile
+	{
+		[Tooltip("If false, the action fires immediately on press and ignores the rest of these knobs.")]
+		public bool Enabled = false;
+		[Tooltip("Seconds the attack button must be held before release applies the charged multipliers.")]
+		public float ThresholdSeconds = 2f;
+		[Tooltip("Damage multiplier applied when released after holding past the threshold.")]
+		public float DamageMultiplier = 2f;
+		[Tooltip("Knockback distance multiplier applied to a fully-charged release.")]
+		public float KnockbackMultiplier = 2f;
+	}
+
+	/// <summary>
+	/// Authoritative attack definition. Holds tuning (damage, cooldown, knockback,
+	/// hit mask, audio, charge profile) and a resolver (Execute) that runs on state
+	/// authority to find targets and apply damage/knockback. Attach instances to
+	/// HeldWeapon, FistPunchAnimator, or any AI authoring component via their
+	/// Actions list — the executor (ActionInvoker) does not care which.
+	/// </summary>
+	public abstract class CombatAction : ScriptableObject
+	{
+		[Header("Damage")]
+		public int Damage = 1;
+		[Tooltip("Minimum seconds between activations of this action on the same invoker. 0 = no cooldown.")]
+		public float Cooldown = 0.5f;
+		[Tooltip("Distance (meters) the target is pushed away from the attacker. 0 = no knockback.")]
+		public float KnockbackDistance = 0f;
+
+		[Header("Targeting")]
+		[Tooltip("Layers this action can hit. Used by raycast/overlap. Excluding the attacker's own layer prevents self-hits.")]
+		public LayerMask HitMask = ~0;
+
+		[Header("Feedback")]
+		[Tooltip("Drives visual hook on the holder: Ranged plays muzzle + recoil, Melee plays swing/punch.")]
+		public EFeedbackStyle Style = EFeedbackStyle.Ranged;
+		[Tooltip("Sound played when this action fires. Played on the holder's AudioSource.")]
+		public AudioClip AttackClip;
+		[Range(0f, 1f)] public float AttackVolume = 1f;
+
+		[Header("Charge")]
+		public ChargeProfile Charge = new ChargeProfile();
+
+		/// <summary>
+		/// Range hint used by AI to decide whether to attempt firing this action.
+		/// Subclasses override; defaults to 0 (no range gating).
+		/// </summary>
+		public virtual float EffectiveRange => 0f;
+
+		/// <summary>
+		/// Resolve targets, apply damage/knockback. State-authority-only.
+		/// </summary>
+		public abstract ActionHit Execute(in ActorContext ctx, bool charged);
+
+		protected void ResolveCharged(bool charged, out int damage, out float knockback)
+		{
+			damage = Damage;
+			knockback = KnockbackDistance;
+			if (charged && Charge.Enabled)
+			{
+				damage = Mathf.Max(1, Mathf.RoundToInt(damage * Charge.DamageMultiplier));
+				knockback *= Charge.KnockbackMultiplier;
+			}
+		}
+	}
+
+	/// <summary>
+	/// Per-firing context passed to <see cref="CombatAction.Execute"/>. Held lightly
+	/// so actions don't reach back into the holder's component graph.
+	/// </summary>
+	public struct ActorContext
+	{
+		public NetworkRunner Runner;
+		/// <summary>Passed to LagCompensation.Raycast as the predicting player; default for AI.</summary>
+		public PlayerRef IgnoreAuthority;
+		/// <summary>Used as the "push-from" point for knockback (typically the attacker's transform.position).</summary>
+		public Vector3 AttackerPosition;
+		/// <summary>Position + forward direction for hitscan; position only for overlap.</summary>
+		public Transform FireTransform;
+		/// <summary>Optional — the attacker's root GameObject. Used to skip self when an action's HitMask overlaps the attacker's layer.</summary>
+		public GameObject AttackerRoot;
+	}
+
+	/// <summary>
+	/// Result of a single Execute() call. Plumbed back through ActionInvoker so the
+	/// caller can replicate visuals (hit point/normal) and apply per-actor side
+	/// effects (e.g. Player.ChickenKills bookkeeping).
+	/// </summary>
+	public struct ActionHit
+	{
+		/// <summary>True when the action actually fired (cooldown ok and resolver ran).</summary>
+		public bool DidFire;
+		/// <summary>True when the resolver successfully damaged at least one target.</summary>
+		public bool DidHit;
+		/// <summary>Health component of the (first) target hit. May be null even when DidHit is true if the target had no Health (shouldn't normally happen).</summary>
+		public Health Target;
+		/// <summary>True iff the target died from this hit.</summary>
+		public bool KilledTarget;
+		/// <summary>World-space point of impact, for impact-FX replication. Vector3.zero when nothing was hit.</summary>
+		public Vector3 Point;
+		/// <summary>Surface normal at the impact point. Zero when nothing was hit.</summary>
+		public Vector3 Normal;
+	}
+}

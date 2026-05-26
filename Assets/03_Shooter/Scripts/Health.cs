@@ -54,6 +54,14 @@ namespace Starter.Shooter
 			_deathCooldown = default;
 		}
 
+		public void Heal(int amount)
+		{
+			if (HasStateAuthority == false) return;
+			if (IsAlive == false || amount <= 0) return;
+
+			CurrentHealth = Mathf.Min(InitialHealth, CurrentHealth + amount);
+		}
+
 		public override void Spawned()
 		{
 			if (HasStateAuthority)

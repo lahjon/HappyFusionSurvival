@@ -1,16 +1,28 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Starter.Shooter
 {
 	/// <summary>
-	/// Authoring component on the Fist hand prefab. Marks the held instance as a punch
-	/// (no projectile, short range) and animates the fist forward-back when Punch() is called.
+	/// Authoring component on the Fist hand prefab. Carries the action(s) used by
+	/// bare-fist punches and animates the fist forward-back when the held fire
+	/// counter advances. Same role as <see cref="HeldWeapon"/> for fists.
 	/// </summary>
-	public sealed class FistPunchAnimator : MonoBehaviour
+	public sealed class FistPunchAnimator : MonoBehaviour, IActionProvider
 	{
+		[Header("Combat")]
+		[Tooltip("Ordered list of actions this fist can perform. Most setups have one; the first is used by default.")]
+		[SerializeField] private List<CombatAction> _actions = new List<CombatAction>();
+
+		public IReadOnlyList<CombatAction> Actions => _actions;
+
+		[Header("Audio")]
+		[Tooltip("Optional AudioSource. If left empty, one is auto-added at runtime configured for 3D playback.")]
+		public AudioSource AttackSource;
+
+		[Header("Punch Animation")]
 		[Tooltip("Local-space offset the fist travels at the peak of the punch.")]
 		public Vector3 PunchOffset = new Vector3(0f, 0f, 0.3f);
-
 		[Tooltip("Total duration of the forward-and-back punch animation in seconds.")]
 		public float PunchDuration = 0.18f;
 
@@ -33,15 +45,38 @@ namespace Starter.Shooter
 		private float _activeOffsetScale = 1f;
 		private float _activeDurationScale = 1f;
 
-		public void Punch(bool charged = false)
+		private void OnEnable()
 		{
-			_t = 0f;
-			_activeOffsetScale = charged ? ChargedPunchScale : 1f;
-			_activeDurationScale = charged ? ChargedDurationScale : 1f;
-			_isCharging = false;
-			_chargeProgress = 0f;
-			_chargePoseT = 0f;
+			if (AttackSource == null)
+			{
+				AttackSource = GetComponent<AudioSource>();
+				if (AttackSource == null)
+				{
+					AttackSource = gameObject.AddComponent<AudioSource>();
+					AttackSource.playOnAwake = false;
+					AttackSource.spatialBlend = 1f;
+					AttackSource.minDistance = 1f;
+					AttackSource.maxDistance = 25f;
+				}
+			}
 		}
+
+		private void Start()
+		{
+			_restPosition = transform.localPosition;
+			_restCaptured = true;
+		}
+
+		public void PlayAttackSound(CombatAction action)
+		{
+			if (action == null || action.AttackClip == null || AttackSource == null) return;
+			AttackSource.PlayOneShot(action.AttackClip, action.AttackVolume);
+		}
+
+		public void PlayMeleeFeedback(bool charged) => Punch(charged);
+
+		// Fists are inherently melee; if a ranged action is somehow attached, fall back to a punch.
+		public void PlayRangedFeedback() => Punch(false);
 
 		public void SetCharging(bool charging, float progress)
 		{
@@ -49,10 +84,14 @@ namespace Starter.Shooter
 			_chargeProgress = charging ? Mathf.Clamp01(progress) : 0f;
 		}
 
-		private void Start()
+		private void Punch(bool charged)
 		{
-			_restPosition = transform.localPosition;
-			_restCaptured = true;
+			_t = 0f;
+			_activeOffsetScale = charged ? ChargedPunchScale : 1f;
+			_activeDurationScale = charged ? ChargedDurationScale : 1f;
+			_isCharging = false;
+			_chargeProgress = 0f;
+			_chargePoseT = 0f;
 		}
 
 		private void Update()

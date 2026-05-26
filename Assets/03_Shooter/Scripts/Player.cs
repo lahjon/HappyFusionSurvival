@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using Fusion;
 using Fusion.Addons.SimpleKCC;
+using Starter.Common.Inventory;
 using UnityEngine.Rendering;
 
 namespace Starter.Shooter
@@ -29,6 +30,7 @@ namespace Starter.Shooter
 		public UINameplate Nameplate;
 		public HitboxRoot HitboxRoot;
 		public Renderer[] HeadRenderers;
+		public ActionInvoker ActionInvoker;
 
 		[Header("Movement Setup")]
 		public float WalkSpeed = 2f;
@@ -46,6 +48,36 @@ namespace Starter.Shooter
 		[Tooltip("Stamina must reach this value before sprinting can start again after being fully depleted.")]
 		public float MinStaminaToStartSprint = 5f;
 
+		[Header("Climbing")]
+		[Tooltip("Surfaces on these layers can be climbed.")]
+		public LayerMask ClimbableMask;
+		[Tooltip("Movement speed along the wall plane (m/s).")]
+		public float ClimbSpeed = 2.5f;
+		[Tooltip("Speed of the climb-hop burst. Direction is set by WASD (hop along the wall) or by an empty input (back-flip off the wall).")]
+		public float ClimbJumpImpulse = 4f;
+		[Tooltip("Seconds between climb-hops. Must be greater than ClimbHopBurstDuration.")]
+		public float ClimbJumpCooldown = 0.35f;
+		[Tooltip("How long the upward burst velocity is applied during a climb-hop. The cooldown timer is shared, so the first ClimbHopBurstDuration seconds of the timer are the motion phase, the rest is recovery.")]
+		public float ClimbHopBurstDuration = 0.15f;
+		[Tooltip("Stamina drained per second while holding still on the wall (BOTW does drain when idle).")]
+		public float ClimbStaminaIdleDrain = 4f;
+		[Tooltip("Stamina drained per second while actively moving on the wall.")]
+		public float ClimbStaminaMoveDrain = 12f;
+		[Tooltip("Flat stamina cost of a climb-hop.")]
+		public float ClimbStaminaJumpCost = 20f;
+		[Tooltip("Forward raycast length used to detect/probe the climbable wall (meters, from chest).")]
+		public float ClimbWallProbeDistance = 0.55f;
+		[Tooltip("Distance to keep the player away from the wall surface while anchored.")]
+		public float ClimbStickRange = 0.4f;
+		[Tooltip("Minimum surface angle (degrees from horizontal) to count as a wall. Below this it's treated as a floor/ramp and rejected.")]
+		public float MaxClimbSurfaceAngle = 80f;
+		[Tooltip("Duration of the mantle animation onto a ledge.")]
+		public float MantleDuration = 0.6f;
+		[Tooltip("How far forward (beyond the wall normal) the mantle ends.")]
+		public float MantleForwardDistance = 0.7f;
+		[Tooltip("How far up the mantle lifts the player.")]
+		public float MantleUpDistance = 1.1f;
+
 		[Header("Movement Accelerations")]
 		public float GroundAcceleration = 55f;
 		public float GroundDeceleration = 25f;
@@ -53,26 +85,12 @@ namespace Starter.Shooter
 		public float AirDeceleration = 1.3f;
 
 		[Header("Fire Setup")]
-		public LayerMask HitMask;
+		[Tooltip("Visual prefab spawned at the hit point on a successful attack.")]
 		public GameObject ImpactPrefab;
-		[Tooltip("Effective range for the unarmed punch attack (meters).")]
-		public float PunchRange = 1.5f;
-		[Tooltip("Distance (meters) the target is pushed away from the attacker by an unarmed punch.")]
-		public float PunchKnockbackDistance = 1.5f;
-		[Tooltip("Minimum seconds between unarmed punches.")]
-		public float PunchCooldown = 0.5f;
 
 		[Header("Incoming Knockback")]
 		[Tooltip("Constant deceleration (m/s²) applied to incoming knockback. Higher = snappier push. Peak push speed = sqrt(2 * deceleration * distance), duration = peakSpeed / deceleration.")]
 		public float KnockbackDeceleration = 20f;
-
-		[Header("Melee Charge")]
-		[Tooltip("Seconds the attack button must be held before release applies the charged multipliers.")]
-		public float ChargeThresholdSeconds = 2f;
-		[Tooltip("Damage multiplier applied when a melee attack is released after holding for at least ChargeThresholdSeconds.")]
-		public float ChargedDamageMultiplier = 2f;
-		[Tooltip("Knockback distance multiplier applied to a fully-charged melee attack. Peak push speed and duration both scale with sqrt(distance).")]
-		public float ChargedKnockbackMultiplier = 2f;
 
 		[Header("Ragdoll")]
 		[Tooltip("Knockback peak speed (m/s) at or above which the player goes ragdoll. Smaller hits just nudge.")]
@@ -110,6 +128,26 @@ namespace Starter.Shooter
 		[Header("VFX")]
 		public ParticleSystem DustParticles;
 
+		[Header("Head Bob (local-only)")]
+		[Tooltip("Vertical bob amplitude (meters) while walking.")]
+		public float WalkBobAmplitude = 0.035f;
+		[Tooltip("Vertical bob amplitude (meters) while sprinting.")]
+		public float SprintBobAmplitude = 0.075f;
+		[Tooltip("Bob frequency (Hz) while walking.")]
+		public float WalkBobFrequency = 1.8f;
+		[Tooltip("Bob frequency (Hz) while sprinting.")]
+		public float SprintBobFrequency = 2.6f;
+		[Tooltip("Horizontal sway as a fraction of the vertical amplitude.")]
+		public float BobHorizontalRatio = 0.5f;
+		[Tooltip("How quickly the bob fades in/out when starting or stopping movement.")]
+		public float BobBlendSpeed = 8f;
+
+		[Header("Camera FOV (local-only)")]
+		[Tooltip("Degrees added on top of the camera's base FOV at full sprint speed, to sell the sensation of speed.")]
+		public float SprintFOVBoost = 8f;
+		[Tooltip("How quickly the FOV eases toward its target when sprint starts or stops.")]
+		public float FOVLerpSpeed = 6f;
+
 		[Networked, HideInInspector, Capacity(24), OnChangedRender(nameof(OnNicknameChanged))]
 		public string Nickname { get; set; }
 		[Networked, HideInInspector]
@@ -125,6 +163,25 @@ namespace Starter.Shooter
 		private NetworkBool _wasSprinting { get; set; }
 		[Networked]
 		private TickTimer _staminaRegenTimer { get; set; }
+
+		/// <summary>Per-player ability gate. When false the player cannot enter climb. Defaults true; gameplay (item/perk) may toggle.</summary>
+		[Networked, OnChangedRender(nameof(OnCanClimbChanged))]
+		public NetworkBool CanClimb { get; set; } = true;
+		/// <summary>True while the player is anchored to a wall.</summary>
+		[Networked, OnChangedRender(nameof(OnIsClimbingChanged))]
+		public NetworkBool IsClimbing { get; private set; }
+		[Networked]
+		private Vector3 _climbWallNormal { get; set; }
+		[Networked]
+		private TickTimer _climbJumpTimer { get; set; }
+		// Non-default _mantleTimer means a mantle is in progress.
+		[Networked]
+		private TickTimer _mantleTimer { get; set; }
+		[Networked]
+		private Vector3 _mantleStart { get; set; }
+		[Networked]
+		private Vector3 _mantleEnd { get; set; }
+
 		[Networked]
 		private Vector3 _hitPosition { get; set; }
 		[Networked]
@@ -139,14 +196,6 @@ namespace Starter.Shooter
 		private float _knockbackDuration { get; set; }
 		[Networked]
 		private TickTimer _knockbackTimer { get; set; }
-		[Networked]
-		private TickTimer _fireCooldownTimer { get; set; }
-		// 0 = not charging. Mutated only by state authority (and predicted on input authority via ProcessInput).
-		[Networked]
-		private int _meleeChargeStartTick { get; set; }
-		[Networked]
-		private NetworkBool _lastFireWasCharged { get; set; }
-
 		[Networked, OnChangedRender(nameof(OnRagdollStateChanged))]
 		public ERagdollState RagdollState { get; private set; }
 		[Networked]
@@ -164,11 +213,25 @@ namespace Starter.Shooter
 		[Networked]
 		private float _getUpTargetAngle { get; set; }
 
-		/// <summary>True while the player is knocked out or getting up — input and active control are suppressed.</summary>
-		public bool IsInputLocked => RagdollState != ERagdollState.Normal;
+		/// <summary>True while a mantle animation is in progress (input is suppressed during mantle).</summary>
+		public bool IsMantling
+		{
+			get
+			{
+				if (Runner == null) return false;
+				float? remaining = _mantleTimer.RemainingTime(Runner);
+				return remaining.HasValue && remaining.Value > 0f;
+			}
+		}
+
+		/// <summary>True while the player is knocked out, getting up, or mantling onto a ledge — input and active control are suppressed.</summary>
+		public bool IsInputLocked => RagdollState != ERagdollState.Normal || IsMantling;
 
 		private float _visualRollAngle;
 		private float _deadSpinSpeedLocal;
+		private float _bobPhase;
+		private float _bobWeight;
+		private float _baseFOV = -1f;
 
 		// Animation IDs
 		private int _animIDSpeedX;
@@ -180,23 +243,6 @@ namespace Starter.Shooter
 
 		private int _visibleFireCount;
 		private Inventory _inventory;
-
-		/// <summary>True while the player is mid-charge on a melee attack. Replicated.</summary>
-		public bool IsMeleeCharging => _meleeChargeStartTick > 0;
-
-		/// <summary>Seconds the current charge has been held. 0 when not charging.</summary>
-		public float MeleeChargeSeconds
-		{
-			get
-			{
-				if (_meleeChargeStartTick <= 0 || Runner == null) return 0f;
-				int elapsed = (int)Runner.Tick - _meleeChargeStartTick;
-				return elapsed > 0 ? elapsed * Runner.DeltaTime : 0f;
-			}
-		}
-
-		/// <summary>0..1 progress toward the charged threshold. Used to drive the pulled-back visual depth.</summary>
-		public float MeleeChargeProgress => Mathf.Clamp01(MeleeChargeSeconds / Mathf.Max(0.01f, ChargeThresholdSeconds));
 
 		public void Respawn(Vector3 position)
 		{
@@ -220,8 +266,17 @@ namespace Starter.Shooter
 			_knockbackInitialSpeed = 0f;
 			_knockbackTimer = default;
 
-			_meleeChargeStartTick = 0;
-			_lastFireWasCharged = false;
+			IsClimbing = false;
+			_climbWallNormal = Vector3.zero;
+			_climbJumpTimer = default;
+			_mantleTimer = default;
+			_mantleStart = Vector3.zero;
+			_mantleEnd = Vector3.zero;
+
+			if (ActionInvoker != null)
+			{
+				ActionInvoker.CancelCharge();
+			}
 		}
 
 		public override void Spawned()
@@ -271,9 +326,17 @@ namespace Starter.Shooter
 			CheckDeathRagdoll();
 
 			bool drainedThisTick = false;
-			if (Health.IsAlive && RagdollState == ERagdollState.Normal && GetInput<GameplayInput>(out var input))
+			if (IsMantling)
 			{
-				drainedThisTick = ProcessInput(input, Input.PreviousButtons);
+				// Mantle takes priority over normal input handling — the player is in a forced
+				// animation finishing the climb-up onto the ledge. Input is locked via IsInputLocked.
+				ProcessMantle();
+			}
+			else if (Health.IsAlive && RagdollState == ERagdollState.Normal && GetInput<GameplayInput>(out var input))
+			{
+				drainedThisTick = IsClimbing
+					? ProcessClimbInput(input, Input.PreviousButtons)
+					: ProcessInput(input, Input.PreviousButtons);
 			}
 			else
 			{
@@ -281,10 +344,15 @@ namespace Starter.Shooter
 				// when player is dead, ragdolled, or input is missing.
 				MovePlayer(Vector3.zero, 0f);
 				_wasSprinting = false;
-				// Cancel any in-progress charge — releasing while ragdolled/dead must not fire.
-				if (HasStateAuthority && _meleeChargeStartTick != 0)
+				// Drop out of climb if it was active — knockback / ragdoll must not strand the player on a wall.
+				if (HasStateAuthority && IsClimbing)
 				{
-					_meleeChargeStartTick = 0;
+					ExitClimb();
+				}
+				// Cancel any in-progress charge — releasing while ragdolled/dead must not fire.
+				if (HasStateAuthority && ActionInvoker != null && ActionInvoker.IsCharging)
+				{
+					ActionInvoker.CancelCharge();
 				}
 			}
 
@@ -334,25 +402,24 @@ namespace Starter.Shooter
 
 		private void UpdateMeleeChargingVisual()
 		{
-			var held = GetHeldWeapon();
-			var fist = held == null ? GetHeldFist() : null;
-			bool charging = IsMeleeCharging;
-			float progress = MeleeChargeProgress;
+			var provider = GetActionProvider();
+			if (provider == null) return;
 
-			if (held != null && held.IsMelee)
+			var action = GetActiveAction(provider);
+			if (action == null || action.Charge.Enabled == false)
 			{
-				held.SetCharging(charging, progress);
+				provider.SetCharging(false, 0f);
+				return;
 			}
-			else if (fist != null)
-			{
-				fist.SetCharging(charging, progress);
-			}
+
+			provider.SetCharging(ActionInvoker.IsCharging, ActionInvoker.ChargeProgress(action));
 		}
 
 		private void Awake()
 		{
 			AssignAnimationIDs();
 			_inventory = GetComponent<Inventory>();
+			if (ActionInvoker == null) ActionInvoker = GetComponent<ActionInvoker>();
 		}
 
 		private void LateUpdate()
@@ -384,7 +451,59 @@ namespace Starter.Shooter
 			{
 				// Transfer properties from camera handle to Main Camera.
 				Camera.main.transform.SetPositionAndRotation(CameraHandle.position, CameraHandle.rotation);
+
+				// Headbob is applied on top of the main camera only — CameraHandle stays untouched
+				// so the fire raycast origin (which reads CameraHandle.position) is unaffected.
+				Vector3 bob = ComputeHeadBob();
+				if (bob != Vector3.zero)
+				{
+					Camera.main.transform.position += Camera.main.transform.rotation * bob;
+				}
+
+				ApplySprintFOV();
 			}
+		}
+
+		private void ApplySprintFOV()
+		{
+			var cam = Camera.main;
+			if (cam == null) return;
+
+			if (_baseFOV < 0f) _baseFOV = cam.fieldOfView;
+
+			float horizontalSpeed = new Vector2(KCC.RealVelocity.x, KCC.RealVelocity.z).magnitude;
+			float sprintT = Mathf.InverseLerp(WalkSpeed, SprintSpeed, horizontalSpeed);
+			bool canBoost = Health.IsAlive && RagdollState == ERagdollState.Normal;
+			float targetFOV = _baseFOV + (canBoost ? SprintFOVBoost * sprintT : 0f);
+
+			cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, targetFOV, FOVLerpSpeed * Time.deltaTime);
+		}
+
+		private Vector3 ComputeHeadBob()
+		{
+			Vector3 vel = KCC.RealVelocity;
+			float horizontalSpeed = new Vector2(vel.x, vel.z).magnitude;
+			bool active = KCC.IsGrounded
+				&& horizontalSpeed > 0.5f
+				&& Health.IsAlive
+				&& RagdollState == ERagdollState.Normal;
+
+			float sprintT = Mathf.InverseLerp(WalkSpeed, SprintSpeed, horizontalSpeed);
+			float amplitude = Mathf.Lerp(WalkBobAmplitude, SprintBobAmplitude, sprintT);
+			float frequency = Mathf.Lerp(WalkBobFrequency, SprintBobFrequency, sprintT);
+
+			_bobWeight = Mathf.MoveTowards(_bobWeight, active ? 1f : 0f, BobBlendSpeed * Time.deltaTime);
+			if (_bobWeight <= 0.0001f) return Vector3.zero;
+
+			_bobPhase += frequency * Time.deltaTime * Mathf.PI * 2f;
+			// Wrap at 4π — sin(phase) has period 2π, but the horizontal cos(phase * 0.5) below
+			// has period 4π. 4π is the LCM so both stay continuous through the wrap; wrapping
+			// at 2π would snap cos(phase * 0.5) from -1 to +1 every cycle.
+			if (_bobPhase > Mathf.PI * 4f) _bobPhase -= Mathf.PI * 4f;
+
+			float vertical = Mathf.Sin(_bobPhase) * amplitude * _bobWeight;
+			float horizontal = Mathf.Cos(_bobPhase * 0.5f) * amplitude * BobHorizontalRatio * _bobWeight;
+			return new Vector3(horizontal, vertical, 0f);
 		}
 
 		private Quaternion ComputeRagdollTumbleRotation()
@@ -457,8 +576,29 @@ namespace Starter.Shooter
 
 			float jumpImpulse = 0f;
 
+			bool jumpPressed = !knockbackActive && input.Buttons.WasPressed(previousButtons, EInputButton.Jump);
+
+			// Mid-air grab attempt: pressing Jump in the air OR holding forward into a wall while airborne
+			// tries to latch onto a climbable surface. The grounded jump-press path below never attempts
+			// to grab, so a vertical jump is always preserved when standing next to a wall.
+			bool wantsMidAirGrab = !KCC.IsGrounded && (jumpPressed || input.MoveDirection.y > 0.5f);
+			if (wantsMidAirGrab && TryEnterClimb())
+			{
+				// Climb engaged. Cancel any in-progress melee charge — it's nonsensical mid-grab,
+				// and we wouldn't process the release anyway (climbing routes to ProcessClimbInput).
+				if (ActionInvoker != null && ActionInvoker.IsCharging)
+				{
+					ActionInvoker.CancelCharge();
+				}
+				// Bypass the rest of normal movement this tick — TryEnterClimb already snapped
+				// the KCC to the anchor; no further MovePlayer call is needed. ProcessClimbInput
+				// takes over from the next tick.
+				_wasSprinting = false;
+				return drained;
+			}
+
 			// Comparing current input buttons to previous input buttons - this prevents glitches when input is lost
-			if (!knockbackActive && KCC.IsGrounded && input.Buttons.WasPressed(previousButtons, EInputButton.Jump))
+			if (jumpPressed && KCC.IsGrounded)
 			{
 				// Set world space jump vector
 				jumpImpulse = JumpImpulse;
@@ -489,37 +629,286 @@ namespace Starter.Shooter
 
 		private void ProcessFireInput(GameplayInput input, NetworkButtons previousButtons)
 		{
-			// Resolve current melee context — held melee weapon, or bare fists (treated as melee).
-			var heldNow = GetHeldWeapon();
-			var fistNow = heldNow == null ? GetHeldFist() : null;
-			bool isMeleeContext = (heldNow != null && heldNow.IsMelee) || fistNow != null;
-
-			if (!isMeleeContext)
+			// Consumable in hand: LMB press consumes one and applies its effect.
+			// Cancel any stale charge so re-equipping a melee weapon can't release a charged swing.
+			if (_inventory != null && _inventory.SelectedDefinition is ConsumableDefinition)
 			{
-				// Ranged (or empty hand with no fist): clear stale charge, fire on press.
-				if (_meleeChargeStartTick != 0) _meleeChargeStartTick = 0;
+				if (ActionInvoker != null && ActionInvoker.IsCharging) ActionInvoker.CancelCharge();
 				if (input.Buttons.WasPressed(previousButtons, EInputButton.Fire))
 				{
-					Fire(false);
+					_inventory.TryUseSelectedConsumable();
 				}
+				return;
+			}
+
+			var action = GetActiveAction(GetActionProvider());
+			if (action == null)
+			{
+				// Nothing to fire with — drop any stale charge so it doesn't bleed into the next held item.
+				if (ActionInvoker != null && ActionInvoker.IsCharging) ActionInvoker.CancelCharge();
 				return;
 			}
 
 			bool wasPressed = input.Buttons.WasPressed(previousButtons, EInputButton.Fire);
 			bool wasReleased = input.Buttons.WasReleased(previousButtons, EInputButton.Fire);
 
-			if (wasPressed && _meleeChargeStartTick == 0 && _fireCooldownTimer.ExpiredOrNotRunning(Runner))
+			if (action.Charge.Enabled == false)
 			{
-				_meleeChargeStartTick = Mathf.Max(1, (int)Runner.Tick);
+				if (ActionInvoker.IsCharging) ActionInvoker.CancelCharge();
+				if (wasPressed) Fire(action, false);
+				return;
 			}
-			else if (wasReleased && _meleeChargeStartTick != 0)
+
+			if (wasPressed && ActionInvoker.IsCharging == false && ActionInvoker.CanFire)
 			{
-				int elapsedTicks = (int)Runner.Tick - _meleeChargeStartTick;
-				float chargeSeconds = Mathf.Max(0f, elapsedTicks * Runner.DeltaTime);
-				bool charged = chargeSeconds >= ChargeThresholdSeconds;
-				_meleeChargeStartTick = 0;
-				Fire(charged);
+				ActionInvoker.StartCharge();
 			}
+			else if (wasReleased && ActionInvoker.IsCharging)
+			{
+				if (ActionInvoker.ReleaseCharge(out float chargeSeconds))
+				{
+					bool charged = chargeSeconds >= action.Charge.ThresholdSeconds;
+					Fire(action, charged);
+				}
+			}
+		}
+
+		// BOTW-style climb anchor: cast forward (yaw-only, ignoring pitch so looking up at the wall doesn't reject the grab)
+		// from the chest. If a steep enough surface is hit on the ClimbableMask, snap the KCC to the anchor distance and
+		// flip IsClimbing on. Caller (ProcessInput) decides whether to suppress the normal jump impulse.
+		// State-authority-only via the mutation of [Networked] fields below — proxies see the change replicate.
+		private bool TryEnterClimb()
+		{
+			if (CanClimb == false) return false;
+			if (Stamina <= 0f) return false;
+
+			// Yaw-only forward — pitch is intentionally ignored so the player can look up the wall
+			// while still grabbing it horizontally. Matches BOTW behavior.
+			Vector3 forwardYaw = KCC.TransformRotation * Vector3.forward;
+			forwardYaw.y = 0f;
+			if (forwardYaw.sqrMagnitude < 0.0001f) return false;
+			forwardYaw.Normalize();
+
+			Vector3 origin = GetClimbProbeOrigin();
+			if (Physics.Raycast(origin, forwardYaw, out RaycastHit hit, ClimbWallProbeDistance, ClimbableMask, QueryTriggerInteraction.Ignore) == false)
+				return false;
+
+			// Reject too-horizontal surfaces (floors, gentle ramps).
+			if (Vector3.Angle(hit.normal, Vector3.up) < MaxClimbSurfaceAngle) return false;
+
+			_climbWallNormal = hit.normal;
+			IsClimbing = true;
+			_isJumping = false;
+			_moveVelocity = Vector3.zero;
+
+			// Snap the player to the standoff distance from the wall so subsequent
+			// re-probes hit cleanly. Vertical position is preserved.
+			Vector3 anchor = hit.point + hit.normal * ClimbStickRange;
+			anchor.y = transform.position.y;
+			KCC.SetPosition(anchor);
+			// Kill any leftover jump impulse / external velocity from the moment of grabbing so the
+			// player stops dead on the wall instead of riding their incoming momentum upward.
+			KCC.ResetVelocity();
+			return true;
+		}
+
+		// Driven by FixedUpdateNetwork while IsClimbing. Returns true if stamina drained this tick
+		// (so the regen check in FixedUpdateNetwork stays gated).
+		private bool ProcessClimbInput(GameplayInput input, NetworkButtons previousButtons)
+		{
+			// Player can still look around while on the wall — pitch is preserved for ledge inspection.
+			KCC.SetLookRotation(input.LookRotation, -90f, 90f);
+
+			// No gravity while anchored — the wall holds the player.
+			KCC.SetGravity(0f);
+
+			// Zero the KCC's internal velocity each tick. KCC.Move only sets the kinematic/desired
+			// velocity; any residual ExternalVelocity from a prior jumpImpulse or hop burst would
+			// persist forever with gravity=0, causing the player to glide indefinitely. Resetting
+			// here makes each tick's KCC.Move call the sole source of motion while climbing.
+			KCC.ResetVelocity();
+
+			// Drop button: clean release, no stamina cost, no impulse.
+			if (input.Buttons.WasPressed(previousButtons, EInputButton.ClimbDrop))
+			{
+				ExitClimb();
+				MovePlayer(Vector3.zero, 0f);
+				return false;
+			}
+
+			// Re-probe the wall to update the normal (handles convex curves and segmented geometry)
+			// and detect when the player has climbed off the side.
+			Vector3 probeDir = -_climbWallNormal;
+			Vector3 origin = GetClimbProbeOrigin();
+			if (Physics.Raycast(origin, probeDir, out RaycastHit hit, ClimbWallProbeDistance + ClimbStickRange, ClimbableMask, QueryTriggerInteraction.Ignore) == false)
+			{
+				// Lost wall contact. If a flat ledge is right above us, kick off a mantle; otherwise drop.
+				if (TryStartMantle(out Vector3 mantleEnd))
+				{
+					_mantleStart = transform.position;
+					_mantleEnd = mantleEnd;
+					_mantleTimer = TickTimer.CreateFromSeconds(Runner, MantleDuration);
+					IsClimbing = false;
+					_climbWallNormal = Vector3.zero;
+					_moveVelocity = Vector3.zero;
+					return false;
+				}
+				ExitClimb();
+				MovePlayer(Vector3.zero, 0f);
+				return false;
+			}
+			_climbWallNormal = hit.normal;
+
+			// Wall tangent basis: right is horizontal along the wall, up is along the wall going skyward.
+			Vector3 right = Vector3.Cross(Vector3.up, _climbWallNormal);
+			if (right.sqrMagnitude < 0.0001f)
+			{
+				// Wall normal is nearly vertical (i.e. ceiling/floor) — shouldn't happen given the
+				// entry angle check, but bail rather than divide by zero on a degenerate basis.
+				ExitClimb();
+				MovePlayer(Vector3.zero, 0f);
+				return false;
+			}
+			right.Normalize();
+			Vector3 up = Vector3.Cross(_climbWallNormal, right).normalized;
+
+			bool isMoving = input.MoveDirection.sqrMagnitude > 0.01f;
+			Vector3 wallVel = (right * input.MoveDirection.x + up * input.MoveDirection.y) * ClimbSpeed;
+
+			// Climb-hop trigger: Jump press while the cooldown timer is expired and stamina covers the cost.
+			// Stays in IsClimbing; the upward burst phase below adds vertical velocity while the timer is fresh.
+			if (input.Buttons.WasPressed(previousButtons, EInputButton.Jump)
+				&& _climbJumpTimer.ExpiredOrNotRunning(Runner)
+				&& Stamina > ClimbStaminaJumpCost)
+			{
+				Stamina = Mathf.Max(0f, Stamina - ClimbStaminaJumpCost);
+				_climbJumpTimer = TickTimer.CreateFromSeconds(Runner, ClimbJumpCooldown);
+			}
+
+			// Burst phase: while the timer is in its first ClimbHopBurstDuration seconds, add a sustained
+			// hop velocity. WASD picks the direction along the wall (hop along surface); no movement
+			// input means "jump off" — push back along the wall normal and up. Using the timer's remaining
+			// time as the gate shares one networked timer between motion and cooldown.
+			float? hopRemaining = _climbJumpTimer.RemainingTime(Runner);
+			bool inHopBurst = hopRemaining.HasValue && hopRemaining.Value > ClimbJumpCooldown - ClimbHopBurstDuration;
+			if (inHopBurst)
+			{
+				Vector3 hopDir;
+				if (isMoving)
+				{
+					// Hop along the wall surface, matching the WASD direction (W = up the wall, S = down, A/D = sideways).
+					hopDir = (right * input.MoveDirection.x + up * input.MoveDirection.y).normalized;
+				}
+				else
+				{
+					// No directional input — jump OFF the wall. Mix wall-outward with world-up for a back-flip arc.
+					hopDir = (_climbWallNormal + Vector3.up).normalized;
+				}
+				wallVel += hopDir * ClimbJumpImpulse;
+			}
+
+			// Stamina drain: idle drain still ticks (BOTW does this), move drain is the dominant cost.
+			float drainRate = isMoving ? ClimbStaminaMoveDrain : ClimbStaminaIdleDrain;
+			Stamina = Mathf.Max(0f, Stamina - drainRate * Runner.DeltaTime);
+			_staminaRegenTimer = TickTimer.CreateFromSeconds(Runner, StaminaRegenDelay);
+
+			if (Stamina <= 0f)
+			{
+				// Out of stamina — fall off the wall.
+				ExitClimb();
+				MovePlayer(Vector3.zero, 0f);
+				return true;
+			}
+
+			// Anchor correction along the wall normal: blend the player back to the standoff distance.
+			// Converting the position delta to velocity (delta / dt) lets us fold it into KCC.Move,
+			// which keeps SimpleKCC's collision resolution in the loop instead of teleporting.
+			// Skipped during a hop burst — otherwise the outward push above would be immediately cancelled.
+			Vector3 totalVel = wallVel;
+			if (inHopBurst == false)
+			{
+				Vector3 anchorTarget = hit.point + _climbWallNormal * ClimbStickRange;
+				Vector3 delta = anchorTarget - transform.position;
+				Vector3 normalCorrection = Vector3.Project(delta, _climbWallNormal);
+				totalVel += normalCorrection / Runner.DeltaTime;
+			}
+
+			_moveVelocity = wallVel;
+			KCC.Move(totalVel, 0f);
+
+			return true;
+		}
+
+		private void ExitClimb()
+		{
+			IsClimbing = false;
+			_climbWallNormal = Vector3.zero;
+			_climbJumpTimer = default;
+			_moveVelocity = Vector3.zero;
+		}
+
+		// Called when the wall re-probe misses during ProcessClimbInput. Looks for a roughly flat surface
+		// just above-and-forward of the player (i.e. the top of the wall they just climbed off of). Returns
+		// true with the final mantle position if a ledge is found. Uses DefaultRaycastLayers so the ledge
+		// top doesn't have to be on the Climbable layer — it just has to be flat.
+		private bool TryStartMantle(out Vector3 endPos)
+		{
+			endPos = Vector3.zero;
+
+			// Use the wall normal we had last to determine "forward" — pointing into the wall. This
+			// is more reliable than KCC.TransformRotation in cases where the player was facing sideways.
+			Vector3 intoWall = -_climbWallNormal;
+			intoWall.y = 0f;
+			if (intoWall.sqrMagnitude < 0.0001f) return false;
+			intoWall.Normalize();
+
+			// Cast straight down from a point above-and-forward of the player. The downward cast looks
+			// for the top surface of whatever they were climbing.
+			Vector3 castOrigin = transform.position
+				+ Vector3.up * (MantleUpDistance + 0.3f)
+				+ intoWall * MantleForwardDistance;
+			float castDistance = MantleUpDistance + 0.6f;
+
+			if (Physics.Raycast(castOrigin, Vector3.down, out RaycastHit hit, castDistance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore) == false)
+				return false;
+
+			// Reject non-flat tops (e.g. another wall, a steep ramp). 30° tolerance covers minor slopes.
+			if (Vector3.Angle(hit.normal, Vector3.up) > 30f) return false;
+
+			// Small lift so the KCC doesn't end embedded in the surface.
+			endPos = hit.point + Vector3.up * 0.05f;
+			return true;
+		}
+
+		// Runs while _mantleTimer is active. Lerps the KCC from _mantleStart to _mantleEnd with smooth-step
+		// easing, then clears the timer so normal control resumes the next tick.
+		private void ProcessMantle()
+		{
+			KCC.SetGravity(0f);
+
+			float? remaining = _mantleTimer.RemainingTime(Runner);
+			if (remaining.HasValue == false || remaining.Value <= 0f)
+			{
+				// Land the player exactly on the end position and clear mantle state.
+				KCC.SetPosition(_mantleEnd);
+				_mantleTimer = default;
+				_mantleStart = Vector3.zero;
+				_mantleEnd = Vector3.zero;
+				_moveVelocity = Vector3.zero;
+				return;
+			}
+
+			float t = MantleDuration > 0f ? 1f - Mathf.Clamp01(remaining.Value / MantleDuration) : 1f;
+			float eased = Mathf.SmoothStep(0f, 1f, t);
+			KCC.SetPosition(Vector3.Lerp(_mantleStart, _mantleEnd, eased));
+		}
+
+		// Origin used for both entry and re-probe raycasts. Using the chest bone keeps the probe at the
+		// same in-world position the body occupies on every peer, so authority and proxies probe identically.
+		// Falls back to a fixed offset above the root when no ChestBone is wired.
+		private Vector3 GetClimbProbeOrigin()
+		{
+			return ChestBone != null ? ChestBone.position : transform.position + Vector3.up * 1.0f;
 		}
 
 		private void MovePlayer(Vector3 desiredMoveVelocity, float jumpImpulse)
@@ -696,83 +1085,39 @@ namespace Starter.Shooter
 			return remaining.HasValue && remaining.Value > 0f;
 		}
 
-		private void Fire(bool charged)
+		private void Fire(CombatAction action, bool charged)
 		{
-			var held = GetHeldWeapon();
-			var fist = held == null ? GetHeldFist() : null;
-
-			// Nothing to fire/punch with.
-			if (held == null && fist == null) return;
-
-			// Enforce per-weapon (or punch) cooldown. Runs on both state and input authority
-			// during FUN, so prediction and authoritative state agree on rate-limiting.
-			if (_fireCooldownTimer.ExpiredOrNotRunning(Runner) == false) return;
-
-			float range = held != null ? held.Range : PunchRange;
-			int damage = held != null ? held.Damage : 1;
-			float cooldown = held != null ? held.Cooldown : PunchCooldown;
-
-			float kbDistance = 0f;
-			if (held != null && held.IsMelee)
-			{
-				kbDistance = held.KnockbackDistance;
-			}
-			else if (held == null && fist != null)
-			{
-				kbDistance = PunchKnockbackDistance;
-			}
-
-			// Charged release: melee-only boost (ranged callers always pass charged=false).
-			bool isMelee = (held != null && held.IsMelee) || fist != null;
-			if (charged && isMelee)
-			{
-				damage = Mathf.Max(1, Mathf.RoundToInt(damage * ChargedDamageMultiplier));
-				kbDistance *= ChargedKnockbackMultiplier;
-			}
-
-			_lastFireWasCharged = charged && isMelee;
-
-			if (cooldown > 0f)
-			{
-				_fireCooldownTimer = TickTimer.CreateFromSeconds(Runner, cooldown);
-			}
+			if (action == null || ActionInvoker == null) return;
 
 			// Clear hit position in case nothing will be hit
 			_hitPosition = Vector3.zero;
+			_hitNormal = Vector3.zero;
 
-			var hitOptions = HitOptions.IncludePhysX | HitOptions.IgnoreInputAuthority;
-
-			// Whole projectile path and effects are immediately processed (= hitscan projectile)
-			if (Runner.LagCompensation.Raycast(CameraHandle.position, CameraHandle.forward, range,
-				    Object.InputAuthority, out var hit, HitMask, hitOptions, QueryTriggerInteraction.Ignore) == true)
+			var ctx = new ActorContext
 			{
-				// Deal damage
-				var health = hit.Hitbox != null ? hit.Hitbox.Root.GetComponent<Health>() : null;
-				if (health != null && health.TakeHit(damage))
-				{
-					if (kbDistance > 0f)
-					{
-						var knockable = hit.Hitbox.Root.GetComponent<IKnockbackable>();
-						knockable?.ApplyKnockback(transform.position, kbDistance);
-					}
+				Runner = Runner,
+				IgnoreAuthority = Object.InputAuthority,
+				AttackerPosition = transform.position,
+				FireTransform = CameraHandle,
+				AttackerRoot = gameObject,
+			};
 
-					if (health.IsAlive == false)
-					{
-						// Killing chicken grants 1 point, killing other player has -10 points penalty.
-						ChickenKills += health.GetComponent<Chicken>() != null ? 1 : -10;
-					}
-				}
+			var hit = ActionInvoker.TryFire(action, in ctx, charged);
+			if (hit.DidFire == false) return;
 
-				// Save hit point to correctly show bullet path on all clients.
-				// This however works only for single projectile per FUN and with higher fire cadence
-				// some projectiles might not be fired on proxies because we save only the position
-				// of the LAST hit.
+			if (hit.DidHit)
+			{
 				_hitPosition = hit.Point;
 				_hitNormal = hit.Normal;
+
+				if (hit.KilledTarget && hit.Target != null)
+				{
+					// Killing chicken grants 1 point, killing other player has -10 points penalty.
+					ChickenKills += hit.Target.GetComponent<Chicken>() != null ? 1 : -10;
+				}
 			}
 
-			// In this example projectile count property (fire count) is used not only for weapon fire effects
-			// but to spawn the projectile visuals themselves.
+			// Drives ShowFireEffects on every peer. Counter pattern (not RPC) tolerates dropped ticks.
 			_fireCount++;
 		}
 
@@ -784,30 +1129,25 @@ namespace Starter.Shooter
 			// local player mispredicted fire (e.g. input got lost) and fireCount property got decreased.
 			if (_visibleFireCount < _fireCount)
 			{
-				var held = GetHeldWeapon();
-				var fist = held == null ? GetHeldFist() : null;
+				var provider = GetActionProvider();
+				var action = GetActiveAction(provider);
 
-				if (held != null)
+				if (provider != null && action != null)
 				{
-					held.PlayAttackSound();
-					if (held.IsMelee)
+					provider.PlayAttackSound(action);
+					if (action.Style == EFeedbackStyle.Melee)
 					{
-						held.Swing(_lastFireWasCharged);
+						provider.PlayMeleeFeedback(ActionInvoker != null && ActionInvoker.LastFireWasCharged);
 					}
 					else
 					{
-						if (held.MuzzleParticle != null) held.MuzzleParticle.Play();
-						held.Recoil();
+						provider.PlayRangedFeedback();
 					}
-				}
-				else if (fist != null)
-				{
-					fist.Punch(_lastFireWasCharged);
 				}
 
 				Animator.SetTrigger(_animIDShoot);
 
-				if (_hitPosition != Vector3.zero)
+				if (_hitPosition != Vector3.zero && ImpactPrefab != null)
 				{
 					// Impact gets destroyed automatically with DestroyAfter script
 					Instantiate(ImpactPrefab, _hitPosition, Quaternion.LookRotation(_hitNormal));
@@ -817,18 +1157,17 @@ namespace Starter.Shooter
 			_visibleFireCount = _fireCount;
 		}
 
-		private HeldWeapon GetHeldWeapon()
+		private IActionProvider GetActionProvider()
 		{
 			if (_inventory == null) return null;
 			var instance = _inventory.HeldInstance;
-			return instance != null ? instance.GetComponent<HeldWeapon>() : null;
+			return instance != null ? instance.GetComponent<IActionProvider>() : null;
 		}
 
-		private FistPunchAnimator GetHeldFist()
+		private static CombatAction GetActiveAction(IActionProvider provider)
 		{
-			if (_inventory == null) return null;
-			var instance = _inventory.HeldInstance;
-			return instance != null ? instance.GetComponent<FistPunchAnimator>() : null;
+			if (provider == null || provider.Actions == null || provider.Actions.Count == 0) return null;
+			return provider.Actions[0];
 		}
 
 		private void AssignAnimationIDs()
@@ -863,6 +1202,16 @@ namespace Starter.Shooter
 				return; // Do not show nickname for local player
 
 			Nameplate.SetNickname(Nickname);
+		}
+
+		private void OnCanClimbChanged()
+		{
+			// Hook for HUD / future feedback. State-side gating is read from CanClimb directly.
+		}
+
+		private void OnIsClimbingChanged()
+		{
+			// Hook for VFX / SFX / animator state. Behavior is driven by IsClimbing in FixedUpdateNetwork.
 		}
 
 		private void OnRagdollStateChanged()

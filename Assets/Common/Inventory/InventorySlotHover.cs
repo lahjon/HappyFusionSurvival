@@ -10,7 +10,7 @@ namespace Starter.Common.Inventory
 	/// owning HUD which slot index the cursor is currently over, and applies a
 	/// local hover feedback (slight scale + brighten) on the slot background.
 	/// </summary>
-	public sealed class InventorySlotHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+	public sealed class InventorySlotHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
 	{
 		public int SlotIndex;
 
@@ -21,6 +21,7 @@ namespace Starter.Common.Inventory
 
 		public event Action<int> Entered;
 		public event Action<int> Exited;
+		public event Action<int> RightClicked;
 
 		private Vector3 _baseScale;
 		private Color _baseColor;
@@ -59,6 +60,14 @@ namespace Starter.Common.Inventory
 				ApplyVisualState();
 			}
 			Exited?.Invoke(SlotIndex);
+		}
+
+		public void OnPointerClick(PointerEventData eventData)
+		{
+			if (eventData.button == PointerEventData.InputButton.Right)
+			{
+				RightClicked?.Invoke(SlotIndex);
+			}
 		}
 
 		private void OnDisable()

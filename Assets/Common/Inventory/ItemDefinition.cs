@@ -1,3 +1,4 @@
+using Fusion;
 using UnityEngine;
 
 namespace Starter.Common.Inventory
@@ -9,8 +10,19 @@ namespace Starter.Common.Inventory
 		public string Value;
 	}
 
+	// Subclass of ItemDefinition for items that are spent when used.
+	// Apply runs on every predicting peer during FixedUpdateNetwork; any networked
+	// mutations inside the effect must guard on HasStateAuthority themselves.
+	public abstract class ConsumableDefinition : ItemDefinition
+	{
+		[Tooltip("Seconds before the next use of any consumable is allowed. Shared across the inventory.")]
+		[Min(0f)] public float UseCooldownSeconds = 1f;
+
+		public abstract void Apply(GameObject target, NetworkRunner runner);
+	}
+
 	[CreateAssetMenu(fileName = "Item", menuName = "Inventory/Item Definition", order = 0)]
-	public sealed class ItemDefinition : ScriptableObject
+	public class ItemDefinition : ScriptableObject
 	{
 		[Tooltip("Stable network id. Must be non-zero and unique within the ItemDatabase.")]
 		public short Id = 1;

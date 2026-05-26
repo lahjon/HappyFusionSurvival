@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 7531420627676365539}
   - component: {fileID: 440079957387574454}
   - component: {fileID: 8342933420299169086}
+  - component: {fileID: 4704527579805780142}
   m_Layer: 0
   m_Name: PassiveTrainingDummy
   m_TagString: Untagged
@@ -58,6 +59,7 @@ MonoBehaviour:
   - {fileID: 7531420627676365539}
   - {fileID: 440079957387574454}
   - {fileID: 8342933420299169086}
+  - {fileID: 4704527579805780142}
   ForceRemoteRenderTimeframe: 0
 --- !u!114 &7531420627676365539
 MonoBehaviour:
@@ -108,13 +110,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.TrainingDummy
   Health: {fileID: 440079957387574454}
   Attacks: 0
-  PunchRange: 2.5
-  PunchCooldown: 1.5
-  PunchDamage: 1
-  KnockbackDistance: 1.5
-  PlayerLayerMask:
-    serializedVersion: 2
-    m_Bits: 64
+  _actions: []
+--- !u!114 &4704527579805780142
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4680196328242161484}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fd45cf2758ee32b48a14c2fd8d62239f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ActionInvoker
+  _ChargeStartTick: 0
+  _LastFireWasCharged:
+    _value: 0
 --- !u!1 &4682995899875825882
 GameObject:
   m_ObjectHideFlags: 0

@@ -11,6 +11,7 @@ namespace Starter.Shooter
 		Jump,
 		Fire,
 		Sprint,
+		ClimbDrop,
 	}
 
 	/// <summary>
@@ -40,6 +41,15 @@ namespace Starter.Shooter
 		private GameplayInput _input;
 		private GameInputActions _actions;
 		private Player _player;
+		private Inventory _inventory;
+
+		// Aim recoil/sway state — local to input authority. The effect is baked into
+		// _input.LookRotation each frame, which is networked, so proxies see the same
+		// swayed/recoiled aim. We track only the per-frame delta so values don't
+		// double-accumulate into LookRotation.
+		private Vector2 _recoilPending;
+		private Vector2 _recoilApplied;
+		private Vector2 _prevSwayOffset;
 
 		public override void Spawned()
 		{
@@ -47,6 +57,7 @@ namespace Starter.Shooter
 				return;
 
 			_player = GetComponent<Player>();
+			_inventory = GetComponent<Inventory>();
 			_actions = GetComponent<GameInputActions>();
 			if (_actions != null)
 			{
@@ -116,12 +127,22 @@ namespace Starter.Shooter
 			var look = _actions.Look.ReadValue<Vector2>();
 			_input.LookRotation += new Vector2(-look.y, look.x) * LookSensitivity;
 
+			// While climbing the player can't fire/sprint and weapon sway/recoil would visibly twitch
+			// the camera against the wall. Suppress both so the climb experience stays clean.
+			bool isClimbing = _player != null && _player.IsClimbing;
+
+			if (isClimbing == false)
+			{
+				ApplyWeaponSwayAndRecoil();
+			}
+
 			var moveDirection = _actions.Move.ReadValue<Vector2>();
 			_input.MoveDirection = moveDirection.normalized;
 
-			_input.Buttons.Set(EInputButton.Fire, _actions.Fire.IsPressed());
+			_input.Buttons.Set(EInputButton.Fire, !isClimbing && _actions.Fire.IsPressed());
 			_input.Buttons.Set(EInputButton.Jump, _actions.Jump.IsPressed());
-			_input.Buttons.Set(EInputButton.Sprint, _actions.Sprint.IsPressed());
+			_input.Buttons.Set(EInputButton.Sprint, !isClimbing && _actions.Sprint.IsPressed());
+			_input.Buttons.Set(EInputButton.ClimbDrop, _actions.Crouch.IsPressed());
 		}
 
 		// AfterTick is called after all FixedUpdateNetwork calls on NetworkBehaviours were executed for this tick.
@@ -140,6 +161,59 @@ namespace Starter.Shooter
 		private void OnInput(NetworkRunner runner, NetworkInput networkInput)
 		{
 			networkInput.Set(_input);
+		}
+
+		// Applies the held ranged weapon's sway and CS-style aim recoil on top of mouse look.
+		// Both are written as per-frame deltas into _input.LookRotation so they ride along the
+		// existing input pipeline (clamped + networked by the receiving Player).
+		private void ApplyWeaponSwayAndRecoil()
+		{
+			var weapon = GetRangedWeapon();
+
+			// Recoil edge-trigger: each press queues a fresh kick toward _recoilPending.
+			if (weapon != null && weapon.AimRecoil > 0f && _actions.Fire.WasPressedThisFrame())
+			{
+				float r = weapon.AimRecoil;
+				// LookRotation.x = pitch; more negative = look up. So pitch impulse is negative.
+				float pitchImpulse = -weapon.AimRecoilPitchPerShot * r;
+				float yawImpulse = Random.Range(-weapon.AimRecoilHorizontalRandom, weapon.AimRecoilHorizontalRandom) * r;
+				_recoilPending += new Vector2(pitchImpulse, yawImpulse);
+			}
+
+			float lerpSpeed = weapon != null ? Mathf.Max(0f, weapon.AimRecoilLerpSpeed) : 18f;
+			Vector2 newApplied = Vector2.Lerp(_recoilApplied, _recoilPending, 1f - Mathf.Exp(-lerpSpeed * Time.deltaTime));
+			Vector2 recoilDelta = newApplied - _recoilApplied;
+			_recoilApplied = newApplied;
+
+			// Sway: Perlin wobble around zero. Apply only the delta vs. previous frame so the
+			// oscillation doesn't bake into the running LookRotation total.
+			Vector2 newSway = Vector2.zero;
+			if (weapon != null && weapon.WeaponSway > 0f)
+			{
+				float t = Time.time * Mathf.Max(0.0001f, weapon.SwayFrequency);
+				float amp = weapon.WeaponSway * weapon.SwayMaxDegrees;
+				newSway.x = (Mathf.PerlinNoise(t, 0f) - 0.5f) * 2f * amp;
+				newSway.y = (Mathf.PerlinNoise(0f, t) - 0.5f) * 2f * amp;
+			}
+			Vector2 swayDelta = newSway - _prevSwayOffset;
+			_prevSwayOffset = newSway;
+
+			_input.LookRotation += recoilDelta + swayDelta;
+		}
+
+		private HeldWeapon GetRangedWeapon()
+		{
+			if (_inventory == null) return null;
+			var instance = _inventory.HeldInstance;
+			if (instance == null) return null;
+			var weapon = instance.GetComponent<HeldWeapon>();
+			if (weapon == null) return null;
+			// Sway / aim-recoil apply only when the active action is a ranged firearm.
+			var actions = weapon.Actions;
+			if (actions == null || actions.Count == 0) return null;
+			var action = actions[0];
+			if (action == null || action.Style != EFeedbackStyle.Ranged) return null;
+			return weapon;
 		}
 	}
 }

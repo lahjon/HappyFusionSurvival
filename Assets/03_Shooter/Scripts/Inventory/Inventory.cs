@@ -45,6 +45,9 @@ namespace Starter.Shooter
 		[Networked, OnChangedRender(nameof(OnSelectedChanged))]
 		public int SelectedSlot { get; set; }
 
+		[Networked]
+		private TickTimer _useCooldownTimer { get; set; }
+
 		public event System.Action SlotsChanged;
 		public event System.Action SelectedChanged;
 
@@ -55,6 +58,16 @@ namespace Starter.Shooter
 
 		public GameObject HeldInstance => _heldInstance;
 		public short SelectedItemId => Slots[SelectedSlot].ItemId;
+
+		public ItemDefinition SelectedDefinition
+		{
+			get
+			{
+				if (ItemDatabase.Instance == null) return null;
+				var s = Slots[SelectedSlot];
+				return s.IsEmpty ? null : ItemDatabase.Instance.GetById(s.ItemId);
+			}
+		}
 
 		public override void Spawned()
 		{
@@ -176,6 +189,49 @@ namespace Starter.Shooter
 		{
 			if (slot < 0 || slot >= SlotCount) return;
 			RPC_RequestDropAt(slot);
+		}
+
+		[Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
+		public void RPC_RequestUseSlot(int slot)
+		{
+			TryUseAt(slot);
+		}
+
+		/// <summary>
+		/// Local-side entry for "use this slot's item" (e.g. right-click in the HUD).
+		/// Routes to state authority via RPC; no-op if the slot isn't a consumable.
+		/// </summary>
+		public void RequestUseSlot(int slot)
+		{
+			if (slot < 0 || slot >= SlotCount) return;
+			RPC_RequestUseSlot(slot);
+		}
+
+		/// <summary>
+		/// Called by Player when LMB is pressed while a consumable is in hand.
+		/// Runs on both state and input authority during FixedUpdateNetwork so prediction
+		/// and authoritative state agree on the cooldown.
+		/// </summary>
+		public bool TryUseSelectedConsumable() => TryUseAt(SelectedSlot);
+
+		private bool TryUseAt(int slot)
+		{
+			if (slot < 0 || slot >= SlotCount) return false;
+			if (_useCooldownTimer.ExpiredOrNotRunning(Runner) == false) return false;
+
+			var s = Slots[slot];
+			if (s.IsEmpty || ItemDatabase.Instance == null) return false;
+
+			var def = ItemDatabase.Instance.GetById(s.ItemId);
+			if (def is not ConsumableDefinition consumable) return false;
+
+			_useCooldownTimer = TickTimer.CreateFromSeconds(Runner, consumable.UseCooldownSeconds);
+
+			consumable.Apply(gameObject, Runner);
+
+			s.Count -= 1;
+			Slots.Set(slot, s.Count <= 0 ? InventorySlot.Empty : s);
+			return true;
 		}
 
 		public short TryAdd(short itemId, short count)

@@ -260,6 +260,7 @@ GameObject:
   - component: {fileID: 5852967253135318094}
   - component: {fileID: 5416068721675896649}
   - component: {fileID: 1471182722658263947}
+  - component: {fileID: 2000060299088015355}
   m_Layer: 6
   m_Name: Player
   m_TagString: Player
@@ -312,6 +313,7 @@ MonoBehaviour:
   - {fileID: 8261807108443789817}
   - {fileID: 7415000609148162326}
   - {fileID: 4060730663585507085}
+  - {fileID: 2000060299088015355}
   ForceRemoteRenderTimeframe: 0
 --- !u!114 &731081082244027627
 MonoBehaviour:
@@ -350,6 +352,7 @@ MonoBehaviour:
   HeadRenderers:
   - {fileID: 2150036199710171595}
   - {fileID: 7177264614736068185}
+  ActionInvoker: {fileID: 0}
   WalkSpeed: 5
   SprintSpeed: 8
   JumpImpulse: 10
@@ -361,17 +364,28 @@ MonoBehaviour:
   StaminaRegenDelay: 1
   JumpStaminaCost: 15
   MinStaminaToStartSprint: 5
+  ClimbableMask:
+    serializedVersion: 2
+    m_Bits: 512
+  ClimbSpeed: 2.5
+  ClimbJumpImpulse: 4
+  ClimbJumpCooldown: 0.35
+  ClimbHopBurstDuration: 0.15
+  ClimbStaminaIdleDrain: 4
+  ClimbStaminaMoveDrain: 12
+  ClimbStaminaJumpCost: 20
+  ClimbWallProbeDistance: 0.55
+  ClimbStickRange: 0.4
+  MaxClimbSurfaceAngle: 80
+  MantleDuration: 0.6
+  MantleForwardDistance: 0.7
+  MantleUpDistance: 1.1
   GroundAcceleration: 10
   GroundDeceleration: 10
   AirAcceleration: 10
   AirDeceleration: 1.3
-  HitMask:
-    serializedVersion: 2
-    m_Bits: 1
   ImpactPrefab: {fileID: 921809749201012083, guid: 7b3d9616a600e0a408561256ba1be9d9, type: 3}
-  PunchRange: 1.5
-  PunchKnockbackDistance: 1.5
-  PunchCooldown: 0.5
+  KnockbackDeceleration: 20
   RagdollImpactThreshold: 5
   KnockoutSecondsPerUnit: 0.2
   MinKnockoutDuration: 0.4
@@ -381,6 +395,7 @@ MonoBehaviour:
   MaxRagdollSpinSpeed: 720
   RagdollAxisVerticalJitter: 0.25
   DeadRagdollSpinDecay: 360
+  RagdollRollRadius: 0.5
   ChestTargetPosition: {fileID: 536988984119202717}
   ChestBone: {fileID: 1992701519831656905}
   FireSound: {fileID: 3515788271502590058}
@@ -388,9 +403,21 @@ MonoBehaviour:
   JumpAudioClip: {fileID: 8300000, guid: 111193ad93ba31640ba3bdc4695615fa, type: 3}
   LandAudioClip: {fileID: 8300000, guid: 5d389baa695e70746b0c2ad612c4bb81, type: 3}
   DustParticles: {fileID: 4917586891687763835}
+  WalkBobAmplitude: 0.035
+  SprintBobAmplitude: 0.075
+  WalkBobFrequency: 1.8
+  SprintBobFrequency: 2.6
+  BobHorizontalRatio: 0.5
+  BobBlendSpeed: 8
+  SprintFOVBoost: 8
+  FOVLerpSpeed: 6
   _Nickname: 
   _ChickenKills: 0
   _Stamina: 0
+  _CanClimb:
+    _value: 1
+  _IsClimbing:
+    _value: 0
   _RagdollState: 0
 --- !u!114 &7362189930313428062
 MonoBehaviour:
@@ -432,7 +459,7 @@ MonoBehaviour:
     ColliderLayer: 6
     CollisionLayerMask:
       serializedVersion: 2
-      m_Bits: 65
+      m_Bits: 321
     ProxyInterpolationMode: 0
     MaxPenetrationSteps: 8
     CCDRadiusMultiplier: 0.75
@@ -566,6 +593,21 @@ MonoBehaviour:
   ScanRadius: 3
   ViewConeDot: 0.3
   ToastCooldown: 1
+--- !u!114 &2000060299088015355
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3123905968297068043}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fd45cf2758ee32b48a14c2fd8d62239f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ActionInvoker
+  _ChargeStartTick: 0
+  _LastFireWasCharged:
+    _value: 0
 --- !u!1 &3226221424221943437
 GameObject:
   m_ObjectHideFlags: 0
