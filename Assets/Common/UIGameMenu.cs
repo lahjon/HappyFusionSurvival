@@ -23,6 +23,8 @@ namespace Starter
 		[Header("Debug")]
 		[Tooltip("For debug purposes it is possible to force single-player game (starts faster)")]
 		public bool ForceSinglePlayer;
+		[Tooltip("Auto-invoke StartGame() on scene load so you don't have to click Start every iteration. Only fires once per app session, so explicit Disconnect still works.")]
+		public bool AutoStart = true;
 
 		[Header("UI Setup")]
 		public CanvasGroup PanelGroup;
@@ -34,6 +36,7 @@ namespace Starter
 
 		private NetworkRunner _runnerInstance;
 		private static string _shutdownStatus;
+		private static bool _autoStartConsumed;
 
 		public async void StartGame()
 		{
@@ -112,6 +115,13 @@ namespace Starter
 			// Try to load previous shutdown status
 			StatusText.text = _shutdownStatus != null ? _shutdownStatus : string.Empty;
 			_shutdownStatus = null;
+
+			if (AutoStart && !_autoStartConsumed)
+			{
+				_autoStartConsumed = true;
+				PanelGroup.gameObject.SetActive(false);
+				StartGame();
+			}
 		}
 
 		private void Update()

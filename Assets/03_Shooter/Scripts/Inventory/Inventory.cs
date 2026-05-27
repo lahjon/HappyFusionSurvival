@@ -19,6 +19,11 @@ namespace Starter.Shooter
 		public float DropForwardOffset = 1.0f;
 		public float DropUpOffset = 1.0f;
 
+		[Header("Weight")]
+		[Tooltip("Total inventory weight that can be carried with no movement penalty. Over the limit by 0-25% halves move speed; >25% quarters it.")]
+		[Min(0f)]
+		public float WeightLimit = 100f;
+
 		[Header("Throw")]
 		[Tooltip("Forward velocity applied to dropped items (m/s along the player's forward).")]
 		public float ThrowForwardSpeed = 6f;
@@ -82,6 +87,37 @@ namespace Starter.Shooter
 				if (ItemDatabase.Instance == null) return null;
 				var s = Slots[SelectedSlot];
 				return s.IsEmpty ? null : ItemDatabase.Instance.GetById(s.ItemId);
+			}
+		}
+
+		/// <summary>Sum of every slot's (Weight * Count). 0 when no ItemDatabase.</summary>
+		public float CurrentWeight
+		{
+			get
+			{
+				if (ItemDatabase.Instance == null) return 0f;
+				float total = 0f;
+				for (int i = 0; i < Slots.Length; i++)
+				{
+					var s = Slots[i];
+					if (s.IsEmpty) continue;
+					var def = ItemDatabase.Instance.GetById(s.ItemId);
+					if (def != null) total += def.Weight * s.Count;
+				}
+				return total;
+			}
+		}
+
+		/// <summary>1.0 at or under WeightLimit, 0.5 from 0-25% over, 0.25 beyond 25% over. Read by Player to scale walk/sprint speed.</summary>
+		public float SpeedMultiplier
+		{
+			get
+			{
+				if (WeightLimit <= 0f) return 1f;
+				float w = CurrentWeight;
+				if (w <= WeightLimit) return 1f;
+				float overFraction = (w - WeightLimit) / WeightLimit;
+				return overFraction <= 0.25f ? 0.5f : 0.25f;
 			}
 		}
 
@@ -163,6 +199,8 @@ namespace Starter.Shooter
 		public void RPC_RequestSelect(int idx)
 		{
 			if (idx < 0 || idx >= SlotCount) return;
+			if (idx == SelectedSlot) return;
+			DropLargeFromSelectedIfAny();
 			SelectedSlot = idx;
 		}
 
@@ -175,6 +213,18 @@ namespace Starter.Shooter
 			float distSq = (pickup.transform.position - transform.position).sqrMagnitude;
 			float allowed = PickupRange * 1.5f;
 			if (distSq > allowed * allowed) return;
+
+			var def = ItemDatabase.Instance != null ? ItemDatabase.Instance.GetById(pickup.ItemId) : null;
+			if (def != null && def.Size == EItemSize.Large)
+			{
+				if (TryAcquireLarge(pickup.ItemId) == false) return;
+
+				if (pickup.Count <= 1)
+					Runner.Despawn(obj);
+				else
+					pickup.Count = (short)(pickup.Count - 1);
+				return;
+			}
 
 			short leftover = TryAdd(pickup.ItemId, pickup.Count);
 			if (leftover >= pickup.Count) return;
@@ -206,6 +256,9 @@ namespace Starter.Shooter
 			if (slot < 0 || slot >= SlotCount) return;
 			RPC_RequestDropAt(slot);
 		}
+
+		void IPlayerInventory.AuthorityDropSlot(int slot) => DropAt(slot);
+		bool IPlayerInventory.AuthorityAcquireLarge(short itemId) => TryAcquireLarge(itemId);
 
 		[Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
 		public void RPC_RequestUseSlot(int slot)
@@ -247,7 +300,7 @@ namespace Starter.Shooter
 			float maxDist = def.PlacementRange + RangeSlack;
 			if ((position - transform.position).sqrMagnitude > maxDist * maxDist) return false;
 
-			if (def.Footprint > 0f && IsObstructed(position, def.Footprint)) return false;
+			if (def.Footprint > 0f && IsObstructed(position, def.Footprint, def.PlacementMask)) return false;
 
 			Runner.Spawn(def.PlacedPrefab, position, rotation);
 
@@ -258,14 +311,23 @@ namespace Starter.Shooter
 
 		private static readonly Collider[] s_overlapBuffer = new Collider[16];
 
-		private bool IsObstructed(Vector3 position, float radius)
+		private bool IsObstructed(Vector3 position, float radius, int layerMask)
 		{
-			int count = Physics.OverlapSphereNonAlloc(position, radius, s_overlapBuffer, ~0, QueryTriggerInteraction.Ignore);
+			// Find and exclude the surface the placement was snapped onto — otherwise the
+			// Footprint sphere intersects the ground itself and every place attempt fails.
+			Collider surface = null;
+			if (Physics.Raycast(position + Vector3.up * 0.05f, Vector3.down, out RaycastHit surfaceHit, radius + 0.5f, layerMask, QueryTriggerInteraction.Ignore))
+			{
+				surface = surfaceHit.collider;
+			}
+
+			int count = Physics.OverlapSphereNonAlloc(position, radius, s_overlapBuffer, layerMask, QueryTriggerInteraction.Ignore);
 			Transform self = transform.root;
 			for (int i = 0; i < count; i++)
 			{
 				var col = s_overlapBuffer[i];
 				if (col == null) continue;
+				if (col == surface) continue;
 				if (col.transform.root == self) continue;
 				return true;
 			}
@@ -312,6 +374,58 @@ namespace Starter.Shooter
 		public short TryAdd(short itemId, short count)
 		{
 			return InventoryOps.TryAdd(Slots, itemId, count);
+		}
+
+		/// <summary>
+		/// Authority-side: place one Large item into the inventory, ending in the selected slot.
+		/// Uses the first empty slot if available (then switches selection there, which drops
+		/// any Large item previously held); otherwise drops the currently-held slot to free room
+		/// for the new Large item in-place. Returns false only if no ItemDatabase entry exists.
+		/// </summary>
+		public bool TryAcquireLarge(short itemId)
+		{
+			if (HasStateAuthority == false) return false;
+			if (itemId == 0 || ItemDatabase.Instance == null) return false;
+			var def = ItemDatabase.Instance.GetById(itemId);
+			if (def == null) return false;
+
+			int target = FindFirstEmptySlot();
+			if (target < 0)
+			{
+				// No empty slot anywhere — drop whatever is in the selected slot to make room there.
+				DropAt(SelectedSlot);
+				target = SelectedSlot;
+			}
+
+			if (target != SelectedSlot)
+			{
+				// Switching selection drops any Large item currently equipped (small items stay).
+				DropLargeFromSelectedIfAny();
+				SelectedSlot = target;
+			}
+
+			Slots.Set(target, new InventorySlot { ItemId = itemId, Count = 1 });
+			return true;
+		}
+
+		/// <summary>Authority-side helper: drop the selected slot's item if it's Large. No-op for empty or Small.</summary>
+		public void DropLargeFromSelectedIfAny()
+		{
+			if (HasStateAuthority == false) return;
+			var s = Slots[SelectedSlot];
+			if (s.IsEmpty || ItemDatabase.Instance == null) return;
+			var def = ItemDatabase.Instance.GetById(s.ItemId);
+			if (def == null || def.Size != EItemSize.Large) return;
+			DropAt(SelectedSlot);
+		}
+
+		private int FindFirstEmptySlot()
+		{
+			for (int i = 0; i < Slots.Length; i++)
+			{
+				if (Slots[i].IsEmpty) return i;
+			}
+			return -1;
 		}
 
 		public bool RemoveAt(int slot, short count)

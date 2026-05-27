@@ -41,10 +41,13 @@ namespace Starter.Shooter
 		private Renderer[] _ghostRenderers;
 		private PlaceableDefinition _ghostFor;
 		private float _yawOffset;
+		private float _pivotToBottomOffset;
 		private bool _validThisFrame;
 		private float _postPlaceCooldownLeft;
 
 		private static readonly Collider[] s_overlapBuffer = new Collider[16];
+
+		private const float SnapDownRange = 1f;
 
 		private void Awake()
 		{
@@ -124,6 +127,11 @@ namespace Starter.Shooter
 			_ghostFor = def;
 			_yawOffset = 0f;
 
+			// Measure how far below the pivot the renderer bounds reach, so we can
+			// snap the bottom of the ghost (not its pivot) to the surface.
+			_ghost.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+			_pivotToBottomOffset = ComputePivotToBottomOffset(_ghostRenderers);
+
 			_inventory.SuppressHeldVisual = true;
 		}
 
@@ -172,6 +180,25 @@ namespace Starter.Shooter
 				SetLayerRecursively(t.GetChild(i).gameObject, layer);
 		}
 
+		// Ghost is at origin/identity here, so renderer world bounds == ghost-local bounds.
+		// Returns the distance from pivot down to the lowest point of the combined bounds.
+		private static float ComputePivotToBottomOffset(Renderer[] renderers)
+		{
+			if (renderers == null || renderers.Length == 0) return 0f;
+
+			bool initialized = false;
+			Bounds b = default;
+			for (int i = 0; i < renderers.Length; i++)
+			{
+				var r = renderers[i];
+				if (r == null) continue;
+				if (initialized == false) { b = r.bounds; initialized = true; }
+				else b.Encapsulate(r.bounds);
+			}
+			if (initialized == false) return 0f;
+			return Mathf.Max(0f, -b.min.y);
+		}
+
 		private void UpdateGhostPose(PlaceableDefinition def)
 		{
 			if (_ghost == null) return;
@@ -190,11 +217,13 @@ namespace Starter.Shooter
 			Vector3 pos;
 			Vector3 normal;
 			bool surfaceOk;
+			Collider surfaceCollider = null;
 
 			if (hit)
 			{
 				pos = info.point;
 				normal = info.normal;
+				surfaceCollider = info.collider;
 				var kind = def.ClassifySurface(normal);
 				surfaceOk = def.SurfaceAllowed(kind);
 			}
@@ -206,10 +235,27 @@ namespace Starter.Shooter
 				surfaceOk = false;
 			}
 
+			// Snap to a placement-mask surface directly below the current position (within 1m),
+			// so placeables prefer the floor when aiming slightly above it or into walls.
+			Vector3 snapStart = pos + Vector3.up * 0.05f;
+			if (Physics.Raycast(snapStart, Vector3.down, out RaycastHit snapHit, SnapDownRange + 0.05f, def.PlacementMask, QueryTriggerInteraction.Ignore))
+			{
+				pos = snapHit.point;
+				normal = snapHit.normal;
+				surfaceCollider = snapHit.collider;
+				var kind = def.ClassifySurface(normal);
+				surfaceOk = def.SurfaceAllowed(kind);
+				hit = true;
+			}
+
 			Quaternion rot = ComputeRotation(forward, normal, def);
+
+			Vector3 upAxis = def.AlignToSurface ? normal : Vector3.up;
+			pos += upAxis * _pivotToBottomOffset;
+
 			_ghost.transform.SetPositionAndRotation(pos, rot);
 
-			bool clear = def.Footprint <= 0f || IsClearance(pos, def.Footprint);
+			bool clear = def.Footprint <= 0f || IsClearance(pos, def.Footprint, def.PlacementMask, surfaceCollider);
 			_validThisFrame = hit && surfaceOk && clear;
 			ApplyTint(_validThisFrame);
 		}
@@ -232,14 +278,15 @@ namespace Starter.Shooter
 			return Quaternion.AngleAxis(_yawOffset, up) * baseRot;
 		}
 
-		private bool IsClearance(Vector3 position, float radius)
+		private bool IsClearance(Vector3 position, float radius, int layerMask, Collider surfaceCollider)
 		{
-			int count = Physics.OverlapSphereNonAlloc(position, radius, s_overlapBuffer, ~0, QueryTriggerInteraction.Ignore);
+			int count = Physics.OverlapSphereNonAlloc(position, radius, s_overlapBuffer, layerMask, QueryTriggerInteraction.Ignore);
 			Transform self = transform.root;
 			for (int i = 0; i < count; i++)
 			{
 				var col = s_overlapBuffer[i];
 				if (col == null) continue;
+				if (col == surfaceCollider) continue;
 				if (col.transform.root == self) continue;
 				return false;
 			}

@@ -82,6 +82,12 @@ namespace Starter.Shooter
 				scanner.Initialize();
 			}
 
+			var vehicleSession = GetComponent<VehicleSession>();
+			if (vehicleSession != null)
+			{
+				vehicleSession.Initialize();
+			}
+
 			// Register to Fusion input poll callback
 			var networkEvents = Runner.GetComponent<NetworkEvents>();
 			networkEvents.OnInput.AddListener(OnInput);
@@ -120,10 +126,16 @@ namespace Starter.Shooter
 				return;
 			}
 
+			bool isSeated = _player != null && _player.IsSeated;
+
 			// While knocked out or getting up, freeze input so the player can't move, fire,
 			// or steer the look direction. Look angle stays where it was so the camera doesn't
 			// snap when control returns.
-			if (_player != null && _player.IsInputLocked)
+			//
+			// Seated state is also "input-locked" for normal player actions (no fire, jump,
+			// sprint, climb), but Look still flows so the head can turn, and MoveDirection / Fire
+			// flow through unchanged so the Vehicle can read driver steering + honk.
+			if (_player != null && _player.IsInputLocked && isSeated == false)
 			{
 				_input.MoveDirection = default;
 				_input.Buttons = default;
@@ -137,18 +149,30 @@ namespace Starter.Shooter
 			// the camera against the wall. Suppress both so the climb experience stays clean.
 			bool isClimbing = _player != null && _player.IsClimbing;
 
-			if (isClimbing == false)
+			if (isClimbing == false && isSeated == false)
 			{
 				ApplyWeaponSwayAndRecoil();
 			}
 
-			var moveDirection = _actions.Move.ReadValue<Vector2>();
-			_input.MoveDirection = moveDirection.normalized;
+			if (isSeated)
+			{
+				// Driver: WASD goes to vehicle as throttle/steer, Fire is honk. Passenger sends the
+				// same fields but the vehicle ignores them (input authority is on the driver only).
+				var moveSeated = _actions.Move.ReadValue<Vector2>();
+				_input.MoveDirection = moveSeated.normalized;
+				_input.Buttons = default;
+				_input.Buttons.Set(EInputButton.Fire, _actions.Fire.IsPressed());
+			}
+			else
+			{
+				var moveDirection = _actions.Move.ReadValue<Vector2>();
+				_input.MoveDirection = moveDirection.normalized;
 
-			_input.Buttons.Set(EInputButton.Fire, !isClimbing && _actions.Fire.IsPressed());
-			_input.Buttons.Set(EInputButton.Jump, _actions.Jump.IsPressed());
-			_input.Buttons.Set(EInputButton.Sprint, !isClimbing && _actions.Sprint.IsPressed());
-			_input.Buttons.Set(EInputButton.ClimbDrop, _actions.Crouch.IsPressed());
+				_input.Buttons.Set(EInputButton.Fire, !isClimbing && _actions.Fire.IsPressed());
+				_input.Buttons.Set(EInputButton.Jump, _actions.Jump.IsPressed());
+				_input.Buttons.Set(EInputButton.Sprint, !isClimbing && _actions.Sprint.IsPressed());
+				_input.Buttons.Set(EInputButton.ClimbDrop, _actions.Crouch.IsPressed());
+			}
 		}
 
 		// AfterTick is called after all FixedUpdateNetwork calls on NetworkBehaviours were executed for this tick.

@@ -48,6 +48,14 @@ namespace Starter.Shooter
 		[Tooltip("Stamina must reach this value before sprinting can start again after being fully depleted.")]
 		public float MinStaminaToStartSprint = 5f;
 
+		[Header("Hunger")]
+		[Tooltip("Maximum fullness value. Hunger starts here on spawn/respawn and is the cap restored by food.")]
+		public float MaxHunger = 100f;
+		[Tooltip("Hunger drained per 5 seconds passively (constant background tick). 1 means 1 hunger every 5s; at MaxHunger=100 that's ~8.3 minutes to starve at rest.")]
+		public float HungerDrainPer5Seconds = 1f;
+		[Tooltip("Extra hunger drained per point of stamina spent this tick (sprint/jump/climb). Small by design — the 'work makes you hungrier' nudge.")]
+		public float HungerPerStaminaPoint = 0.005f;
+
 		[Header("Climbing")]
 		[Tooltip("Surfaces on these layers can be climbed.")]
 		public LayerMask ClimbableMask;
@@ -63,8 +71,16 @@ namespace Starter.Shooter
 		public float ClimbStaminaIdleDrain = 4f;
 		[Tooltip("Stamina drained per second while actively moving on the wall.")]
 		public float ClimbStaminaMoveDrain = 12f;
+		[Tooltip("Downward slide speed (m/s) along the wall while stamina is depleted. The player stays attached but cannot climb up, hop, or leap until they ClimbDrop or slide off the bottom.")]
+		public float ClimbDepletedSlideSpeed = 1.5f;
+		[Tooltip("Seconds the player remains attached after stamina depletes. Once this expires they let go and fall normally.")]
+		public float ClimbDepletedHoldDuration = 1f;
 		[Tooltip("Flat stamina cost of a climb-hop.")]
 		public float ClimbStaminaJumpCost = 20f;
+		[Tooltip("Horizontal launch speed (m/s) of a wall-leap. A wall-leap fires when Jump is pressed while looking away from the wall — meant for jumping toward a neighboring wall.")]
+		public float WallLeapHorizontalSpeed = 7f;
+		[Tooltip("Vertical impulse applied to a wall-leap. Higher = more arc, easier to reach walls slightly above the launch point.")]
+		public float WallLeapJumpImpulse = 9f;
 		[Tooltip("Forward raycast length used to detect/probe the climbable wall (meters, from chest).")]
 		public float ClimbWallProbeDistance = 0.55f;
 		[Tooltip("Distance to keep the player away from the wall surface while anchored.")]
@@ -77,6 +93,8 @@ namespace Starter.Shooter
 		public float MantleForwardDistance = 0.7f;
 		[Tooltip("How far up the mantle lifts the player.")]
 		public float MantleUpDistance = 1.1f;
+		[Tooltip("While climbing, if a flat ledge top is within this distance above the chest, the mantle triggers early instead of waiting for the chest to clear the wall. Higher = grabs onto ledges from further below.")]
+		public float LedgeReachDistance = 0.8f;
 
 		[Header("Movement Accelerations")]
 		public float GroundAcceleration = 55f;
@@ -148,12 +166,25 @@ namespace Starter.Shooter
 		[Tooltip("How quickly the FOV eases toward its target when sprint starts or stops.")]
 		public float FOVLerpSpeed = 6f;
 
+		[Header("Camera Collision (local-only)")]
+		[Tooltip("Layers that should block the camera. Set this to the environment layers (walls, terrain) and EXCLUDE the player's own layer so the cast doesn't self-hit.")]
+		public LayerMask CameraCollisionMask = ~0;
+		[Tooltip("Sphere radius used for the pivot→camera sweep. Should be ≥ the camera's near-plane corner radius so the near plane never pokes through a surface.")]
+		public float CameraCollisionRadius = 0.15f;
+		[Tooltip("Extra clearance kept between the camera and any blocking surface.")]
+		public float CameraCollisionPadding = 0.05f;
+
 		[Networked, HideInInspector, Capacity(24), OnChangedRender(nameof(OnNicknameChanged))]
 		public string Nickname { get; set; }
 		[Networked, HideInInspector]
 		public int ChickenKills { get; set; }
 		[Networked, HideInInspector]
 		public float Stamina { get; private set; }
+		[Networked, HideInInspector]
+		public float Hunger { get; private set; }
+
+		/// <summary>Effective stamina ceiling — naturally MaxStamina, but capped at the current Hunger so a starving player has a shrunken stamina bar.</summary>
+		public float EffectiveMaxStamina => Mathf.Min(MaxStamina, Hunger);
 
 		[Networked]
 		private Vector3 _moveVelocity { get; set; }
@@ -163,6 +194,13 @@ namespace Starter.Shooter
 		private NetworkBool _wasSprinting { get; set; }
 		[Networked]
 		private TickTimer _staminaRegenTimer { get; set; }
+
+		/// <summary>The seat the player is currently in (driver or passenger), or null if on foot. Set by <see cref="Seat.RPC_RequestEnter"/> on state authority.</summary>
+		[Networked, OnChangedRender(nameof(OnInCurrentSeatChanged))]
+		public NetworkObject InCurrentSeat { get; set; }
+
+		/// <summary>True while occupying any seat. Drives input gating, capsule deactivation, and the seated render/camera path.</summary>
+		public bool IsSeated => InCurrentSeat != null;
 
 		/// <summary>Per-player ability gate. When false the player cannot enter climb. Defaults true; gameplay (item/perk) may toggle.</summary>
 		[Networked, OnChangedRender(nameof(OnCanClimbChanged))]
@@ -174,6 +212,10 @@ namespace Starter.Shooter
 		private Vector3 _climbWallNormal { get; set; }
 		[Networked]
 		private TickTimer _climbJumpTimer { get; set; }
+		// Starts when stamina hits zero while climbing. While it ticks, the player slides slowly
+		// down; when it expires they let go and fall.
+		[Networked]
+		private TickTimer _climbSlideTimer { get; set; }
 		// Non-default _mantleTimer means a mantle is in progress.
 		[Networked]
 		private TickTimer _mantleTimer { get; set; }
@@ -242,8 +284,8 @@ namespace Starter.Shooter
 			}
 		}
 
-		/// <summary>True while the player is knocked out, getting up, or mantling onto a ledge — input and active control are suppressed.</summary>
-		public bool IsInputLocked => RagdollState != ERagdollState.Normal || IsMantling;
+		/// <summary>True while the player is knocked out, getting up, mantling, or seated in a vehicle — input and active control are suppressed.</summary>
+		public bool IsInputLocked => RagdollState != ERagdollState.Normal || IsMantling || IsSeated;
 
 		private float _visualRollAngle;
 		private float _deadSpinSpeedLocal;
@@ -261,6 +303,8 @@ namespace Starter.Shooter
 
 		private int _visibleFireCount;
 		private Inventory _inventory;
+		private bool _lastLoggedSeated;
+		private int _seatDiagTicks;
 
 		public void Respawn(Vector3 position)
 		{
@@ -273,6 +317,7 @@ namespace Starter.Shooter
 
 			_moveVelocity = Vector3.zero;
 			Stamina = MaxStamina;
+			Hunger = MaxHunger;
 			_wasSprinting = false;
 			_staminaRegenTimer = default;
 
@@ -287,6 +332,7 @@ namespace Starter.Shooter
 			IsClimbing = false;
 			_climbWallNormal = Vector3.zero;
 			_climbJumpTimer = default;
+			_climbSlideTimer = default;
 			_mantleTimer = default;
 			_mantleStart = Vector3.zero;
 			_mantleEnd = Vector3.zero;
@@ -297,15 +343,31 @@ namespace Starter.Shooter
 			}
 		}
 
+		/// <summary>Restore hunger (fullness). Called by FoodConsumable.Apply on every predicting peer — state-authority-only mutation per Fusion conventions.</summary>
+		public void AddHunger(float amount)
+		{
+			if (HasStateAuthority == false) return;
+			if (amount <= 0f) return;
+			Hunger = Mathf.Min(MaxHunger, Hunger + amount);
+		}
+
 		public override void Spawned()
 		{
 			// Player draws its own death visual via the ragdoll tilt — keep the body
 			// visible past death instead of letting Health.Render hide VisualRoot.
 			Health.SuppressDeathVisualSwap = true;
 
+			// Re-seed SimpleKCC's internal pose from the spawn position. Without this, the KCC's
+			// first-tick depenetration can run from the prefab's serialized transform (often 0,0,0)
+			// instead of the spawn point and tunnel the player through the floor.
+			KCC.SetActive(true);
+			KCC.SetPosition(transform.position);
+			KCC.SetLookRotation(0f, 0f);
+
 			if (HasStateAuthority)
 			{
 				Stamina = MaxStamina;
+				Hunger = MaxHunger;
 			}
 
 			if (HasInputAuthority)
@@ -340,9 +402,29 @@ namespace Starter.Shooter
 
 		public override void FixedUpdateNetwork()
 		{
+			bool seatedNow = IsSeated;
+			if (seatedNow != _lastLoggedSeated)
+			{
+				Debug.Log($"[Player {Object.InputAuthority}] FUN tick {Runner.Tick}: seated state change {_lastLoggedSeated} -> {seatedNow} (InCurrentSeat={InCurrentSeat?.name ?? "null"})");
+				_lastLoggedSeated = seatedNow;
+				_seatDiagTicks = 30; // chatty for the next 30 ticks
+			}
+			if (_seatDiagTicks > 0)
+			{
+				Debug.Log($"[Player {Object.InputAuthority}] FUN tick {Runner.Tick}: seatedNow={seatedNow}, InCurrentSeat={InCurrentSeat?.name ?? "null"}, KCC.IsActive={KCC?.IsActive}");
+				_seatDiagTicks--;
+			}
+			if (seatedNow)
+			{
+				UpdateSeated();
+				HitboxRoot.HitboxRootActive = false;
+				return;
+			}
+
 			UpdateRagdollState();
 			CheckDeathRagdoll();
 
+			float staminaAtTickStart = Stamina;
 			bool drainedThisTick = false;
 			if (IsMantling)
 			{
@@ -376,8 +458,16 @@ namespace Starter.Shooter
 
 			if (drainedThisTick == false && _staminaRegenTimer.ExpiredOrNotRunning(Runner))
 			{
-				Stamina = Mathf.Min(MaxStamina, Stamina + StaminaRegenPerSecond * Runner.DeltaTime);
+				Stamina = Mathf.Min(EffectiveMaxStamina, Stamina + StaminaRegenPerSecond * Runner.DeltaTime);
 			}
+
+			// Hunger drain: passive tick (rate is "per 5 seconds" → divide by 5 for per-second) + a small per-stamina-point cost so sprinting/climbing makes you hungrier faster.
+			float staminaBurnedThisTick = Mathf.Max(0f, staminaAtTickStart - Stamina);
+			float hungerDelta = HungerDrainPer5Seconds * (Runner.DeltaTime / 5f) + staminaBurnedThisTick * HungerPerStaminaPoint;
+			Hunger = Mathf.Max(0f, Hunger - hungerDelta);
+
+			// Max stamina is capped at current hunger — clamp the live value down so the bar shrinks as you starve.
+			if (Stamina > Hunger) Stamina = Hunger;
 
 			if (KCC.IsGrounded)
 			{
@@ -394,6 +484,12 @@ namespace Starter.Shooter
 
 		public override void Render()
 		{
+			if (IsSeated)
+			{
+				SeatedRender();
+				return;
+			}
+
 			if (HasInputAuthority)
 			{
 				// Set look rotation for Render.
@@ -456,6 +552,12 @@ namespace Starter.Shooter
 
 		private void LateUpdate()
 		{
+			if (IsSeated)
+			{
+				SeatedLateUpdate();
+				return;
+			}
+
 			bool isDeadRagdoll = RagdollState == ERagdollState.Dead;
 
 			if (Health.IsAlive == false && isDeadRagdoll == false)
@@ -492,7 +594,38 @@ namespace Starter.Shooter
 					Camera.main.transform.position += Camera.main.transform.rotation * bob;
 				}
 
+				ApplyCameraCollision();
+
 				ApplySprintFOV();
+			}
+		}
+
+		// Sweep a sphere from CameraPivot to the camera's current position; if anything blocks, clamp the
+		// camera onto the safe side of the hit. CameraHandle is offset along the pivot's local +Y, so
+		// pitching up swings it forward — combined with the climb stand-off (~0.4 m), the camera can poke
+		// through the wall when looking up while anchored. Pivot-origin SphereCast keeps the camera on the
+		// player's side of any blocker, regardless of which direction the offset is currently rotated.
+		private void ApplyCameraCollision()
+		{
+			var cam = Camera.main;
+			if (cam == null || CameraPivot == null) return;
+
+			Vector3 pivotPos = CameraPivot.position;
+			Vector3 desired = cam.transform.position;
+			Vector3 offset = desired - pivotPos;
+			float desiredDist = offset.magnitude;
+			if (desiredDist < 0.0001f) return;
+
+			Vector3 dir = offset / desiredDist;
+			float radius = Mathf.Max(0.01f, CameraCollisionRadius);
+			// Always exclude the player's own layer — the SphereCast expands outward from the pivot
+			// and would otherwise catch on the KCC capsule / nearby head hitboxes sitting on the same layer.
+			int mask = CameraCollisionMask & ~(1 << gameObject.layer);
+
+			if (Physics.SphereCast(pivotPos, radius, dir, out RaycastHit hit, desiredDist, mask, QueryTriggerInteraction.Ignore))
+			{
+				float safeDist = Mathf.Max(0f, hit.distance - CameraCollisionPadding);
+				cam.transform.position = pivotPos + dir * safeDist;
 			}
 		}
 
@@ -595,6 +728,7 @@ namespace Starter.Shooter
 			bool isSprinting = !knockbackActive && wantsSprint && isMoving && Stamina > startThreshold;
 
 			float speed = isSprinting ? SprintSpeed : WalkSpeed;
+			if (_inventory != null) speed *= _inventory.SpeedMultiplier;
 			var desiredMoveVelocity = knockbackActive ? Vector3.zero : moveDirection * speed;
 
 			bool drained = false;
@@ -720,7 +854,9 @@ namespace Starter.Shooter
 		private bool TryEnterClimb()
 		{
 			if (CanClimb == false) return false;
-			if (Stamina <= 0f) return false;
+			// No stamina check here: zero-stamina grabs are intentionally allowed and degrade into a
+			// slow slide-down inside ProcessClimbInput. Acts as a soft failsafe — a falling player can
+			// still catch the wall, they just won't be able to climb up.
 
 			// Yaw-only forward — pitch is intentionally ignored so the player can look up the wall
 			// while still grabbing it horizontally. Matches BOTW behavior.
@@ -774,6 +910,20 @@ namespace Starter.Shooter
 				ExitClimb();
 				MovePlayer(Vector3.zero, 0f);
 				return false;
+			}
+
+			// Early-mantle: even while still on the wall, if a flat ledge top is within reach above
+			// the chest, snap into the mantle now. Lets the player get "dragged up" from below
+			// instead of having to climb until the chest fully clears the wall.
+			if (TryFindLedgeAbove(out Vector3 earlyMantleEnd))
+			{
+				_mantleStart = transform.position;
+				_mantleEnd = earlyMantleEnd;
+				_mantleTimer = TickTimer.CreateFromSeconds(Runner, MantleDuration);
+				IsClimbing = false;
+				_climbWallNormal = Vector3.zero;
+				_moveVelocity = Vector3.zero;
+				return true;
 			}
 
 			// Re-probe the wall to update the normal (handles convex curves and segmented geometry)
@@ -839,6 +989,63 @@ namespace Starter.Shooter
 			bool isMoving = input.MoveDirection.sqrMagnitude > 0.01f;
 			Vector3 wallVel = (right * input.MoveDirection.x + up * input.MoveDirection.y) * ClimbSpeed;
 
+			// Out-of-stamina slide: stay attached but override player input with a slow downward slide
+			// along the wall. Climb-hop and wall-leap below already gate on Stamina > ClimbStaminaJumpCost,
+			// so they're naturally disabled. Slide is along surfaceUp (wall-plane up) — using Vector3.down
+			// would push into the wall on overhanging surfaces. After ClimbDepletedHoldDuration the
+			// player lets go and falls. Timer is started on the first tick stamina is 0 and cleared
+			// when stamina comes back, so a brief food/regen window resets the grace period.
+			bool outOfStamina = Stamina <= 0f;
+			if (outOfStamina)
+			{
+				if (_climbSlideTimer.IsRunning == false)
+				{
+					_climbSlideTimer = TickTimer.CreateFromSeconds(Runner, ClimbDepletedHoldDuration);
+				}
+				else if (_climbSlideTimer.Expired(Runner))
+				{
+					ExitClimb();
+					MovePlayer(Vector3.zero, 0f);
+					return false;
+				}
+
+				wallVel = -surfaceUp * ClimbDepletedSlideSpeed;
+				isMoving = false;
+			}
+			else
+			{
+				_climbSlideTimer = default;
+			}
+
+			// Wall-leap: when looking away from the wall, Jump fires a one-shot launch in the look
+			// direction and exits climb so air physics carries the arc to a neighboring wall. Without
+			// this, the in-wall climb-hop path treats world-up as "forward" whenever the look direction
+			// projects to zero on the wall plane, so pressing W+Jump while facing outward sends the
+			// player straight up the current wall instead of away from it. Dot threshold 0.2 ≈ 78° from
+			// the wall normal — clearly facing outward, not merely glancing sideways along the wall.
+			if (input.Buttons.WasPressed(previousButtons, EInputButton.Jump)
+				&& Vector3.Dot(lookDir, _climbWallNormal) > 0.2f
+				&& Stamina > ClimbStaminaJumpCost)
+			{
+				Stamina = Mathf.Max(0f, Stamina - ClimbStaminaJumpCost);
+				_staminaRegenTimer = TickTimer.CreateFromSeconds(Runner, StaminaRegenDelay);
+
+				Vector3 launchHoriz = new Vector3(lookDir.x, 0f, lookDir.z);
+				if (launchHoriz.sqrMagnitude > 0.0001f) launchHoriz.Normalize();
+				else launchHoriz = new Vector3(_climbWallNormal.x, 0f, _climbWallNormal.z).normalized;
+
+				Vector3 launchVel = launchHoriz * WallLeapHorizontalSpeed;
+
+				ExitClimb();
+				_moveVelocity = launchVel;
+				_isJumping = true;
+				// Restore gravity before the Move so the upward impulse starts decelerating immediately;
+				// the climb path zeroed gravity earlier this tick.
+				KCC.SetGravity(UpGravity);
+				KCC.Move(launchVel, WallLeapJumpImpulse);
+				return true;
+			}
+
 			// Climb-hop trigger: Jump press while the cooldown timer is expired and stamina covers the cost.
 			// Stays in IsClimbing; the upward burst phase below adds vertical velocity while the timer is fresh.
 			if (input.Buttons.WasPressed(previousButtons, EInputButton.Jump)
@@ -876,12 +1083,16 @@ namespace Starter.Shooter
 			Stamina = Mathf.Max(0f, Stamina - drainRate * Runner.DeltaTime);
 			_staminaRegenTimer = TickTimer.CreateFromSeconds(Runner, StaminaRegenDelay);
 
-			if (Stamina <= 0f)
+			// At zero stamina the player is sliding down. When the slide reaches the ground, release
+			// so they can walk away normally instead of hanging with feet planted on the floor and
+			// hands still on the wall. Stamina won't regenerate while IsClimbing (the drain block
+			// above resets _staminaRegenTimer every tick), so the only way out is grounded-release,
+			// ClimbDrop, or sliding past the bottom of the wall (handled by the re-probe miss path).
+			if (outOfStamina && KCC.IsGrounded)
 			{
-				// Out of stamina — fall off the wall.
 				ExitClimb();
 				MovePlayer(Vector3.zero, 0f);
-				return true;
+				return false;
 			}
 
 			// Anchor correction along the wall normal: blend the player back to the standoff distance.
@@ -908,7 +1119,45 @@ namespace Starter.Shooter
 			IsClimbing = false;
 			_climbWallNormal = Vector3.zero;
 			_climbJumpTimer = default;
+			_climbSlideTimer = default;
 			_moveVelocity = Vector3.zero;
+		}
+
+		// Per-tick scan run while still anchored on the wall. If the wall ends within LedgeReachDistance
+		// above the chest AND there's a flat top out beyond the wall normal, returns the mantle end
+		// position so the player can be pulled up onto the ledge from below.
+		private bool TryFindLedgeAbove(out Vector3 endPos)
+		{
+			endPos = Vector3.zero;
+			if (LedgeReachDistance <= 0f) return false;
+
+			Vector3 intoWall = -_climbWallNormal;
+			intoWall.y = 0f;
+			if (intoWall.sqrMagnitude < 0.0001f) return false;
+			intoWall.Normalize();
+
+			// Confirm the wall ends within reach above the chest: cast forward at chest+reach and
+			// require it to miss any climbable surface. If the wall still extends up there, we're
+			// not at a ledge yet — bail.
+			Vector3 chestOrigin = GetClimbProbeOrigin();
+			Vector3 upperProbeOrigin = chestOrigin + Vector3.up * LedgeReachDistance;
+			float forwardRange = ClimbWallProbeDistance + ClimbStickRange;
+			if (Physics.Raycast(upperProbeOrigin, intoWall, forwardRange, ClimbableMask, QueryTriggerInteraction.Ignore))
+				return false;
+
+			// Find the flat top: cast down from above-and-forward of the chest. Range covers the
+			// reach window plus a little slack so we still catch tops that are level with chest+reach.
+			Vector3 castOrigin = chestOrigin
+				+ Vector3.up * (LedgeReachDistance + 0.3f)
+				+ intoWall * MantleForwardDistance;
+			float castDistance = LedgeReachDistance + 0.6f;
+			if (Physics.Raycast(castOrigin, Vector3.down, out RaycastHit hit, castDistance, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore) == false)
+				return false;
+
+			if (Vector3.Angle(hit.normal, Vector3.up) > 30f) return false;
+
+			endPos = hit.point + Vector3.up * 0.05f;
+			return true;
 		}
 
 		// Called when the wall re-probe misses during ProcessClimbInput. Looks for a roughly flat surface
@@ -1308,6 +1557,139 @@ namespace Starter.Shooter
 		private void RPC_SetNickname(string nickname)
 		{
 			Nickname = nickname;
+		}
+
+		// ---------------- Vehicle / seated state ----------------
+
+		/// <summary>State-authority-only: place this player into the given seat. Called by <see cref="Seat.RPC_RequestEnter"/>.</summary>
+		public void HostEnterSeat(NetworkObject seatObj)
+		{
+			Debug.Log($"[Player {Object.InputAuthority}] HostEnterSeat called. HasStateAuthority={HasStateAuthority}, seatObj={seatObj?.name}");
+			if (HasStateAuthority == false) return;
+			if (seatObj == null) return;
+
+			InCurrentSeat = seatObj;
+			Debug.Log($"[Player {Object.InputAuthority}] After assignment: InCurrentSeat={InCurrentSeat?.name}, IsSeated={IsSeated}");
+
+			// Cancel any in-progress activity that doesn't survive entering a vehicle.
+			if (IsClimbing) ExitClimb();
+			if (ActionInvoker != null && ActionInvoker.IsCharging) ActionInvoker.CancelCharge();
+			_moveVelocity = Vector3.zero;
+			_isJumping = false;
+
+			// Disable the KCC capsule so it doesn't fight the truck collider. Snap to the seat anchor.
+			var seat = seatObj.GetComponent<Seat>();
+			if (seat != null)
+			{
+				var anchor = seat.Anchor;
+				KCC.SetPosition(anchor.position);
+				KCC.SetLookRotation(0f, anchor.eulerAngles.y);
+			}
+			KCC.SetActive(false);
+		}
+
+		/// <summary>State-authority-only: take this player out of their seat at the given exit point. Called by <see cref="Seat.RPC_RequestExit"/>.</summary>
+		public void HostExitSeat(Vector3 exitPosition)
+		{
+			if (HasStateAuthority == false) return;
+
+			InCurrentSeat = null;
+			KCC.SetActive(true);
+			KCC.SetPosition(exitPosition);
+		}
+
+		/// <summary>Per-tick while seated (host side): keep the KCC parked on the seat anchor and body yawed with the vehicle.</summary>
+		private void UpdateSeated()
+		{
+			if (HasStateAuthority == false) return;
+			var seatObj = InCurrentSeat;
+			if (seatObj == null) return;
+			var seat = seatObj.GetComponent<Seat>();
+			if (seat == null) return;
+
+			var anchor = seat.Anchor;
+			KCC.SetPosition(anchor.position);
+			// Body yaw follows the vehicle. Camera pitch/yaw is applied to CameraPivot in SeatedLateUpdate,
+			// so the player can still freely look around without rotating the body off the seat.
+			KCC.SetLookRotation(0f, anchor.eulerAngles.y);
+		}
+
+		/// <summary>Per-frame visual sync on every peer while seated: snap the player visual onto the seat anchor and suppress weapon/footstep visuals.</summary>
+		private void SeatedRender()
+		{
+			var seatObj = InCurrentSeat;
+			if (seatObj == null) return;
+			var seat = seatObj.GetComponent<Seat>();
+			if (seat == null) return;
+
+			var anchor = seat.Anchor;
+			// Hard-snap visual to seat each frame so the player rides perfectly even if the
+			// vehicle's NetworkTransform interpolation hasn't quite caught up yet.
+			transform.position = anchor.position;
+			transform.rotation = Quaternion.Euler(0f, anchor.eulerAngles.y, 0f);
+
+			if (_inventory != null && _inventory.SuppressHeldVisual == false)
+			{
+				_inventory.SuppressHeldVisual = true;
+			}
+
+			if (FootstepSound != null) FootstepSound.enabled = false;
+			if (DustParticles != null)
+			{
+				var emission = DustParticles.emission;
+				emission.enabled = false;
+			}
+
+			// Body animator: clamp to idle-ish values so the run cycle doesn't play while seated.
+			Animator.SetFloat(_animIDSpeedX, 0f, 0.1f, Time.deltaTime);
+			Animator.SetFloat(_animIDSpeedZ, 0f, 0.1f, Time.deltaTime);
+			Animator.SetBool(_animIDGrounded, true);
+		}
+
+		/// <summary>Camera follow for the local seated player: drive CameraPivot from raw input look so the camera can pan independently of the body (which is locked to the vehicle).</summary>
+		private void SeatedLateUpdate()
+		{
+			if (HasInputAuthority == false) return;
+			if (Input == null) return;
+
+			Vector2 look = Input.LookRotation;
+			float bodyYaw = transform.eulerAngles.y;
+			float yawRel = Mathf.Clamp(Mathf.DeltaAngle(bodyYaw, look.y), -100f, 100f);
+			float pitch = Mathf.Clamp(look.x, -75f, 75f);
+			CameraPivot.localRotation = Quaternion.Euler(pitch, yawRel, 0f);
+
+			if (Camera.main != null && CameraHandle != null)
+			{
+				Camera.main.transform.SetPositionAndRotation(CameraHandle.position, CameraHandle.rotation);
+				// Skip ApplyCameraCollision while seated — the truck's chassis/cab colliders would
+				// snap the camera onto the cab interior wall whenever the player looks sideways.
+			}
+		}
+
+		private void OnInCurrentSeatChanged()
+		{
+			Debug.Log($"[Player {Object.InputAuthority}] OnInCurrentSeatChanged: IsSeated={IsSeated}, seat={InCurrentSeat?.name}, HasStateAuth={HasStateAuthority}, HasInputAuth={HasInputAuthority}");
+			// Local-side toggles. KCC active/inactive is driven by Host* helpers on the state
+			// authority side, but proxies/input-authority must mirror so collisions match.
+			if (KCC != null)
+			{
+				bool seated = IsSeated;
+				if (seated)
+				{
+					KCC.SetActive(false);
+				}
+				else
+				{
+					// Reactivate the capsule on exit. Position is already set by the host's SetPosition,
+					// which has replicated by the time this hook fires.
+					KCC.SetActive(true);
+				}
+			}
+
+			if (_inventory != null)
+			{
+				_inventory.SuppressHeldVisual = IsSeated;
+			}
 		}
 	}
 }

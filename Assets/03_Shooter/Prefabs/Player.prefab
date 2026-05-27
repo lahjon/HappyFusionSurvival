@@ -264,6 +264,7 @@ GameObject:
   - component: {fileID: 3300249364336517489}
   - component: {fileID: 3937452031436998217}
   - component: {fileID: 9096556335678368437}
+  - component: {fileID: 8668036983329495619}
   m_Layer: 6
   m_Name: Player
   m_TagString: Player
@@ -368,6 +369,9 @@ MonoBehaviour:
   StaminaRegenDelay: 1
   JumpStaminaCost: 15
   MinStaminaToStartSprint: 5
+  MaxHunger: 100
+  HungerDrainPer5Seconds: 1
+  HungerPerStaminaPoint: 0.005
   ClimbableMask:
     serializedVersion: 2
     m_Bits: 512
@@ -378,12 +382,15 @@ MonoBehaviour:
   ClimbStaminaIdleDrain: 4
   ClimbStaminaMoveDrain: 12
   ClimbStaminaJumpCost: 20
+  WallLeapHorizontalSpeed: 7
+  WallLeapJumpImpulse: 9
   ClimbWallProbeDistance: 0.55
   ClimbStickRange: 0.4
   MaxClimbSurfaceAngle: 80
   MantleDuration: 0.6
   MantleForwardDistance: 0.7
   MantleUpDistance: 1.1
+  LedgeReachDistance: 0.8
   GroundAcceleration: 10
   GroundDeceleration: 10
   AirAcceleration: 10
@@ -415,9 +422,16 @@ MonoBehaviour:
   BobBlendSpeed: 8
   SprintFOVBoost: 8
   FOVLerpSpeed: 6
+  CameraCollisionMask:
+    serializedVersion: 2
+    m_Bits: 513
+  CameraCollisionRadius: 0.15
+  CameraCollisionPadding: 0.05
   _Nickname: 
   _ChickenKills: 0
   _Stamina: 0
+  _Hunger: 0
+  _InCurrentSeat: {fileID: 0}
   _CanClimb:
     _value: 1
   _IsClimbing:
@@ -537,6 +551,7 @@ MonoBehaviour:
   PickupRange: 2
   DropForwardOffset: 0.2
   DropUpOffset: 1
+  WeightLimit: 100
   ThrowForwardSpeed: 0.5
   ThrowUpSpeed: 0.3
   PlayerVelocityContribution: 1
@@ -656,6 +671,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.CraftingSession
   AutoCloseRangeMultiplier: 1.5
+--- !u!114 &8668036983329495619
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3123905968297068043}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 13576783e6a65404db1bce5084afb12d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.VehicleSession
 --- !u!1 &3226221424221943437
 GameObject:
   m_ObjectHideFlags: 0

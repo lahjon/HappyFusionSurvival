@@ -20,7 +20,9 @@ namespace Starter.Shooter
 		public Image HealthBar;
 		public float HealthLerpSpeed = 6f;
 		public Image StaminaBar;
+		public Image HungerBar;
 		public CanvasGroup HitIndicator;
+		public TextMeshProUGUI DayTimeLabel;
 
 		[Header("UI Sound Setup")]
 		public AudioSource AudioSource;
@@ -43,6 +45,8 @@ namespace Starter.Shooter
 		{
 			// Fadeout hit indicator
 			HitIndicator.alpha = Mathf.Lerp(HitIndicator.alpha, 0f, Time.deltaTime * 2f);
+
+			UpdateDayTimeLabel();
 
 			var player = GameManager.LocalPlayer;
 			if (player == null)
@@ -98,6 +102,11 @@ namespace Starter.Shooter
 				StaminaBar.fillAmount = Mathf.Clamp01(player.Stamina / player.MaxStamina);
 			}
 
+			if (HungerBar != null && player.MaxHunger > 0f)
+			{
+				HungerBar.fillAmount = Mathf.Clamp01(player.Hunger / player.MaxHunger);
+			}
+
 			if (_lastChickens != player.ChickenKills)
 			{
 				if (player.ChickenKills > _lastChickens && player.ChickenKills > 0)
@@ -110,6 +119,22 @@ namespace Starter.Shooter
 				CanvasGroup.alpha = 1f;
 				ChickenCount.text = $"\u00d7{_lastChickens}";
 			}
+		}
+
+		private void UpdateDayTimeLabel()
+		{
+			if (DayTimeLabel == null) return;
+
+			var time = TimeManager.Instance;
+			if (time == null)
+			{
+				DayTimeLabel.text = string.Empty;
+				return;
+			}
+
+			int    secs  = Mathf.CeilToInt(time.PhaseRemaining);
+			string phase = time.IsNight ? "NIGHT" : "DAY";
+			DayTimeLabel.text = $"Day {time.CurrentDay} \u2014 {phase}  {secs / 60}:{secs % 60:D2}";
 		}
 	}
 }

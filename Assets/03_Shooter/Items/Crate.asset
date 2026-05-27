@@ -20,13 +20,15 @@ MonoBehaviour:
   WorldPrefab: {fileID: 7810697307764163876, guid: 942cb8a9d2c061543a4366d19843c434, type: 3}
   HandPrefab: {fileID: 0}
   MaxStack: 99
+  Size: 1
+  Weight: 0
   PlacedPrefab: {fileID: 10196581954467927, guid: 9e65893ce4f3e0b4ca36aa1f568f7e3f, type: 3}
   GhostPrefab: {fileID: 0}
   AllowedSurfaces: 1
   PlacementMask:
     serializedVersion: 2
-    m_Bits: 4294967295
-  PlacementRange: 5
+    m_Bits: 513
+  PlacementRange: 2.5
   Footprint: 0.4
   MaxGroundAngle: 30
   AlignToSurface: 1

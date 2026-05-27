@@ -74,6 +74,18 @@ namespace Starter.Common.Inventory
 				}
 			}
 
+			string statColorHex = ColorUtility.ToHtmlStringRGB(StatColor);
+			if (def.Size == EItemSize.Large)
+			{
+				if (sb.Length > 0) sb.Append('\n');
+				sb.Append("<color=#").Append(statColorHex).Append(">Size</color>: Large (must equip)");
+			}
+			if (def.Weight > 0f)
+			{
+				if (sb.Length > 0) sb.Append('\n');
+				sb.Append("<color=#").Append(statColorHex).Append(">Weight</color>: ").Append(def.Weight.ToString("0.##"));
+			}
+
 			if (def.MaxStack > 1)
 			{
 				if (sb.Length > 0) sb.Append("\n\n");

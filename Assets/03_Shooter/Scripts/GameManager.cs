@@ -119,7 +119,7 @@ namespace Starter.Shooter
 			Vector3 castOrigin = position + Vector3.up * 5f;
 			if (Physics.Raycast(castOrigin, Vector3.down, out RaycastHit hit, 25f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
 			{
-				position.y = hit.point.y + 0.1f;
+				position.y = hit.point.y + 0.5f;
 			}
 			return position;
 		}

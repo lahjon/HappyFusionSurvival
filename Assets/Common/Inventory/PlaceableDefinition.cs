@@ -35,7 +35,7 @@ namespace Starter.Common.Inventory
 		public LayerMask PlacementMask = ~0;
 
 		[Tooltip("Max distance (meters) from the camera the placement raycast considers.")]
-		public float PlacementRange = 5f;
+		public float PlacementRange = 2.5f;
 
 		[Tooltip("Sphere radius (meters) used to check that the placement spot is clear of other colliders. 0 = no clearance check.")]
 		public float Footprint = 0.3f;
