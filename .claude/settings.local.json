@@ -57,7 +57,8 @@
       "mcp__unity-mcp__Unity_ManageGameObject",
       "mcp__unity-mcp__Unity_RunCommand",
       "mcp__unity-mcp__Unity_GetConsoleLogs",
-      "mcp__UnityMCP__execute_code"
+      "mcp__UnityMCP__execute_code",
+      "Bash(sort -t: -k2 -n)"
     ]
   }
 }
