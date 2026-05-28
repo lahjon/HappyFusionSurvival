@@ -60,7 +60,10 @@ namespace Starter.Shooter
 		public virtual float EffectiveRange => 0f;
 
 		/// <summary>
-		/// Resolve targets, apply damage/knockback. State-authority-only.
+		/// Resolve targets, apply damage/knockback. Runs on every predicting peer (input
+		/// authority + state authority) so input auth can drive predicted hit FX from the
+		/// returned <see cref="ActionHit"/>. Side effects that mutate networked state
+		/// (Health.CurrentHealth, knockback timers) gate themselves on HasStateAuthority.
 		/// </summary>
 		public abstract ActionHit Execute(in ActorContext ctx, bool charged);
 
@@ -95,8 +98,7 @@ namespace Starter.Shooter
 
 	/// <summary>
 	/// Result of a single Execute() call. Plumbed back through ActionInvoker so the
-	/// caller can replicate visuals (hit point/normal) and apply per-actor side
-	/// effects (e.g. Player.ChickenKills bookkeeping).
+	/// caller can replicate visuals (hit point/normal) and apply per-actor side effects.
 	/// </summary>
 	public struct ActionHit
 	{

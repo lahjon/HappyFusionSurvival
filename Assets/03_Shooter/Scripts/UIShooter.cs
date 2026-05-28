@@ -1,4 +1,3 @@
-using Fusion;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -13,8 +12,6 @@ namespace Starter.Shooter
 		[Header("References")]
 		public GameManager GameManager;
 		public CanvasGroup CanvasGroup;
-		public TextMeshProUGUI ChickenCount;
-		public TextMeshProUGUI BestHunter;
 		public GameObject AliveGroup;
 		public GameObject DeathGroup;
 		public Image HealthBar;
@@ -24,22 +21,31 @@ namespace Starter.Shooter
 		public CanvasGroup HitIndicator;
 		public TextMeshProUGUI DayTimeLabel;
 
+		[Header("Money (top-right)")]
+		[Tooltip("Wrapper for the money readout; hidden while there is no local player. Optional — leave null if you only need the label.")]
+		public GameObject MoneyGroup;
+		[Tooltip("Label that displays the local player's Money value. Updated every frame.")]
+		public TextMeshProUGUI MoneyLabel;
+
+		[Header("Downed Overlay")]
+		[Tooltip("Wrapper shown only while the local player is downed (bleeding out).")]
+		public GameObject DownedGroup;
+		[Tooltip("Big countdown text — formatted to whole seconds.")]
+		public TextMeshProUGUI DownedTimerLabel;
+		[Tooltip("Fills 0..1 from drained to full as the bleed-out timer counts down. Optional — leave null to hide.")]
+		public Image DownedBleedBar;
+		[Tooltip("Fills 0..1 with ReviveProgress while at least one ally is holding revive on the local player. Optional.")]
+		public Image DownedReviveBar;
+
 		[Header("UI Sound Setup")]
 		public AudioSource AudioSource;
-		public AudioClip ChickenKillClip;
 		public AudioClip HitReceivedClip;
 		public AudioClip DeathClip;
 
-		private int _lastChickens = -1;
+		private int _lastMoney = -1;
 		private int _lastHealth = -1;
 		private float _displayedHealthFraction = 1f;
 		private bool _wasAlive = true;
-		private PlayerRef _bestHunter;
-
-		private void OnEnable()
-		{
-			BestHunter.gameObject.SetActive(false);
-		}
 
 		private void Update()
 		{
@@ -52,16 +58,17 @@ namespace Starter.Shooter
 			if (player == null)
 			{
 				CanvasGroup.alpha = 0f;
+				if (MoneyGroup != null && MoneyGroup.activeSelf) MoneyGroup.SetActive(false);
 				return;
 			}
 
-			if (_bestHunter != GameManager.BestHunter)
-			{
-				_bestHunter = GameManager.BestHunter;
+			CanvasGroup.alpha = 1f;
 
-				var hunterObject = GameManager.Runner.GetPlayerObject(_bestHunter);
-				BestHunter.text = hunterObject != null ? hunterObject.GetComponent<Player>().Nickname : string.Empty;
-				BestHunter.gameObject.SetActive(hunterObject != null);
+			if (MoneyGroup != null && MoneyGroup.activeSelf == false) MoneyGroup.SetActive(true);
+			if (MoneyLabel != null && _lastMoney != player.Money)
+			{
+				_lastMoney = player.Money;
+				MoneyLabel.text = $"${_lastMoney}";
 			}
 
 			if (_lastHealth != player.Health.CurrentHealth)
@@ -83,6 +90,31 @@ namespace Starter.Shooter
 				DeathGroup.SetActive(isAlive == false);
 			}
 
+			// Downed overlay: visible only while the local player is downed. IsAlive stays true
+			// during the bleed-out (Health is clamped to 1), so AliveGroup remains on too — the
+			// downed group is rendered on top as an emphasis overlay.
+			bool isDowned = player.IsDowned;
+			if (DownedGroup != null && DownedGroup.activeSelf != isDowned)
+			{
+				DownedGroup.SetActive(isDowned);
+			}
+			if (isDowned)
+			{
+				if (DownedTimerLabel != null)
+				{
+					int secs = Mathf.CeilToInt(Mathf.Max(0f, player.DownedTimeRemaining));
+					DownedTimerLabel.text = secs.ToString();
+				}
+				if (DownedBleedBar != null && player.DownedBleedOutSeconds > 0f)
+				{
+					DownedBleedBar.fillAmount = Mathf.Clamp01(player.DownedTimeRemaining / player.DownedBleedOutSeconds);
+				}
+				if (DownedReviveBar != null)
+				{
+					DownedReviveBar.fillAmount = Mathf.Clamp01(player.ReviveProgress);
+				}
+			}
+
 			if (HealthBar != null && player.Health.InitialHealth > 0)
 			{
 				float target = Mathf.Clamp01((float)player.Health.CurrentHealth / player.Health.InitialHealth);
@@ -102,22 +134,16 @@ namespace Starter.Shooter
 				StaminaBar.fillAmount = Mathf.Clamp01(player.Stamina / player.MaxStamina);
 			}
 
-			if (HungerBar != null && player.MaxHunger > 0f)
+			// Hunger bar disabled in the Purge × Stardew pivot — the GameObject is hidden in Awake, so the
+			// inspector reference stays valid but nothing renders. Restore the fill update if survival ever returns.
+		}
+
+		private void Awake()
+		{
+			// Hide the legacy hunger bar regardless of whether it's wired in the scene/prefab.
+			if (HungerBar != null && HungerBar.gameObject != null)
 			{
-				HungerBar.fillAmount = Mathf.Clamp01(player.Hunger / player.MaxHunger);
-			}
-
-			if (_lastChickens != player.ChickenKills)
-			{
-				if (player.ChickenKills > _lastChickens && player.ChickenKills > 0)
-				{
-					AudioSource.PlayOneShot(ChickenKillClip);
-				}
-
-				_lastChickens = player.ChickenKills;
-
-				CanvasGroup.alpha = 1f;
-				ChickenCount.text = $"\u00d7{_lastChickens}";
+				HungerBar.gameObject.SetActive(false);
 			}
 		}
 

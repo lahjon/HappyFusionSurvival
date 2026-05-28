@@ -60,7 +60,7 @@ namespace Starter.Common.Interactions
 			var inv = playerObj.GetComponentInChildren<IPlayerInventory>();
 			if (inv == null) return;
 
-			if (!inv.AuthorityAcquireLarge(PickupItem.Id)) return;
+			if (!inv.AuthorityStartCarry(PickupItem.Id)) return;
 
 			Runner.Despawn(Object);
 		}

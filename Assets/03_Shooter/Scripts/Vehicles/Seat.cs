@@ -32,6 +32,13 @@ namespace Starter.Shooter
 		[Tooltip("Where the player is teleported when they leave the seat. If null, a point 1.5m to the seat's right is used.")]
 		public Transform ExitPoint;
 
+		[Header("Camera")]
+		[Tooltip("REQUIRED for a good driving view: drag an empty child GameObject placed at the desired camera spot inside the cab (visible in the Scene view). The seated camera is pinned to this transform's world position; rotation still comes from look input. If null, falls back to SeatedCameraOffset (which is fragile because seat-anchor placement varies between vehicles).")]
+		public Transform CameraMount;
+
+		[Tooltip("Fallback only — used when CameraMount is null. Offset from the seat anchor in the seat's yaw-only frame (X=right, Y=world-up, Z=forward). Prefer CameraMount for vehicles where the seat anchor isn't at hip-level.")]
+		public Vector3 SeatedCameraOffset = new Vector3(0f, 1.5f, 0.25f);
+
 		[Networked, OnChangedRender(nameof(OnOccupantChanged))]
 		public PlayerRef Occupant { get; set; }
 

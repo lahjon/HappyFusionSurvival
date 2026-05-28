@@ -3,12 +3,6 @@ using UnityEngine;
 
 namespace Starter.Common.Inventory
 {
-	public enum EItemSize : byte
-	{
-		Small = 0,
-		Large = 1,
-	}
-
 	[System.Serializable]
 	public struct ItemStat
 	{
@@ -51,9 +45,6 @@ namespace Starter.Common.Inventory
 		[Tooltip("Maximum items per inventory slot. 1 = not stackable (each pickup creates a new slot). >1 = stackable up to this count; overflow spills into the next slot.")]
 		[Min(1)]
 		public int MaxStack = 1;
-
-		[Tooltip("Small: stacks/moves normally. Large: can only exist in the inventory while equipped (selected slot). Pickup auto-equips; selecting away or swap-moving drops it.")]
-		public EItemSize Size = EItemSize.Small;
 
 		[Tooltip("Weight per unit. Total inventory weight reduces movement speed above the player's WeightLimit.")]
 		[Min(0f)]

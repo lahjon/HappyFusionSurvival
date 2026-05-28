@@ -91,8 +91,13 @@ namespace Starter.Common.Interactions
 		// Hold-to-pickup state. Tap path stays simple: fire OnInteract immediately on
 		// release for non-pickupable targets. For pickupable targets we wait until
 		// release to decide tap-vs-hold so the same key drives both.
+		//
+		// Hold-to-interact (revive etc.) shares the same press/timer fields but routes
+		// through _pressHold instead of _pressPickup. Pickup takes priority if a target
+		// implements both.
 		private IInteractable _pressTarget;
 		private IPickupableStation _pressPickup;
+		private IHoldInteractable _pressHold;
 		private float _pressStartTime;
 		private bool _pickupFired;
 
@@ -151,25 +156,44 @@ namespace Starter.Common.Interactions
 
 		private void TickHold()
 		{
-			if (_pressTarget == null || _pressPickup == null) return;
+			if (_pressTarget == null) return;
+			if (_pressPickup == null && _pressHold == null) return;
 			if (_pickupFired) return;
 
 			// Cancel hold if the player looked away from the target (or it disappeared).
+			// Use a current-target probe that includes locked candidates so a hold-interactable
+			// that briefly toggles CanInteract (e.g. revive completes and downed -> alive) still
+			// resolves to the same component this frame and TickHold can fire one last time.
 			if (CurrentInteractable != _pressTarget)
 			{
 				AbortHold();
 				return;
 			}
 
-			// Cancel if the target became blocked mid-hold (e.g. someone else opened the crate).
-			string blocked = _pressPickup.PickupBlockedReason;
-			if (!string.IsNullOrEmpty(blocked))
+			float duration;
+			if (_pressPickup != null)
 			{
-				AbortHold();
-				return;
+				// Cancel if the target became blocked mid-hold (e.g. someone else opened the crate).
+				string blocked = _pressPickup.PickupBlockedReason;
+				if (!string.IsNullOrEmpty(blocked))
+				{
+					AbortHold();
+					return;
+				}
+				duration = Mathf.Max(0.01f, _pressPickup.PickupHoldSeconds);
+			}
+			else
+			{
+				// Hold-interactables cancel automatically if the target becomes uninteractable
+				// mid-hold (e.g. another reviver finished first and the downed player is now alive).
+				if (!_pressTarget.CanInteract)
+				{
+					AbortHold();
+					return;
+				}
+				duration = Mathf.Max(0.01f, _pressHold.HoldSeconds);
 			}
 
-			float duration = Mathf.Max(0.01f, _pressPickup.PickupHoldSeconds);
 			float elapsed = Time.unscaledTime - _pressStartTime;
 			HoldingTarget = (_pressTarget is Component c) ? c.transform : null;
 			HoldProgress = Mathf.Clamp01(elapsed / duration);
@@ -178,12 +202,29 @@ namespace Starter.Common.Interactions
 			{
 				_pickupFired = true;
 				InteractConsumedFrame = Time.frameCount;
-				_pressPickup.LocalRequestPickup();
-				// The RPC despawns the target — drop our reference so consumers (prompt UI,
-				// other scanner reads) can't dereference a destroyed Component this frame.
+
+				if (_pressPickup != null)
+				{
+					_pressPickup.LocalRequestPickup();
+				}
+				else
+				{
+					_pressHold.LocalRequestHoldComplete();
+				}
+
+				// The pickup RPC despawns the target. For hold-interactables the target usually
+				// flips CanInteract instead, but either way drop our references so consumers
+				// (prompt UI, other scanner reads) can't dereference stale state this frame.
 				CurrentInteractable = null;
 				HoldingTarget = null;
 				HoldProgress = 0f;
+				// Clear the press refs so a later OnInteractReleased doesn't run a "tap" path on
+				// the same press. Don't go through AbortHold() — that would send a HoldCancel
+				// after the Complete fired, undoing the revive.
+				_pressTarget = null;
+				_pressPickup = null;
+				_pressHold = null;
+				_pressStartTime = 0f;
 			}
 		}
 
@@ -203,6 +244,7 @@ namespace Starter.Common.Interactions
 			{
 				_pressTarget = best;
 				_pressPickup = pickup;
+				_pressHold = null;
 				_pressStartTime = Time.unscaledTime;
 				_pickupFired = false;
 				HoldingTarget = (best is Component c) ? c.transform : null;
@@ -218,13 +260,32 @@ namespace Starter.Common.Interactions
 				return;
 			}
 
+			// Hold-only interactables: engage the hold path and notify the target (e.g. start
+			// the "I'm reviving" RPC) — there's no tap path, so don't FireTap on release.
+			var hold = best as IHoldInteractable;
+			if (hold != null && best.CanInteract)
+			{
+				_pressTarget = best;
+				_pressPickup = null;
+				_pressHold = hold;
+				_pressStartTime = Time.unscaledTime;
+				_pickupFired = false;
+				HoldingTarget = (best is Component c) ? c.transform : null;
+				HoldProgress = 0f;
+				InteractConsumedFrame = Time.frameCount;
+				hold.LocalRequestHoldStart();
+				return;
+			}
+
 			FireTap(best);
 		}
 
 		private void OnInteractReleased(InputAction.CallbackContext ctx)
 		{
 			// On release, if we engaged the hold path but never finished it, treat as a tap.
-			if (_pressTarget != null && !_pickupFired)
+			// Skipped for hold-only interactables (revive etc.) — they have no tap action,
+			// so an early release should just cancel the hold via AbortHold below.
+			if (_pressTarget != null && !_pickupFired && _pressHold == null)
 			{
 				// Only fire if the player is still looking at the same target and it's allowed.
 				if (CurrentInteractable == _pressTarget && InteractConsumedFrame != Time.frameCount)
@@ -251,8 +312,17 @@ namespace Starter.Common.Interactions
 
 		private void AbortHold()
 		{
+			// Notify hold-interactables that the hold was abandoned so they can drop reviver
+			// state (++/-- counters etc.). Pickups don't need a cancel notification — they
+			// only act on completion, and we never sent a "start" RPC to undo.
+			if (_pressHold != null && !_pickupFired)
+			{
+				_pressHold.LocalRequestHoldCancel();
+			}
+
 			_pressTarget = null;
 			_pressPickup = null;
+			_pressHold = null;
 			_pressStartTime = 0f;
 			_pickupFired = false;
 			HoldingTarget = null;
@@ -286,6 +356,7 @@ namespace Starter.Common.Interactions
 			IInteractable best = null;
 			float bestScore = ViewConeDot;
 
+			Transform selfRoot = transform;
 			var hits = Physics.OverlapSphere(playerPos, ScanRadius);
 			for (int i = 0; i < hits.Length; i++)
 			{
@@ -294,6 +365,10 @@ namespace Starter.Common.Interactions
 
 				var candidate = col.GetComponentInParent<IInteractable>();
 				if (candidate == null) continue;
+				// Skip self — the local player's own KCC capsule sits in OverlapSphere range and
+				// the player root carries the (downed-state) IInteractable. Without this filter
+				// a downed player could trigger their own revive prompt.
+				if (candidate is Component cmp && cmp.transform == selfRoot) continue;
 				if (!includeLocked && !candidate.CanInteract) continue;
 
 				Vector3 point = candidate.InteractionPoint;

@@ -20,7 +20,6 @@ MonoBehaviour:
   WorldPrefab: {fileID: 0}
   HandPrefab: {fileID: 0}
   MaxStack: 8
-  Size: 0
   Weight: 0
   UseCooldownSeconds: 1
   HungerAmount: 25

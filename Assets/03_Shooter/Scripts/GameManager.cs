@@ -4,6 +4,7 @@ using Fusion;
 using Starter.Common;
 using Starter.Common.Crafting;
 using Starter.Common.Inventory;
+using Starter.Common.Quests;
 
 namespace Starter.Shooter
 {
@@ -22,6 +23,7 @@ namespace Starter.Shooter
 		public Player PlayerPrefab;
 		public ItemDatabase ItemDatabase;
 		public RecipeDatabase RecipeDatabase;
+		public QuestDatabase QuestDatabase;
 
 		[Header("World Generation")]
 		[Tooltip("Deterministic seed for procedural loot rolls. 0 = pick a random seed per session.")]
@@ -32,9 +34,6 @@ namespace Starter.Shooter
 		[Min(0f)] public float SleepFadeInDuration = 1f;
 		[Tooltip("Seconds the screen fades back from black after the time jump.")]
 		[Min(0f)] public float SleepFadeOutDuration = 1f;
-
-		[Networked]
-		public PlayerRef BestHunter { get; set; }
 
 		[Networked]
 		public int NetworkedWorldSeed { get; set; }
@@ -49,6 +48,10 @@ namespace Starter.Shooter
 
 		public Player LocalPlayer { get; private set; }
 
+		/// <summary>State-authority-only roster of spawned players (kept in join order). Read by <see cref="MatchManager"/>
+		/// and <see cref="TeamManager"/> for win-condition scans and team assignment. Always empty / wrong on remotes.</summary>
+		public IReadOnlyList<Player> Players => _players;
+
 		private List<Player> _players = new(32);
 		private SpawnPoint[] _spawnPoints;
 
@@ -59,6 +62,8 @@ namespace Starter.Shooter
 				ItemDatabase.Bind();
 			if (RecipeDatabase != null)
 				RecipeDatabase.Bind();
+			if (QuestDatabase != null)
+				QuestDatabase.Bind();
 
 			// Awake fires before any Fusion Spawned() so scene-placed PickupableItem /
 			// LootContainer rolls see a valid seed during their own Spawned().
@@ -79,9 +84,6 @@ namespace Starter.Shooter
 
 		public override void FixedUpdateNetwork()
 		{
-			BestHunter = PlayerRef.None;
-			int bestHunterKills = 0;
-
 			for (int i = 0; i < _players.Count; i++)
 			{
 				var player = _players[i];
@@ -95,13 +97,6 @@ namespace Starter.Shooter
 				if (player.Health.IsFinished)
 				{
 					player.Respawn(GetSpawnPosition());
-				}
-
-				// Calculate the best hunter
-				if (player.Health.IsAlive && player.ChickenKills > bestHunterKills)
-				{
-					bestHunterKills = player.ChickenKills;
-					BestHunter = player.Object.InputAuthority;
 				}
 			}
 
@@ -212,6 +207,10 @@ namespace Starter.Shooter
 			// This list is state authority only,
 			// so it is valid to have this list non-networked
 			_players.Add(player);
+
+			// Late-join into an active match: TeamManager places Day joiners on the smallest team; ignored
+			// during Lobby (assigned at BeginMatch) and during Night/MatchOver (spectator until next round).
+			TeamManager.Instance?.RegisterLateJoin(playerRef);
 		}
 
 		public void PlayerLeft(PlayerRef playerRef)

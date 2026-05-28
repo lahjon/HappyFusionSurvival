@@ -31,6 +31,10 @@ namespace Starter.Common.Interactions
 		[Tooltip("Indicator brightens to the active state when the local camera is within this distance (= player's pickup range).")]
 		public float ActiveRange = 2f;
 
+		[Header("Visibility")]
+		[Tooltip("If true, the prompt hides whenever the attached IInteractable.CanInteract is false. Opt-in so existing prefabs (locked chests etc.) keep their always-visible behavior.")]
+		public bool HideWhenLocked = false;
+
 		[Header("Colors")]
 		public Color ActiveColor = new Color(0.3f, 0.65f, 1f, 1f);
 		public Color InactiveColor = new Color(0.3f, 0.65f, 1f, 0.35f);
@@ -41,6 +45,7 @@ namespace Starter.Common.Interactions
 		private GameObject _canvasGO;
 		private Image _box;
 		private Image _holdFill;
+		private IInteractable _interactable;
 
 		private static Material _overlayMaterial;
 		private static Material GetOverlayMaterial()
@@ -54,6 +59,7 @@ namespace Starter.Common.Interactions
 
 		private void Awake()
 		{
+			_interactable = GetComponentInParent<IInteractable>();
 			BuildCanvas();
 			_canvasGO.SetActive(false);
 		}
@@ -81,7 +87,12 @@ namespace Starter.Common.Interactions
 			// show in pre-spawn states.
 			bool gated = scanner != null && !InteractionScanner.IsScanningActive;
 
-			if (dist > VisibilityRange || gated)
+			// Opt-in: hide when the underlying IInteractable can't be interacted with right now
+			// (e.g. a player who is alive shouldn't show the "revive me" indicator). Default-off
+			// so existing prefabs (locked chests showing "In use") keep their always-on behavior.
+			bool hideLocked = HideWhenLocked && _interactable != null && !_interactable.CanInteract;
+
+			if (dist > VisibilityRange || gated || hideLocked)
 			{
 				if (_canvasGO.activeSelf) _canvasGO.SetActive(false);
 				return;

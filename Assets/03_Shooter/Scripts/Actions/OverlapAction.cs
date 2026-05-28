@@ -1,3 +1,4 @@
+using Fusion;
 using UnityEngine;
 
 namespace Starter.Shooter
@@ -50,14 +51,14 @@ namespace Starter.Shooter
 					}
 				}
 
-				ApplyHit(closest, damage, knockback, ctx.AttackerPosition, ref result);
+				ApplyHit(closest, damage, knockback, ctx.AttackerPosition, ctx.IgnoreAuthority, ref result);
 			}
 			else
 			{
 				for (int i = 0; i < count; i++)
 				{
 					var health = ResolveHealth(_buffer[i], ctx.AttackerRoot);
-					ApplyHit(health, damage, knockback, ctx.AttackerPosition, ref result);
+					ApplyHit(health, damage, knockback, ctx.AttackerPosition, ctx.IgnoreAuthority, ref result);
 				}
 			}
 
@@ -92,10 +93,10 @@ namespace Starter.Shooter
 			return health;
 		}
 
-		private static void ApplyHit(Health health, int damage, float knockback, Vector3 from, ref ActionHit result)
+		private static void ApplyHit(Health health, int damage, float knockback, Vector3 from, PlayerRef attacker, ref ActionHit result)
 		{
 			if (health == null) return;
-			if (health.TakeHit(damage) == false) return;
+			if (health.TakeHit(damage, attacker) == false) return;
 
 			if (knockback > 0f)
 			{

@@ -37,7 +37,7 @@ namespace Starter.Shooter
 				result.Normal = hit.Normal;
 
 				var health = hit.Hitbox != null ? hit.Hitbox.Root.GetComponent<Health>() : null;
-				if (health != null && health.TakeHit(damage))
+				if (health != null && health.TakeHit(damage, ctx.IgnoreAuthority))
 				{
 					result.DidHit = true;
 					result.Target = health;

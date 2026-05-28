@@ -212,7 +212,7 @@ namespace Starter.Common.Inventory
 
 			if (!TryResolvePlayerInventory(source, out var inv)) return;
 
-			if (!inv.AuthorityAcquireLarge(PickupItem.Id)) return;
+			if (!inv.AuthorityStartCarry(PickupItem.Id)) return;
 
 			Runner.Despawn(Object);
 		}
@@ -265,22 +265,6 @@ namespace Starter.Common.Inventory
 
 			var playerSlots = playerInv.Slots;
 			var from = (fromInv == InvContainer) ? Slots : playerSlots;
-
-			// Large-item rules: any swap-within-player drops the Large item; container→player must auto-equip.
-			if (IsLargeAt(from, fromSlot))
-			{
-				if (fromInv == InvPlayer && toInv == InvPlayer)
-				{
-					playerInv.AuthorityDropSlot(fromSlot);
-					return;
-				}
-				if (fromInv == InvContainer && toInv == InvPlayer)
-				{
-					AcquireLargeFromContainer(playerInv, fromSlot);
-					return;
-				}
-			}
-
 			var to = (toInv == InvContainer) ? Slots : playerSlots;
 			InventoryOps.TryMove(from, fromSlot, to, toSlot);
 		}
@@ -294,14 +278,6 @@ namespace Starter.Common.Inventory
 
 			var playerSlots = playerInv.Slots;
 			var from = (fromInv == InvContainer) ? Slots : playerSlots;
-
-			// Container → player for a Large item: auto-equip instead of stacking-or-placing.
-			if (fromInv == InvContainer && IsLargeAt(from, fromSlot))
-			{
-				AcquireLargeFromContainer(playerInv, fromSlot);
-				return;
-			}
-
 			var to = (fromInv == InvContainer) ? playerSlots : Slots;
 			InventoryOps.TryAutoMergeOrPlace(from, fromSlot, to);
 		}
@@ -314,41 +290,10 @@ namespace Starter.Common.Inventory
 			if (TryResolvePlayerInventory(source, out var playerInv) == false) return;
 
 			var playerSlots = playerInv.Slots;
-			bool acquiredLarge = false;
 			for (int i = 0; i < Slots.Length; i++)
 			{
-				if (IsLargeAt(Slots, i))
-				{
-					// Only one Large can be carried at a time — leave the rest in the container.
-					if (acquiredLarge) continue;
-					if (AcquireLargeFromContainer(playerInv, i)) acquiredLarge = true;
-					continue;
-				}
 				InventoryOps.TryAutoMergeOrPlace(Slots, i, playerSlots);
 			}
-		}
-
-		private static bool IsLargeAt(NetworkArray<InventorySlot> arr, int idx)
-		{
-			if (idx < 0 || idx >= arr.Length) return false;
-			var s = arr[idx];
-			if (s.IsEmpty || ItemDatabase.Instance == null) return false;
-			var def = ItemDatabase.Instance.GetById(s.ItemId);
-			return def != null && def.Size == EItemSize.Large;
-		}
-
-		private bool AcquireLargeFromContainer(IPlayerInventory playerInv, int containerSlot)
-		{
-			if (containerSlot < 0 || containerSlot >= Slots.Length) return false;
-			var src = Slots[containerSlot];
-			if (src.IsEmpty) return false;
-
-			if (playerInv.AuthorityAcquireLarge(src.ItemId) == false) return false;
-
-			// Consume exactly one large from the container slot.
-			src.Count -= 1;
-			Slots.Set(containerSlot, src.Count <= 0 ? InventorySlot.Empty : src);
-			return true;
 		}
 
 		private bool TryGetOpenerTransform(PlayerRef player, out Transform t)
@@ -406,9 +351,11 @@ namespace Starter.Common.Inventory
 		void AuthorityDropSlot(int slot);
 
 		/// <summary>
-		/// State-authority-only: place one Large item into the inventory, ending in the selected slot.
-		/// Returns false if the item is not registered. Used by LootContainer to enforce auto-equip.
+		/// State-authority-only: put a placeable into the player's hands (carry channel — not a
+		/// hotbar slot). Drops any currently-carried placeable loose first, auto-selects an empty
+		/// hotbar slot so the previously-held visual goes away. Returns false if the id isn't a
+		/// registered <see cref="PlaceableDefinition"/>.
 		/// </summary>
-		bool AuthorityAcquireLarge(short itemId);
+		bool AuthorityStartCarry(short itemId);
 	}
 }

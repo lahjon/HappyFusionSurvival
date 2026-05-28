@@ -78,6 +78,12 @@ namespace Starter.Shooter
 				craftingSession.Initialize();
 			}
 
+			var questSession = GetComponent<QuestSession>();
+			if (questSession != null)
+			{
+				questSession.Initialize();
+			}
+
 			var computerSession = GetComponent<ComputerSession>();
 			if (computerSession != null)
 			{
@@ -141,6 +147,7 @@ namespace Starter.Shooter
 			}
 
 			bool isSeated = _player != null && _player.IsSeated;
+			bool isDowned = _player != null && _player.IsDowned;
 
 			// While knocked out or getting up, freeze input so the player can't move, fire,
 			// or steer the look direction. Look angle stays where it was so the camera doesn't
@@ -149,7 +156,11 @@ namespace Starter.Shooter
 			// Seated state is also "input-locked" for normal player actions (no fire, jump,
 			// sprint, climb), but Look still flows so the head can turn, and MoveDirection / Fire
 			// flow through unchanged so the Vehicle can read driver steering + honk.
-			if (_player != null && _player.IsInputLocked && isSeated == false)
+			//
+			// Downed is a partial lock: WASD + Look flow through so the player can crawl and
+			// look around, but action Buttons (fire/jump/sprint/crouch) stay clear. Player.cs
+			// reads MoveDirection in ProcessDownedTick and applies DownedCrawlSpeed.
+			if (_player != null && _player.IsInputLocked && isSeated == false && isDowned == false)
 			{
 				_input.MoveDirection = default;
 				_input.Buttons = default;
@@ -163,9 +174,19 @@ namespace Starter.Shooter
 			// the camera against the wall. Suppress both so the climb experience stays clean.
 			bool isClimbing = _player != null && _player.IsClimbing;
 
-			if (isClimbing == false && isSeated == false)
+			if (isClimbing == false && isSeated == false && isDowned == false)
 			{
 				ApplyWeaponSwayAndRecoil();
+			}
+
+			if (isDowned)
+			{
+				// Crawl path: WASD + Look only. Action buttons must stay clear so a fire/jump/sprint
+				// hold doesn't leak into the next tick when the player gets revived.
+				var moveDirectionDowned = _actions.Move.ReadValue<Vector2>();
+				_input.MoveDirection = moveDirectionDowned.normalized;
+				_input.Buttons = default;
+				return;
 			}
 
 			if (isSeated)
@@ -178,6 +199,7 @@ namespace Starter.Shooter
 				_input.Buttons = default;
 				_input.Buttons.Set(EInputButton.Fire, _actions.Fire.IsPressed());
 				_input.Buttons.Set(EInputButton.Brake, _actions.Jump.IsPressed());
+				_input.Buttons.Set(EInputButton.Sprint, _actions.Sprint.IsPressed());
 			}
 			else
 			{

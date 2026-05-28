@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using Fusion;
 using Fusion.Addons.SimpleKCC;
+using Starter.Common.Interactions;
 using Starter.Common.Inventory;
 using UnityEngine.Rendering;
 
@@ -17,7 +18,7 @@ namespace Starter.Shooter
 	/// <summary>
 	/// Main player scrip - controls player movement and animations.
 	/// </summary>
-	public sealed class Player : NetworkBehaviour, IKnockbackable
+	public sealed class Player : NetworkBehaviour, IKnockbackable, IInteractable, IHoldInteractable, IInteractionGate
 	{
 		[Header("References")]
 		public Health Health;
@@ -147,6 +148,22 @@ namespace Starter.Shooter
 		[Tooltip("Effective rolling radius (m) used to convert the ragdoll spin into horizontal travel while knocked out. Horizontal speed = |spinSpeed| * radius. 0 disables rolling translation.")]
 		public float RagdollRollRadius = 0.5f;
 
+		[Header("Downed / Revive")]
+		[Tooltip("Seconds the player bleeds out after being knocked down. The timer pauses while at least one ally is reviving.")]
+		public float DownedBleedOutSeconds = 20f;
+		[Tooltip("Seconds an ally must hold Interact to fully revive a downed player.")]
+		public float ReviveHoldSeconds = 3f;
+		[Tooltip("Horizontal crawl speed while downed (m/s). Replaces Walk/Sprint/Crouch speed.")]
+		public float DownedCrawlSpeed = 0.8f;
+		[Tooltip("KCC capsule height while downed (meters). Should be lower than CrouchHeight so the body reads as on the floor.")]
+		public float DownedHeight = 0.55f;
+		[Tooltip("Local-space vertical offset added to CameraPivot while downed (negative = lower). Stacks with CrouchCameraDrop semantics — this is the absolute drop, not additive.")]
+		public float DownedCameraDrop = -1.05f;
+		[Tooltip("HP restored when an ally completes a revive. Capped at Health.InitialHealth.")]
+		public int ReviveHealth = 1;
+		[Tooltip("Maximum distance from the downed player at which a revive is accepted. Host re-validates with a 1.25x slack.")]
+		public float ReviveInteractRange = 1.6f;
+
 		[Header("Animation Setup")]
 		public Transform ChestTargetPosition;
 		public Transform ChestBone;
@@ -190,8 +207,9 @@ namespace Starter.Shooter
 
 		[Networked, HideInInspector, Capacity(24), OnChangedRender(nameof(OnNicknameChanged))]
 		public string Nickname { get; set; }
+		/// <summary>Soft currency. Survives respawn — death does not reset money. Granted by money pickups (auto-collected on proximity) and any future loot/sell/quest hook via <see cref="AddMoney"/>.</summary>
 		[Networked, HideInInspector]
-		public int ChickenKills { get; set; }
+		public int Money { get; private set; }
 		[Networked, HideInInspector]
 		public float Stamina { get; private set; }
 		[Networked, HideInInspector]
@@ -200,8 +218,9 @@ namespace Starter.Shooter
 		[Networked, HideInInspector]
 		public NetworkBool IsCrouching { get; private set; }
 
-		/// <summary>Effective stamina ceiling — naturally MaxStamina, but capped at the current Hunger so a starving player has a shrunken stamina bar.</summary>
-		public float EffectiveMaxStamina => Mathf.Min(MaxStamina, Hunger);
+		/// <summary>Effective stamina ceiling. Hunger cap removed in the Purge × Stardew pivot — kept as a property
+		/// so callers don't need to change. Restore the <c>Mathf.Min(MaxStamina, Hunger)</c> form if survival ever returns.</summary>
+		public float EffectiveMaxStamina => MaxStamina;
 
 		[Networked]
 		private Vector3 _moveVelocity { get; set; }
@@ -222,6 +241,22 @@ namespace Starter.Shooter
 		/// <summary>True while the player is sleeping in a Bed. Sleep is local-camera-only — the body stays in place but movement, input, and damage are suppressed; the bed's <c>SleepSession</c> owns the camera.</summary>
 		[Networked, OnChangedRender(nameof(OnSleepingChanged))]
 		public NetworkBool IsSleeping { get; private set; }
+
+		/// <summary>True while the player is downed (bleeding out, not yet dead). Set by <see cref="OnLethalDamage"/> via <see cref="Health.AuthorityDownHook"/>; cleared by a successful revive or by the bleed-out timer expiring (which triggers real death).</summary>
+		[Networked, OnChangedRender(nameof(OnIsDownedChanged))]
+		public NetworkBool IsDowned { get; private set; }
+
+		/// <summary>Seconds remaining on the bleed-out countdown while <see cref="IsDowned"/>. Counted down on state authority each tick when <see cref="ReviveCount"/> is zero — when a reviver is active the timer pauses. Hits 0 → real death.</summary>
+		[Networked]
+		public float DownedTimeRemaining { get; private set; }
+
+		/// <summary>Number of allies currently holding revive on this downed player. Incremented on <see cref="RPC_BeginRevive"/>, decremented on <see cref="RPC_EndRevive"/>. While &gt; 0 the bleed-out timer pauses and <see cref="ReviveProgress"/> advances.</summary>
+		[Networked]
+		public int ReviveCount { get; private set; }
+
+		/// <summary>0..1 progress toward a successful revive, accrued on state authority while <see cref="ReviveCount"/> &gt; 0. Resets when the last reviver releases. Reaching 1 fires the actual revive on the next tick.</summary>
+		[Networked]
+		public float ReviveProgress { get; private set; }
 
 		/// <summary>Per-player ability gate. When false the player cannot enter climb. Defaults true; gameplay (item/perk) may toggle.</summary>
 		[Networked, OnChangedRender(nameof(OnCanClimbChanged))]
@@ -305,8 +340,8 @@ namespace Starter.Shooter
 			}
 		}
 
-		/// <summary>True while the player is knocked out, getting up, mantling, seated in a vehicle, or sleeping — input and active control are suppressed.</summary>
-		public bool IsInputLocked => RagdollState != ERagdollState.Normal || IsMantling || IsSeated || IsSleeping;
+		/// <summary>True while the player is knocked out, getting up, mantling, seated in a vehicle, sleeping, or downed — input and active control are suppressed. Downed is a partial lock: PlayerInput re-enables crawl move + look on top of this.</summary>
+		public bool IsInputLocked => RagdollState != ERagdollState.Normal || IsMantling || IsSeated || IsSleeping || IsDowned;
 
 		private float _visualRollAngle;
 		private float _deadSpinSpeedLocal;
@@ -328,10 +363,12 @@ namespace Starter.Shooter
 
 		private int _visibleFireCount;
 		private Inventory _inventory;
+		// Cached renderers under ScalingRoot — populated on Spawned for the local input authority only.
+		// Toggled off while seated so the driver doesn't see their own torso/legs floating in the cab.
+		private Renderer[] _localBodyRenderers;
 
 		public void Respawn(Vector3 position)
 		{
-			ChickenKills = 0;
 			Health.Revive();
 
 			KCC.SetActive(true);
@@ -343,6 +380,11 @@ namespace Starter.Shooter
 			Hunger = MaxHunger;
 			_wasSprinting = false;
 			_staminaRegenTimer = default;
+
+			IsDowned = false;
+			DownedTimeRemaining = 0f;
+			ReviveCount = 0;
+			ReviveProgress = 0f;
 
 			RagdollState = ERagdollState.Normal;
 			_ragdollTimer = default;
@@ -377,11 +419,39 @@ namespace Starter.Shooter
 			Hunger = Mathf.Min(MaxHunger, Hunger + amount);
 		}
 
+		/// <summary>Grant <paramref name="amount"/> money. State-authority only — callers running on every predicting peer are fine; remote peers no-op. Used by money pickups, loot rewards, sell prompts, quest completion.</summary>
+		public void AddMoney(int amount)
+		{
+			if (HasStateAuthority == false) return;
+			if (amount <= 0) return;
+			Money += amount;
+		}
+
+		/// <summary>Try to spend <paramref name="amount"/> money. Returns false (no-op) if the player can't afford it or the caller isn't on the state authority. Use for shop purchases / crafting fees / etc.</summary>
+		public bool TrySpendMoney(int amount)
+		{
+			if (HasStateAuthority == false) return false;
+			if (amount <= 0) return false;
+			if (Money < amount) return false;
+			Money -= amount;
+			return true;
+		}
+
 		public override void Spawned()
 		{
 			// Player draws its own death visual via the ragdoll tilt — keep the body
 			// visible past death instead of letting Health.Render hide VisualRoot.
 			Health.SuppressDeathVisualSwap = true;
+
+			// Intercept lethal damage so the player enters the downed state instead of dying
+			// outright. The hook only fires on state authority (Health checks HasStateAuthority
+			// before invoking it), so wiring it on every peer is harmless.
+			Health.AuthorityDownHook = OnLethalDamage;
+
+			// Attach a programmatic InteractionPrompt so allies see a "revive me" indicator
+			// while the player is downed. Opt into HideWhenLocked so the prompt only appears
+			// while the IInteractable side reports CanInteract == true (i.e. IsDowned).
+			SetupDownedInteractionPrompt();
 
 			// Re-seed SimpleKCC's internal pose from the spawn position. Without this, the KCC's
 			// first-tick depenetration can run from the prefab's serialized transform (often 0,0,0)
@@ -420,6 +490,13 @@ namespace Starter.Shooter
 					HeadRenderers[i].shadowCastingMode = ShadowCastingMode.ShadowsOnly;
 				}
 
+				// Cache local body renderers so we can hide them while seated (the camera is at
+				// driver-eye-level inside the cab and the torso/legs would otherwise block the view).
+				if (ScalingRoot != null)
+				{
+					_localBodyRenderers = ScalingRoot.GetComponentsInChildren<Renderer>(true);
+				}
+
 				// Held weapon is moved to FirstPersonOverlay layer by Inventory.RefreshHeldItem
 				// to prevent clipping when close to a wall.
 
@@ -455,9 +532,25 @@ namespace Starter.Shooter
 			}
 
 			UpdateRagdollState();
+
+			// Downed authority must run BEFORE CheckDeathRagdoll so a bleed-out kill that fires
+			// this tick can flip RagdollState = Dead immediately, without a one-tick freeze where
+			// the body sits in the downed-crouch pose before tumbling.
+			if (IsDowned)
+			{
+				UpdateDownedAuthority();
+			}
+
 			CheckDeathRagdoll();
 
-			float staminaAtTickStart = Stamina;
+			if (IsDowned)
+			{
+				ProcessDownedTick();
+				HitboxRoot.HitboxRootActive = Health.IsAlive;
+				KCC.SetActive(true);
+				return;
+			}
+
 			bool drainedThisTick = false;
 			if (IsMantling)
 			{
@@ -498,13 +591,9 @@ namespace Starter.Shooter
 				Stamina = Mathf.Min(EffectiveMaxStamina, Stamina + StaminaRegenPerSecond * Runner.DeltaTime);
 			}
 
-			// Hunger drain: passive tick (rate is "per 5 seconds" → divide by 5 for per-second) + a small per-stamina-point cost so sprinting/climbing makes you hungrier faster.
-			float staminaBurnedThisTick = Mathf.Max(0f, staminaAtTickStart - Stamina);
-			float hungerDelta = HungerDrainPer5Seconds * (Runner.DeltaTime / 5f) + staminaBurnedThisTick * HungerPerStaminaPoint;
-			Hunger = Mathf.Max(0f, Hunger - hungerDelta);
-
-			// Max stamina is capped at current hunger — clamp the live value down so the bar shrinks as you starve.
-			if (Stamina > Hunger) Stamina = Hunger;
+			// Hunger system disabled in the Purge × Stardew pivot. Hunger stays at whatever it was last set to
+			// (MaxHunger on spawn/respawn) and no longer caps stamina. Drain + stamina-clamp block removed —
+			// see EffectiveMaxStamina and CLAUDE.md "What stays vs. what's out".
 
 			if (KCC.IsGrounded)
 			{
@@ -608,12 +697,13 @@ namespace Starter.Shooter
 			CameraPivot.localRotation = ragdollTilt * Quaternion.Euler(pitchRotation);
 			ScalingRoot.localRotation = ragdollTilt;
 
-			// Local-only: ease the camera pivot toward its crouched / standing local position.
-			// Driven from the networked IsCrouching flag so the lerp starts the moment the
-			// state replicates. Standing pose is captured on Spawned.
+			// Local-only: ease the camera pivot toward its crouched / standing / downed local
+			// position. Driven from the networked IsDowned / IsCrouching flags so the lerp starts
+			// the moment the state replicates. Standing pose is captured on Spawned.
 			if (HasInputAuthority && _standHeight > 0f)
 			{
-				Vector3 target = _standCameraPivotLocalPos + (IsCrouching ? new Vector3(0f, CrouchCameraDrop, 0f) : Vector3.zero);
+				float drop = IsDowned ? DownedCameraDrop : (IsCrouching ? CrouchCameraDrop : 0f);
+				Vector3 target = _standCameraPivotLocalPos + new Vector3(0f, drop, 0f);
 				CameraPivot.localPosition = Vector3.Lerp(CameraPivot.localPosition, target, CrouchCameraLerpSpeed * Time.deltaTime);
 			}
 
@@ -858,9 +948,10 @@ namespace Starter.Shooter
 
 		private void ProcessFireInput(GameplayInput input, NetworkButtons previousButtons)
 		{
-			// Placeable in hand: LMB is handled locally by PlacementController (which sends
-			// the place RPC directly). Suppress weapon-fire logic and cancel any stale charge.
-			if (_inventory != null && _inventory.SelectedDefinition is PlaceableDefinition)
+			// Carrying a placeable: LMB is handled locally by PlacementController (which sends
+			// the place RPC directly). The selected hotbar slot is inert while carrying — your
+			// hands are full — so suppress weapon-fire / consume logic and cancel any stale charge.
+			if (_inventory != null && _inventory.CarriedPlaceableId != 0)
 			{
 				if (ActionInvoker != null && ActionInvoker.IsCharging) ActionInvoker.CancelCharge();
 				return;
@@ -1291,10 +1382,14 @@ namespace Starter.Shooter
 
 		// Drives the KCC capsule height from the networked IsCrouching state. Called from every path
 		// that touches IsCrouching so each peer's capsule matches the replicated state without an OnChangedRender.
+		// IsDowned overrides to a shorter DownedHeight so the body reads as flat on the floor.
 		private void ApplyCrouchHeight()
 		{
 			if (_standHeight <= 0f) return;
-			float target = IsCrouching ? CrouchHeight : _standHeight;
+			float target;
+			if (IsDowned) target = DownedHeight;
+			else if (IsCrouching) target = CrouchHeight;
+			else target = _standHeight;
 			if (Mathf.Abs(KCC.Settings.Height - target) > 0.001f)
 			{
 				KCC.SetHeight(target);
@@ -1511,12 +1606,6 @@ namespace Starter.Shooter
 			{
 				_hitPosition = hit.Point;
 				_hitNormal = hit.Normal;
-
-				if (hit.KilledTarget && hit.Target != null)
-				{
-					// Killing chicken grants 1 point, killing other player has -10 points penalty.
-					ChickenKills += hit.Target.GetComponent<Chicken>() != null ? 1 : -10;
-				}
 			}
 
 			// Drives ShowFireEffects on every peer. Counter pattern (not RPC) tolerates dropped ticks.
@@ -1648,6 +1737,194 @@ namespace Starter.Shooter
 			Nickname = nickname;
 		}
 
+		// ---------------- Downed / revive ----------------
+
+		/// <summary>State-authority-only: bleed-out + revive accrual for an already-downed player.
+		/// While at least one ally is reviving (<see cref="ReviveCount"/> &gt; 0) the bleed-out timer
+		/// pauses and <see cref="ReviveProgress"/> advances; when it hits 1 the player is revived
+		/// in-place. With no reviver the timer ticks down; on 0 the player actually dies via
+		/// <see cref="Health.AuthorityKill"/> so the normal death/ragdoll/respawn flow runs.</summary>
+		private void UpdateDownedAuthority()
+		{
+			if (HasStateAuthority == false) return;
+			if (IsDowned == false) return;
+
+			if (ReviveCount > 0)
+			{
+				float duration = Mathf.Max(0.01f, ReviveHoldSeconds);
+				ReviveProgress = Mathf.Clamp01(ReviveProgress + Runner.DeltaTime / duration);
+				if (ReviveProgress >= 1f)
+				{
+					int target = Mathf.Max(1, Mathf.Min(Health.InitialHealth, ReviveHealth));
+					Health.CurrentHealth = target;
+					IsDowned = false;
+					DownedTimeRemaining = 0f;
+					ReviveCount = 0;
+					ReviveProgress = 0f;
+				}
+			}
+			else
+			{
+				DownedTimeRemaining = Mathf.Max(0f, DownedTimeRemaining - Runner.DeltaTime);
+				if (DownedTimeRemaining <= 0f)
+				{
+					IsDowned = false;
+					DownedTimeRemaining = 0f;
+					ReviveCount = 0;
+					ReviveProgress = 0f;
+					Health.AuthorityKill();
+				}
+			}
+		}
+
+		/// <summary>Per-tick crawl handling while <see cref="IsDowned"/>. Look stays free, slow
+		/// WASD crawl, all action buttons (fire/jump/sprint/charge) are ignored. Forces IsCrouching
+		/// + DownedHeight via <see cref="ApplyCrouchHeight"/> so the capsule reads as on the floor.</summary>
+		private void ProcessDownedTick()
+		{
+			// Force the crouched flag so proxies see the short capsule too. ApplyCrouchHeight
+			// overrides to DownedHeight when IsDowned, so the actual KCC height is even lower
+			// than a normal crouch — IsCrouching is just the convenient replicated signal.
+			if (HasStateAuthority && IsCrouching == false)
+			{
+				IsCrouching = true;
+			}
+			ApplyCrouchHeight();
+
+			if (HasStateAuthority)
+			{
+				if (IsClimbing) ExitClimb();
+				if (ActionInvoker != null && ActionInvoker.IsCharging) ActionInvoker.CancelCharge();
+			}
+
+			if (GetInput<GameplayInput>(out var input))
+			{
+				KCC.SetLookRotation(input.LookRotation, -90f, 90f);
+
+				Vector3 moveDirection = KCC.TransformRotation * new Vector3(input.MoveDirection.x, 0f, input.MoveDirection.y);
+				MovePlayer(moveDirection * DownedCrawlSpeed, 0f);
+
+				// Match ProcessInput so the camera handle / fire transform stays on the same pivot.
+				// Fire is suppressed by PlayerInput anyway, but keeping the pivot in sync avoids any
+				// stale rotation reads (e.g. by ShowFireEffects if a fire was queued earlier).
+				var pitchRotation = KCC.GetLookRotation(true, false);
+				CameraPivot.localRotation = Quaternion.Euler(pitchRotation);
+			}
+			else
+			{
+				MovePlayer(Vector3.zero, 0f);
+			}
+
+			_wasSprinting = false;
+			_isJumping = false;
+		}
+
+		/// <summary>Wired into <see cref="Health.AuthorityDownHook"/> on <see cref="Spawned"/>. Fires
+		/// on the state authority just before HP would zero out — if we're not already downed,
+		/// absorb the lethal blow and enter the downed state. Returning false lets the kill go
+		/// through normally (chained hit while already downed = real death; sleeping invulnerability
+		/// is enforced earlier by Health.IsInvulnerable so we don't gate on it here).</summary>
+		private bool OnLethalDamage()
+		{
+			if (HasStateAuthority == false) return false;
+			if (IsDowned) return false;
+
+			IsDowned = true;
+			DownedTimeRemaining = DownedBleedOutSeconds;
+			ReviveCount = 0;
+			ReviveProgress = 0f;
+
+			if (IsClimbing) ExitClimb();
+			if (ActionInvoker != null && ActionInvoker.IsCharging) ActionInvoker.CancelCharge();
+			_isJumping = false;
+			_wasSprinting = false;
+
+			return true;
+		}
+
+		/// <summary>Adds the floating revive prompt to the player root. <see cref="InteractionPrompt.HideWhenLocked"/>
+		/// gates the canvas on <c>IInteractable.CanInteract</c>, which the downed Player flips with
+		/// <see cref="IsDowned"/> — so alive players don't carry a glowing indicator.</summary>
+		private void SetupDownedInteractionPrompt()
+		{
+			if (GetComponent<InteractionPrompt>() != null) return;
+
+			var prompt = gameObject.AddComponent<InteractionPrompt>();
+			prompt.HideWhenLocked = true;
+			prompt.LocalOffset = new Vector3(0f, 0.6f, 0f);
+			prompt.VisibilityRange = Mathf.Max(3f, ReviveInteractRange + 1f);
+			prompt.ActiveRange = ReviveInteractRange;
+		}
+
+		private bool IsReviverInRange(PlayerRef reviver)
+		{
+			if (Runner == null) return false;
+			var obj = Runner.GetPlayerObject(reviver);
+			if (obj == null) return false;
+			float allowed = ReviveInteractRange * 1.25f;
+			return (obj.transform.position - transform.position).sqrMagnitude <= allowed * allowed;
+		}
+
+		private void OnIsDownedChanged()
+		{
+			// Kept as a hook for SFX / animator triggers. Capsule height + camera drop are driven
+			// every tick from ApplyCrouchHeight / LateUpdate, so no per-edge work is needed yet.
+		}
+
+		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+		private void RPC_BeginRevive(RpcInfo info = default)
+		{
+			if (IsDowned == false) return;
+
+			var source = info.Source == PlayerRef.None ? Runner.LocalPlayer : info.Source;
+			if (source == Object.InputAuthority) return;
+			if (IsReviverInRange(source) == false) return;
+
+			ReviveCount++;
+			// Don't reset ReviveProgress — a new reviver joining mid-hold should pick up where
+			// the previous one left off (still has to add up to ReviveHoldSeconds total).
+		}
+
+		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+		private void RPC_EndRevive(RpcInfo info = default)
+		{
+			if (ReviveCount > 0) ReviveCount--;
+			if (ReviveCount == 0)
+			{
+				// Last reviver abandoned — reset progress so a fresh attempt restarts the hold.
+				ReviveProgress = 0f;
+			}
+		}
+
+		// --- IInteractable (downed-only revive target) ---
+
+		float IInteractable.InteractRange => ReviveInteractRange;
+		bool IInteractable.CanInteract => IsDowned;
+		Vector3 IInteractable.InteractionPoint => transform.position;
+		string IInteractable.LockedReason => string.Empty;
+		void IInteractable.OnInteract(InteractionScanner scanner)
+		{
+			// Revive is hold-only — the tap path is reachable when the scanner can't engage hold
+			// (shouldn't happen since CanInteract gates this), so leave empty rather than half-revive.
+		}
+
+		// --- IHoldInteractable ---
+
+		float IHoldInteractable.HoldSeconds => ReviveHoldSeconds;
+		void IHoldInteractable.LocalRequestHoldStart() => RPC_BeginRevive();
+		void IHoldInteractable.LocalRequestHoldCancel() => RPC_EndRevive();
+		void IHoldInteractable.LocalRequestHoldComplete()
+		{
+			// No-op by design. State authority watches ReviveProgress in UpdateDownedAuthority
+			// and finishes the revive when it crosses 1.0; the reviver's local hold completion
+			// just signals the scanner to stop ticking. The Begin RPC remains in effect — its
+			// matching End is sent by AbortHold if needed (here it isn't, scanner cleared refs).
+		}
+
+		// --- IInteractionGate ---
+
+		bool IInteractionGate.AllowInteractions => IsDowned == false;
+
 		// ---------------- Sleep state ----------------
 
 		/// <summary>State-authority-only: flip the sleep flag and clean up any incompatible activity. Called by <see cref="Bed.RPC_RequestSleep"/> / <see cref="Bed.HostReleaseOccupant"/>.</summary>
@@ -1765,9 +2042,32 @@ namespace Starter.Shooter
 			float pitch = Mathf.Clamp(look.x, -75f, 75f);
 			CameraPivot.localRotation = Quaternion.Euler(pitch, yawRel, 0f);
 
-			if (Camera.main != null && CameraHandle != null)
+			if (Camera.main != null)
 			{
-				Camera.main.transform.SetPositionAndRotation(CameraHandle.position, CameraHandle.rotation);
+				var seat = InCurrentSeat;
+				// Preferred: drive the camera position from an authored Transform inside the cab
+				// (seat.CameraMount). Fallback to a yaw-only offset from the player root (which
+				// SeatedRender just snapped onto the seat anchor). Never read from CameraHandle:
+				// CameraHandle sits under CameraPivot at a non-zero local offset, so look-rotation
+				// swings it on an arc that punches through cab walls.
+				Vector3 pos;
+				if (seat != null && seat.CameraMount != null)
+				{
+					pos = seat.CameraMount.position;
+				}
+				else if (seat != null)
+				{
+					var off = seat.SeatedCameraOffset;
+					pos = transform.position
+						+ transform.right * off.x
+						+ Vector3.up * off.y
+						+ transform.forward * off.z;
+				}
+				else
+				{
+					pos = CameraHandle != null ? CameraHandle.position : Camera.main.transform.position;
+				}
+				Camera.main.transform.SetPositionAndRotation(pos, CameraPivot.rotation);
 				// Skip ApplyCameraCollision while seated — the truck's chassis/cab colliders would
 				// snap the camera onto the cab interior wall whenever the player looks sideways.
 			}
@@ -1795,6 +2095,19 @@ namespace Starter.Shooter
 			if (_inventory != null)
 			{
 				_inventory.SuppressHeldVisual = IsSeated;
+			}
+
+			// Local input authority only: hide our own body while seated so the camera (parked at
+			// eye-level inside the cab) doesn't look into our own torso. Proxies still see us in
+			// the seat. _localBodyRenderers is null on non-input-authority peers.
+			if (_localBodyRenderers != null)
+			{
+				bool visible = IsSeated == false;
+				for (int i = 0; i < _localBodyRenderers.Length; i++)
+				{
+					var r = _localBodyRenderers[i];
+					if (r != null) r.enabled = visible;
+				}
 			}
 		}
 	}

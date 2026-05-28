@@ -12,7 +12,7 @@ namespace Starter.Common.Interactions
 	///
 	/// Optionally pickupable: if <see cref="IsPickupable"/> is on and <see cref="PickupItem"/>
 	/// is assigned, holding Interact for <see cref="PickupHoldSeconds"/> converts the
-	/// station into a Large inventory item (auto-equipped).
+	/// station into a placeable carried in the player's hands (not the hotbar).
 	///
 	/// Not for chests/seats/pickups: those have occupancy or authority-transfer rules
 	/// that don't fit a "just open a UI" base. See <c>LootContainer</c> / <c>Seat</c>.
@@ -29,7 +29,7 @@ namespace Starter.Common.Interactions
 		public Vector3 InteractionPointOffset = Vector3.zero;
 
 		[Header("Pickup")]
-		[Tooltip("If true, the player can hold Interact to convert this station into an inventory item.")]
+		[Tooltip("If true, the player can hold Interact to start carrying this station as a placeable.")]
 		public bool IsPickupable = false;
 
 		[Tooltip("Placeable granted to the player when pickup completes. Required when IsPickupable is on.")]
@@ -80,7 +80,7 @@ namespace Starter.Common.Interactions
 			var inv = playerObj.GetComponentInChildren<IPlayerInventory>();
 			if (inv == null) return;
 
-			if (!inv.AuthorityAcquireLarge(PickupItem.Id)) return;
+			if (!inv.AuthorityStartCarry(PickupItem.Id)) return;
 
 			Runner.Despawn(Object);
 		}

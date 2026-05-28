@@ -13,9 +13,10 @@ namespace Starter.Common.Inventory
 	}
 
 	/// <summary>
-	/// Item that can be placed into the world from the player's hand. The local
-	/// PlacementController reads these rules to drive ghost validation; the
-	/// inventory's RPC_RequestPlace re-checks them on the state authority before
+	/// Item that can be placed into the world from the player's hand. Placeables are
+	/// carried in a dedicated channel on Inventory (not deposited into hotbar slots).
+	/// The local PlacementController reads these rules to drive ghost validation; the
+	/// inventory's RPC_RequestPlaceCarried re-checks them on the state authority before
 	/// spawning <see cref="PlacedPrefab"/>.
 	/// </summary>
 	[CreateAssetMenu(fileName = "Placeable", menuName = "Inventory/Placeable Definition", order = 2)]

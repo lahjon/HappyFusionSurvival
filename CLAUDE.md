@@ -4,11 +4,29 @@ Guidance for Claude Code working in this repo.
 
 ## Project
 
-Unity 6 (`6000.4.8f1`, URP) multiplayer game on the **Photon Fusion 2 Starter Kit**. Co-op FPS with hotbar inventory, crafting, vehicles, climbing, ragdoll, hunger/stamina. Active scene: `03_Shooter`.
+Unity 6 (`6000.4.8f1`, URP) multiplayer FPS on the **Photon Fusion 2 Starter Kit**. **Round-based PvPvE inspired by The Purge × Stardew Valley** — cheerful co-op town life by day, last-team-standing PvP by night. Active scene: `03_Shooter`.
+
+> The repo folder is still named `HappyFusionSurvival` for git history reasons. The project is **not** a survival game anymore — survival vocabulary (hunger, day-7 escape, scavenging-to-survive) is legacy and being removed. See `prompt.md` for the active migration plan.
+
+### Match shape
+
+- **Up to 18 players** per match (divides cleanly: 18 solo / 9 duo / 6 trio). Team size chosen at the lobby: **solo (1) / duo (2) / trio (3)** — one team size per match (no mixed sizes).
+- **Day phase (~15 min) — "Town."** PvP off. Bright, happy-go-lucky pastel tone. Players run NPC quests, gather/buy/sell at vendors, craft loadouts at workbenches, fetch resources, prep for the night.
+- **Night phase (~15 min, ends early on last-team-standing) — "The Purge."** PvP on. Same town, happy-horror flip: saturated colours, ominous lighting, vendors gone, doors shut. Match ends when only one team is alive, or timer expires (tiebreaker by team kills/score).
+- **Friendly fire:** off within a team. **Currency:** earned and spent within the match only (no carry-over between matches).
+
+Build new gameplay around this two-phase structure. Anything that changes between phases (vendor availability, damage rules, ambient music, lighting, AI behaviour) must read the phase from the networked match controller — never from local `Time.time`.
+
+### What stays vs. what's out
+
+- **Stays:** 8-slot hotbar inventory, crafting benches, vehicles, climbing/mantling, ragdoll, combat actions, stamina (movement mechanic).
+- **Out (being removed):** hunger, food-as-survival-resource, any "day N of 7" escape framing, PvE night enemies (night is pure PvP). Existing hunger code in `Player.cs`/`UIShooter.cs`/`FoodConsumable.cs`/`Food.asset` is legacy — leave it alone unless explicitly working the pivot.
 
 **Networked-first.** Default to Fusion 2 patterns (`NetworkBehaviour`, `[Networked]`, RPCs, `INetworkInput`, `TickTimer`) for anything touching gameplay state, player actions, or spawned objects. Plain `MonoBehaviour` only for local-only visuals/UI/input — call it out when you do.
 
 **State replication is part of every feature.** Before writing a new gameplay system, state in your plan: (a) does this state need to be consistent across peers? (b) who is the authority? (c) which Fusion primitive carries it? If local-only, say so explicitly. Retrofitting replication onto a `MonoBehaviour` later is a rewrite.
+
+**Phase-aware gameplay.** New systems that behave differently in day vs. night must read the phase from a single networked `MatchManager` (planned — see `prompt.md`), not from per-system timers. Damage-to-players, vendor visibility, and music/lighting all gate on the same source of truth.
 
 ## Build / run
 
@@ -43,12 +61,22 @@ GameManager.cs    — NetworkBehaviour + IPlayerJoined/IPlayerLeft, spawns Playe
 
 ### `Assets/03_Shooter/` (active gameplay)
 
-- **Player systems** on `Player.cs`: SimpleKCC movement, stamina (drains on sprint/jump/climb), hunger (caps stamina), climbing/mantling with wall-leap, ragdoll on heavy knockback, head-bob, sprint FOV, camera collision sweep.
+- **Player systems** on `Player.cs`: SimpleKCC movement, stamina (drains on sprint/jump/climb), climbing/mantling with wall-leap, ragdoll on heavy knockback, head-bob, sprint FOV, camera collision sweep. (Hunger fields are still present in code but marked legacy — see top of file.)
 - **Combat** via `Actions/` ScriptableObjects (`CombatAction` base → `HitscanAction`, `OverlapAction`). Resolved by per-actor `ActionInvoker` (cooldown + charge tick are `[Networked]`). Same primitive serves players, training dummies, fists.
 - **Inventory** — 8-slot networked hotbar (`Inventory.cs`, `NetworkArray<InventorySlot>`). Weight over `WeightLimit` slows movement. Large items only exist while equipped. `PlacementController` (local-only) drives ghost-preview for `PlaceableDefinition` items.
 - **Crafting** — `CraftingBench` (IInteractable) hands off to local `CraftingSession` UI; recipes filtered per-bench.
 - **Vehicles** — `Vehicle` + `Seat` + per-player `VehicleSession`. Driver gets input authority transferred via `Object.AssignInputAuthority()`; arcade-style tank turning, `NetworkTransform`-replicated, host-only dynamic Rigidbody (clients kinematic).
-- **AI / world** — `Chicken` + `ChickenSpawner`, `TrainingDummy` (uses ActionInvoker to swing back), `LootContainer`.
+- **AI / world** — `Chicken` + `ChickenSpawner`, `TrainingDummy` (uses ActionInvoker to swing back), `LootContainer`. Day-phase ambient only — there are no PvE enemies during the Purge.
+
+### Match flow (planned)
+
+Not yet implemented — track here so new systems plug into the right contract:
+
+- `MatchManager` (`NetworkBehaviour`, singleton on a scene object): `[Networked] MatchPhase Phase`, `[Networked] TickTimer PhaseTimer`, `[Networked] int RoundIndex`. State authority advances `Lobby → Day → DuskWarning (~30s) → Night → MatchOver`.
+- `TeamManager` (`NetworkBehaviour`): per-`PlayerRef` team id assigned at lobby based on chosen team size; drives friendly-fire checks and win-condition scan.
+- Damage gate: `Health.ApplyDamage` consults `MatchManager.Phase` and `TeamManager.SameTeam(attacker, victim)`. Day phase + same team → blocked.
+- Vendors / quest givers / shops are `IInteractable` `NetworkBehaviour`s that self-disable (`CanInteract = false`, despawn prompt) when `Phase == Night`.
+- Win condition: state authority watches teams-with-living-members; reaching 1 (or 0) flips `Phase = MatchOver` and shows result. Night timer expiry is the tiebreaker.
 
 ### Interaction system (shared, mandatory)
 
@@ -74,7 +102,7 @@ All modes use **SimpleKCC** (`Fusion.Addons.SimpleKCC`). Don't write controllers
 - `TickTimer`, not `Time.time`, for cooldowns/durations.
 - `OnChangedRender` over polling `[Networked]` values (see `Player.Nickname`, `_isJumping`, `_fireCount`).
 - `Object.AssignInputAuthority()` / `RemoveInputAuthority()` for vehicle-style possession.
-- Unity 6 API: `Rigidbody.linearVelocity`/`linearDamping` (not `velocity`/`drag`); `FindFirstObjectByType<T>()` / `FindObjectsByType<T>(FindObjectsSortMode.None)`.
+- Unity 6 API: `Rigidbody.linearVelocity`/`linearDamping` (not `velocity`/`drag`); `FindAnyObjectByType<T>()` / `FindObjectsByType<T>(FindObjectsSortMode.None)` (`FindFirstObjectByType` is deprecated — relies on instance-id ordering).
 
 ### Picking the primitive
 

@@ -50,11 +50,21 @@ namespace Starter.Shooter
 		[Networked, OnChangedRender(nameof(OnSelectedChanged))]
 		public int SelectedSlot { get; set; }
 
+		/// <summary>
+		/// Id of the placeable currently held in the player's hands. 0 = nothing carried.
+		/// Lives outside the 8-slot hotbar — placeables are never deposited into slots.
+		/// While non-zero, the carry visual takes priority over the selected slot's HandPrefab
+		/// and the selected slot's fire/use input is suppressed (see Player.ProcessFireInput).
+		/// </summary>
+		[Networked, OnChangedRender(nameof(OnCarriedChanged))]
+		public short CarriedPlaceableId { get; set; }
+
 		[Networked]
 		private TickTimer _useCooldownTimer { get; set; }
 
 		public event System.Action SlotsChanged;
 		public event System.Action SelectedChanged;
+		public event System.Action CarriedChanged;
 
 		private GameObject _heldInstance;
 		private short _heldItemId;
@@ -87,6 +97,16 @@ namespace Starter.Shooter
 				if (ItemDatabase.Instance == null) return null;
 				var s = Slots[SelectedSlot];
 				return s.IsEmpty ? null : ItemDatabase.Instance.GetById(s.ItemId);
+			}
+		}
+
+		/// <summary>Placeable currently carried in-hand, or null. Independent of any hotbar slot.</summary>
+		public PlaceableDefinition CarriedDefinition
+		{
+			get
+			{
+				if (CarriedPlaceableId == 0 || ItemDatabase.Instance == null) return null;
+				return ItemDatabase.Instance.GetById(CarriedPlaceableId) as PlaceableDefinition;
 			}
 		}
 
@@ -150,6 +170,14 @@ namespace Starter.Shooter
 
 		public override void Despawned(NetworkRunner runner, bool hasState)
 		{
+			// Don't strand the carried object on disconnect / death — spawn it loose so the
+			// world keeps a copy. Guarded on hasState: networked accessors throw once the
+			// state has been released (e.g. application quit / runner shutdown).
+			if (hasState && HasStateAuthority && CarriedPlaceableId != 0)
+			{
+				DropCarried();
+			}
+
 			if (_heldInstance != null)
 			{
 				Destroy(_heldInstance);
@@ -185,7 +213,10 @@ namespace Starter.Shooter
 
 			if (_actions.Drop.WasPressedThisFrame())
 			{
-				RPC_RequestDrop();
+				if (CarriedPlaceableId != 0)
+					RPC_RequestDropCarried();
+				else
+					RPC_RequestDrop();
 			}
 		}
 
@@ -200,7 +231,6 @@ namespace Starter.Shooter
 		{
 			if (idx < 0 || idx >= SlotCount) return;
 			if (idx == SelectedSlot) return;
-			DropLargeFromSelectedIfAny();
 			SelectedSlot = idx;
 		}
 
@@ -215,9 +245,11 @@ namespace Starter.Shooter
 			if (distSq > allowed * allowed) return;
 
 			var def = ItemDatabase.Instance != null ? ItemDatabase.Instance.GetById(pickup.ItemId) : null;
-			if (def != null && def.Size == EItemSize.Large)
+			if (def is PlaceableDefinition)
 			{
-				if (TryAcquireLarge(pickup.ItemId) == false) return;
+				// Placeables route into the carry channel, not the hotbar. Any existing carry
+				// is dropped first inside AuthorityStartCarry.
+				if (AuthorityStartCarry(pickup.ItemId) == false) return;
 
 				if (pickup.Count <= 1)
 					Runner.Despawn(obj);
@@ -258,7 +290,7 @@ namespace Starter.Shooter
 		}
 
 		void IPlayerInventory.AuthorityDropSlot(int slot) => DropAt(slot);
-		bool IPlayerInventory.AuthorityAcquireLarge(short itemId) => TryAcquireLarge(itemId);
+		bool IPlayerInventory.AuthorityStartCarry(short itemId) => AuthorityStartCarry(itemId);
 
 		[Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
 		public void RPC_RequestUseSlot(int slot)
@@ -267,27 +299,30 @@ namespace Starter.Shooter
 		}
 
 		[Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
-		public void RPC_RequestPlace(int slot, Vector3 position, Quaternion rotation)
+		public void RPC_RequestPlaceCarried(Vector3 position, Quaternion rotation)
 		{
-			TryPlaceAt(slot, position, rotation);
+			TryPlaceCarried(position, rotation);
+		}
+
+		[Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
+		public void RPC_RequestDropCarried()
+		{
+			DropCarried();
 		}
 
 		/// <summary>
-		/// Local-side entry for "place the selected item at the given pose".
+		/// Local-side entry for "place the currently-carried item at the given pose".
 		/// Validation runs on the state authority via the RPC.
 		/// </summary>
-		public void RequestPlaceSelected(Vector3 position, Quaternion rotation)
+		public void RequestPlaceCarried(Vector3 position, Quaternion rotation)
 		{
-			RPC_RequestPlace(SelectedSlot, position, rotation);
+			RPC_RequestPlaceCarried(position, rotation);
 		}
 
-		private bool TryPlaceAt(int slot, Vector3 position, Quaternion rotation)
+		private bool TryPlaceCarried(Vector3 position, Quaternion rotation)
 		{
-			if (slot < 0 || slot >= SlotCount) return false;
-			var s = Slots[slot];
-			if (s.IsEmpty || ItemDatabase.Instance == null) return false;
-
-			var def = ItemDatabase.Instance.GetById(s.ItemId) as PlaceableDefinition;
+			if (HasStateAuthority == false) return false;
+			var def = CarriedDefinition;
 			if (def == null || def.PlacedPrefab == null) return false;
 			if (def.PlacedPrefab.GetComponent<NetworkObject>() == null)
 			{
@@ -303,25 +338,96 @@ namespace Starter.Shooter
 			if (def.Footprint > 0f && IsObstructed(position, def.Footprint, def.PlacementMask)) return false;
 
 			Runner.Spawn(def.PlacedPrefab, position, rotation);
-
-			s.Count -= 1;
-			Slots.Set(slot, s.Count <= 0 ? InventorySlot.Empty : s);
+			CarriedPlaceableId = 0;
 			return true;
+		}
+
+		/// <summary>
+		/// State-authority entry point used by world pickups (PickupableItem, PickupableProp,
+		/// InteractableStation, LootContainer) to put a placeable into the player's hands.
+		/// If the player is already carrying something it's dropped as a loose physics object
+		/// first. Auto-selects an empty hotbar slot so the previously-equipped HandPrefab visual
+		/// goes away; if no empty slot exists, leaves selection alone (carry visual overrides).
+		/// </summary>
+		public bool AuthorityStartCarry(short itemId)
+		{
+			if (HasStateAuthority == false) return false;
+			if (itemId == 0 || ItemDatabase.Instance == null) return false;
+			if (ItemDatabase.Instance.GetById(itemId) is not PlaceableDefinition) return false;
+
+			// Already carrying something — drop the old one loose before swapping.
+			if (CarriedPlaceableId != 0)
+			{
+				DropCarried();
+			}
+
+			int empty = FindFirstEmptySlot();
+			if (empty >= 0 && empty != SelectedSlot)
+			{
+				SelectedSlot = empty;
+			}
+
+			CarriedPlaceableId = itemId;
+			return true;
+		}
+
+		/// <summary>
+		/// State-authority entry point: spawn the carried placeable's loose WorldPrefab in front
+		/// of the player with a throw arc, then clear the carry slot. Used both by the explicit
+		/// drop input and by callers that need to evict the carry (e.g. on despawn).
+		/// </summary>
+		public void DropCarried()
+		{
+			if (HasStateAuthority == false) return;
+			if (CarriedPlaceableId == 0 || ItemDatabase.Instance == null) return;
+
+			var def = ItemDatabase.Instance.GetById(CarriedPlaceableId) as PlaceableDefinition;
+			short carried = CarriedPlaceableId;
+			CarriedPlaceableId = 0;
+
+			if (def == null || def.WorldPrefab == null) return;
+			if (def.WorldPrefab.GetComponent<NetworkObject>() == null)
+			{
+				Debug.LogWarning($"[Inventory] Placeable '{def.DisplayName}' has WorldPrefab '{def.WorldPrefab.name}' without a NetworkObject component — drop ignored.");
+				return;
+			}
+
+			Vector3 pos = HandAnchor != null
+				? HandAnchor.position + transform.forward * DropForwardOffset
+				: transform.position + transform.forward * DropForwardOffset + Vector3.up * DropUpOffset;
+
+			var spawned = Runner.Spawn(def.WorldPrefab, pos, Quaternion.identity);
+			if (spawned != null && spawned.TryGetComponent<PickupableItem>(out var pi))
+			{
+				pi.Initialize(carried, 1);
+				Vector3 inherited = _player != null && _player.KCC != null
+					? _player.KCC.RealVelocity * PlayerVelocityContribution
+					: Vector3.zero;
+				var velocity = transform.forward * ThrowForwardSpeed + Vector3.up * ThrowUpSpeed + inherited;
+				pi.Throw(velocity, ThrowInteractionLock);
+			}
 		}
 
 		private static readonly Collider[] s_overlapBuffer = new Collider[16];
 
 		private bool IsObstructed(Vector3 position, float radius, int layerMask)
 		{
-			// Find and exclude the surface the placement was snapped onto — otherwise the
-			// Footprint sphere intersects the ground itself and every place attempt fails.
+			// Find the surface directly below the ghost position. We use it both to exclude that
+			// collider AND to lift the overlap sphere so its lower edge sits just above the surface
+			// — adjacent floor tiles (e.g. PolygonTown's road/sidewalk grid) aren't excluded by the
+			// single-collider mask, so the sphere must not intersect floor level at all.
 			Collider surface = null;
+			Vector3 surfacePoint = position;
+			Vector3 upAxis = Vector3.up;
 			if (Physics.Raycast(position + Vector3.up * 0.05f, Vector3.down, out RaycastHit surfaceHit, radius + 0.5f, layerMask, QueryTriggerInteraction.Ignore))
 			{
 				surface = surfaceHit.collider;
+				surfacePoint = surfaceHit.point;
+				upAxis = surfaceHit.normal;
 			}
 
-			int count = Physics.OverlapSphereNonAlloc(position, radius, s_overlapBuffer, layerMask, QueryTriggerInteraction.Ignore);
+			Vector3 center = surfacePoint + upAxis * (radius + 0.02f);
+			int count = Physics.OverlapSphereNonAlloc(center, radius, s_overlapBuffer, layerMask, QueryTriggerInteraction.Ignore);
 			Transform self = transform.root;
 			for (int i = 0; i < count; i++)
 			{
@@ -374,49 +480,6 @@ namespace Starter.Shooter
 		public short TryAdd(short itemId, short count)
 		{
 			return InventoryOps.TryAdd(Slots, itemId, count);
-		}
-
-		/// <summary>
-		/// Authority-side: place one Large item into the inventory, ending in the selected slot.
-		/// Uses the first empty slot if available (then switches selection there, which drops
-		/// any Large item previously held); otherwise drops the currently-held slot to free room
-		/// for the new Large item in-place. Returns false only if no ItemDatabase entry exists.
-		/// </summary>
-		public bool TryAcquireLarge(short itemId)
-		{
-			if (HasStateAuthority == false) return false;
-			if (itemId == 0 || ItemDatabase.Instance == null) return false;
-			var def = ItemDatabase.Instance.GetById(itemId);
-			if (def == null) return false;
-
-			int target = FindFirstEmptySlot();
-			if (target < 0)
-			{
-				// No empty slot anywhere — drop whatever is in the selected slot to make room there.
-				DropAt(SelectedSlot);
-				target = SelectedSlot;
-			}
-
-			if (target != SelectedSlot)
-			{
-				// Switching selection drops any Large item currently equipped (small items stay).
-				DropLargeFromSelectedIfAny();
-				SelectedSlot = target;
-			}
-
-			Slots.Set(target, new InventorySlot { ItemId = itemId, Count = 1 });
-			return true;
-		}
-
-		/// <summary>Authority-side helper: drop the selected slot's item if it's Large. No-op for empty or Small.</summary>
-		public void DropLargeFromSelectedIfAny()
-		{
-			if (HasStateAuthority == false) return;
-			var s = Slots[SelectedSlot];
-			if (s.IsEmpty || ItemDatabase.Instance == null) return;
-			var def = ItemDatabase.Instance.GetById(s.ItemId);
-			if (def == null || def.Size != EItemSize.Large) return;
-			DropAt(SelectedSlot);
 		}
 
 		private int FindFirstEmptySlot()
@@ -507,13 +570,25 @@ namespace Starter.Shooter
 
 		private void OnSlotsChanged()
 		{
-			var s = Slots[SelectedSlot];
-			short id = s.IsEmpty ? (short)0 : s.ItemId;
-			if (id != _heldItemId)
+			// Held visual could be either the carried def (priority) or the selected slot's item.
+			// Carry takes priority so a slot mutation while carrying shouldn't force a refresh
+			// unless the carry is empty.
+			if (CarriedPlaceableId == 0)
 			{
-				RefreshHeldItem();
+				var s = Slots[SelectedSlot];
+				short id = s.IsEmpty ? (short)0 : s.ItemId;
+				if (id != _heldItemId)
+				{
+					RefreshHeldItem();
+				}
 			}
 			SlotsChanged?.Invoke();
+		}
+
+		private void OnCarriedChanged()
+		{
+			RefreshHeldItem();
+			CarriedChanged?.Invoke();
 		}
 
 		private void RefreshHeldItem()
@@ -528,20 +603,38 @@ namespace Starter.Shooter
 			if (HandAnchor == null) return;
 			if (_suppressHeldVisual) return;
 
-			var s = Slots[SelectedSlot];
+			// Skip the refresh outside the Spawned…Despawned window — the networked accessors
+			// below (CarriedPlaceableId, Slots[…]) throw on pre-spawn or post-shutdown reads.
+			// Triggered e.g. when PlacementController.OnDisable runs during runner shutdown.
+			if (Object == null || Object.IsValid == false) return;
+
 			GameObject prefab = null;
 
-			if (s.IsEmpty)
+			// Carried placeable wins over the selected slot's visual.
+			if (CarriedPlaceableId != 0 && ItemDatabase.Instance != null)
 			{
-				prefab = _fallbackHandPrefab;
-			}
-			else if (ItemDatabase.Instance != null)
-			{
-				var def = ItemDatabase.Instance.GetById(s.ItemId);
-				if (def != null)
+				var carriedDef = ItemDatabase.Instance.GetById(CarriedPlaceableId);
+				if (carriedDef != null)
 				{
-					prefab = def.HandPrefab;
-					_heldItemId = def.Id;
+					prefab = carriedDef.HandPrefab;
+					_heldItemId = carriedDef.Id;
+				}
+			}
+			else
+			{
+				var s = Slots[SelectedSlot];
+				if (s.IsEmpty)
+				{
+					prefab = _fallbackHandPrefab;
+				}
+				else if (ItemDatabase.Instance != null)
+				{
+					var def = ItemDatabase.Instance.GetById(s.ItemId);
+					if (def != null)
+					{
+						prefab = def.HandPrefab;
+						_heldItemId = def.Id;
+					}
 				}
 			}
 

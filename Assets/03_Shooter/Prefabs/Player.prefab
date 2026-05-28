@@ -484,7 +484,7 @@ MonoBehaviour:
   _settings:
     Shape: 1
     IsTrigger: 0
-    Radius: 0.4
+    Radius: 0.3
     Height: 1
     Extent: 0.035
     ColliderLayer: 6
@@ -11015,7 +11015,7 @@ Transform:
   m_GameObject: {fileID: 8345925665524581596}
   serializedVersion: 2
   m_LocalRotation: {x: 1.7763568e-15, y: -7.1054274e-15, z: 5.646419e-23, w: 1}
-  m_LocalPosition: {x: 0, y: 0.63220876, z: 0}
+  m_LocalPosition: {x: 0, y: 1.318, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:

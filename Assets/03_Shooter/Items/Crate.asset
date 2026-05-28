@@ -18,9 +18,8 @@ MonoBehaviour:
   Description: A simple test crate. Place it on flat ground.
   Stats: []
   WorldPrefab: {fileID: 7810697307764163876, guid: 942cb8a9d2c061543a4366d19843c434, type: 3}
-  HandPrefab: {fileID: 0}
+  HandPrefab: {fileID: 1279201605963086, guid: 6b175562dadefb44abdb3cc1b40abbbc, type: 3}
   MaxStack: 99
-  Size: 1
   Weight: 0
   PlacedPrefab: {fileID: 10196581954467927, guid: 9e65893ce4f3e0b4ca36aa1f568f7e3f, type: 3}
   GhostPrefab: {fileID: 0}

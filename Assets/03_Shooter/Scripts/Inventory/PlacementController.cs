@@ -1,5 +1,6 @@
 using Fusion;
 using Starter.Common.Input;
+using Starter.Common.Interactions;
 using Starter.Common.Inventory;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -7,16 +8,21 @@ using UnityEngine.Rendering;
 namespace Starter.Shooter
 {
 	/// <summary>
-	/// Local-only placement preview driver. Activates whenever the inventory's selected
-	/// item is a <see cref="PlaceableDefinition"/>: instantiates a ghost from the def's
-	/// GhostPrefab, raycasts from the camera, validates against the def's rules,
-	/// tints the ghost green/red, and fires the inventory's RPC_RequestPlace on LMB.
+	/// Local-only placement preview driver. Activates whenever the inventory is carrying a
+	/// <see cref="PlaceableDefinition"/>: instantiates a ghost from the def's GhostPrefab,
+	/// raycasts from the camera, validates against the def's rules, tints the ghost green/red,
+	/// and fires the inventory's RPC_RequestPlaceCarried on LMB.
 	///
 	/// Lives on the Player root next to <see cref="Inventory"/>. Runs only on input authority.
+	/// Also acts as an <see cref="IInteractionGate"/>: while the player is carrying anything,
+	/// the scanner is suppressed so world-space interaction prompts disappear and a stray
+	/// Interact press can't open a chest, board a vehicle, etc. with your hands full.
 	/// </summary>
 	[RequireComponent(typeof(Inventory))]
-	public sealed class PlacementController : MonoBehaviour
+	public sealed class PlacementController : MonoBehaviour, IInteractionGate
 	{
+		bool IInteractionGate.AllowInteractions => _inventory == null || _inventory.CarriedPlaceableId == 0;
+
 		[Header("Ghost Materials (optional)")]
 		[Tooltip("Material applied to the ghost when placement is valid. If null, a transparent green URP/Unlit material is generated at runtime.")]
 		[SerializeField] private Material _validMaterial;
@@ -64,7 +70,7 @@ namespace Starter.Shooter
 				return;
 			}
 
-			var def = _inventory.SelectedDefinition as PlaceableDefinition;
+			var def = _inventory.CarriedDefinition;
 			if (def == null || def.PlacedPrefab == null)
 			{
 				TeardownGhost();
@@ -106,7 +112,7 @@ namespace Starter.Shooter
 			if (_validThisFrame == false) return;
 			if (_postPlaceCooldownLeft > 0f) return;
 
-			_inventory.RequestPlaceSelected(_ghost.transform.position, _ghost.transform.rotation);
+			_inventory.RequestPlaceCarried(_ghost.transform.position, _ghost.transform.rotation);
 			_postPlaceCooldownLeft = _postPlaceCooldown;
 		}
 
@@ -214,14 +220,14 @@ namespace Starter.Shooter
 
 			bool hit = Physics.Raycast(origin, forward, out RaycastHit info, def.PlacementRange, def.PlacementMask, QueryTriggerInteraction.Ignore);
 
-			Vector3 pos;
+			Vector3 surfacePoint;
 			Vector3 normal;
 			bool surfaceOk;
 			Collider surfaceCollider = null;
 
 			if (hit)
 			{
-				pos = info.point;
+				surfacePoint = info.point;
 				normal = info.normal;
 				surfaceCollider = info.collider;
 				var kind = def.ClassifySurface(normal);
@@ -230,17 +236,17 @@ namespace Starter.Shooter
 			else
 			{
 				// No surface in range — float the ghost at max range so the player sees where they're aiming.
-				pos = origin + forward * def.PlacementRange;
+				surfacePoint = origin + forward * def.PlacementRange;
 				normal = Vector3.up;
 				surfaceOk = false;
 			}
 
 			// Snap to a placement-mask surface directly below the current position (within 1m),
 			// so placeables prefer the floor when aiming slightly above it or into walls.
-			Vector3 snapStart = pos + Vector3.up * 0.05f;
+			Vector3 snapStart = surfacePoint + Vector3.up * 0.05f;
 			if (Physics.Raycast(snapStart, Vector3.down, out RaycastHit snapHit, SnapDownRange + 0.05f, def.PlacementMask, QueryTriggerInteraction.Ignore))
 			{
-				pos = snapHit.point;
+				surfacePoint = snapHit.point;
 				normal = snapHit.normal;
 				surfaceCollider = snapHit.collider;
 				var kind = def.ClassifySurface(normal);
@@ -251,11 +257,16 @@ namespace Starter.Shooter
 			Quaternion rot = ComputeRotation(forward, normal, def);
 
 			Vector3 upAxis = def.AlignToSurface ? normal : Vector3.up;
-			pos += upAxis * _pivotToBottomOffset;
+			Vector3 pos = surfacePoint + upAxis * _pivotToBottomOffset;
 
 			_ghost.transform.SetPositionAndRotation(pos, rot);
 
-			bool clear = def.Footprint <= 0f || IsClearance(pos, def.Footprint, def.PlacementMask, surfaceCollider);
+			// Center the clearance sphere just above the surface so its lower edge sits at floor level.
+			// Otherwise the sphere intersects the floor and tiled ground (e.g. PolygonTown's many
+			// adjacent road/sidewalk colliders) reports the spot as blocked — we can only mask out
+			// the single collider returned by the raycast, not its neighbours.
+			Vector3 clearanceCenter = surfacePoint + upAxis * (def.Footprint + 0.02f);
+			bool clear = def.Footprint <= 0f || IsClearance(clearanceCenter, def.Footprint, def.PlacementMask, surfaceCollider);
 			_validThisFrame = hit && surfaceOk && clear;
 			ApplyTint(_validThisFrame);
 		}

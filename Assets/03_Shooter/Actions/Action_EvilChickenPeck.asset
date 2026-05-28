@@ -17,7 +17,7 @@ MonoBehaviour:
   KnockbackDistance: 0.5
   HitMask:
     serializedVersion: 2
-    m_Bits: 65
+    m_Bits: 1
   Style: 1
   AttackClip: {fileID: 0}
   AttackVolume: 1
