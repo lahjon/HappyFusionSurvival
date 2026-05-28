@@ -265,6 +265,7 @@ GameObject:
   - component: {fileID: 3937452031436998217}
   - component: {fileID: 9096556335678368437}
   - component: {fileID: 8668036983329495619}
+  - component: {fileID: 7886537220140394926}
   m_Layer: 6
   m_Name: Player
   m_TagString: Player
@@ -363,6 +364,12 @@ MonoBehaviour:
   JumpImpulse: 10
   UpGravity: -25
   DownGravity: -40
+  CrouchSpeed: 1.2
+  CrouchHeight: 1
+  CrouchCameraDrop: -0.5
+  CrouchCameraLerpSpeed: 12
+  CrouchStandClearance: 1.8
+  CrouchStandCheckRadius: 0.3
   MaxStamina: 100
   StaminaDrainPerSecond: 25
   StaminaRegenPerSecond: 35
@@ -381,6 +388,8 @@ MonoBehaviour:
   ClimbHopBurstDuration: 0.15
   ClimbStaminaIdleDrain: 4
   ClimbStaminaMoveDrain: 12
+  ClimbDepletedSlideSpeed: 1.5
+  ClimbDepletedHoldDuration: 1
   ClimbStaminaJumpCost: 20
   WallLeapHorizontalSpeed: 7
   WallLeapJumpImpulse: 9
@@ -431,7 +440,11 @@ MonoBehaviour:
   _ChickenKills: 0
   _Stamina: 0
   _Hunger: 0
+  _IsCrouching:
+    _value: 0
   _InCurrentSeat: {fileID: 0}
+  _IsSleeping:
+    _value: 0
   _CanClimb:
     _value: 1
   _IsClimbing:
@@ -683,6 +696,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 13576783e6a65404db1bce5084afb12d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.VehicleSession
+--- !u!114 &7886537220140394926
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3123905968297068043}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8053910a13c09fd42a65c355653a4d89, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.SleepSession
 --- !u!1 &3226221424221943437
 GameObject:
   m_ObjectHideFlags: 0

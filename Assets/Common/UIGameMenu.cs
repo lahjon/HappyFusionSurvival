@@ -38,6 +38,14 @@ namespace Starter
 		private static string _shutdownStatus;
 		private static bool _autoStartConsumed;
 
+		[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+		private static void ResetStatics()
+		{
+			// Enter Play Mode Options disables domain reload, so statics survive between Play sessions.
+			_shutdownStatus = null;
+			_autoStartConsumed = false;
+		}
+
 		public async void StartGame()
 		{
 			await Disconnect();
@@ -126,9 +134,9 @@ namespace Starter
 
 		private void Update()
 		{
-			// While a loot container or crafting bench is open, Esc/Enter and cursor
-			// management belong to that UI — the menu must not steal Escape.
-			if (LootSession.IsAnyLooting || Starter.Shooter.CraftingSession.IsAnyCrafting)
+			// While a loot container or crafting bench is open, or the player is sleeping in a bed,
+			// Esc/Enter and cursor management belong to that UI — the menu must not steal Escape.
+			if (LootSession.IsAnyLooting || Starter.Shooter.CraftingSession.IsAnyCrafting || Starter.Shooter.SleepSession.IsAnySleeping)
 				return;
 
 			// Enter/Esc key is used for locking/unlocking cursor in game view.

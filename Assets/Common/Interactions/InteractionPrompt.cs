@@ -34,10 +34,13 @@ namespace Starter.Common.Interactions
 		[Header("Colors")]
 		public Color ActiveColor = new Color(0.3f, 0.65f, 1f, 1f);
 		public Color InactiveColor = new Color(0.3f, 0.65f, 1f, 0.35f);
+		[Tooltip("Color of the hold-progress overlay drawn on top of the indicator while the player is holding Interact on a pickupable.")]
+		public Color HoldColor = new Color(1f, 0.85f, 0.2f, 1f);
 
 		private Transform _cameraTransform;
 		private GameObject _canvasGO;
 		private Image _box;
+		private Image _holdFill;
 
 		private static Material _overlayMaterial;
 		private static Material GetOverlayMaterial()
@@ -73,7 +76,12 @@ namespace Starter.Common.Interactions
 			Vector3 playerPos = scanner != null ? scanner.transform.position : _cameraTransform.position;
 			float dist = Vector3.Distance(transform.position, playerPos);
 
-			if (dist > VisibilityRange)
+			// Hide all prompts while the scanner is gated (crafting/loot/vehicle/sleep UI open,
+			// cursor unlocked, etc.). Only enforce once a local scanner exists so prompts still
+			// show in pre-spawn states.
+			bool gated = scanner != null && !InteractionScanner.IsScanningActive;
+
+			if (dist > VisibilityRange || gated)
 			{
 				if (_canvasGO.activeSelf) _canvasGO.SetActive(false);
 				return;
@@ -99,6 +107,11 @@ namespace Starter.Common.Interactions
 			// Highlight only the prompt currently chosen by the scanner.
 			bool selected = InteractionScanner.CurrentTarget == transform;
 			_box.color = selected ? ActiveColor : InactiveColor;
+
+			bool holding = InteractionScanner.HoldingTarget == transform;
+			float fill = holding ? InteractionScanner.HoldProgress : 0f;
+			if (_holdFill.fillAmount != fill) _holdFill.fillAmount = fill;
+			if (_holdFill.enabled != holding) _holdFill.enabled = holding;
 		}
 
 		private void BuildCanvas()
@@ -133,6 +146,26 @@ namespace Starter.Common.Interactions
 
 			var overlay = GetOverlayMaterial();
 			if (overlay != null) _box.material = overlay;
+
+			// Radial fill drawn on top of the box while the player is holding Interact to pick this up.
+			var fillGO = new GameObject("HoldFill", typeof(RectTransform), typeof(Image));
+			fillGO.transform.SetParent(_canvasGO.transform, false);
+			var frt = (RectTransform)fillGO.transform;
+			frt.anchorMin = Vector2.zero;
+			frt.anchorMax = Vector2.one;
+			frt.offsetMin = Vector2.zero;
+			frt.offsetMax = Vector2.zero;
+
+			_holdFill = fillGO.GetComponent<Image>();
+			_holdFill.color = HoldColor;
+			_holdFill.raycastTarget = false;
+			_holdFill.type = Image.Type.Filled;
+			_holdFill.fillMethod = Image.FillMethod.Radial360;
+			_holdFill.fillOrigin = (int)Image.Origin360.Top;
+			_holdFill.fillClockwise = true;
+			_holdFill.fillAmount = 0f;
+			_holdFill.enabled = false;
+			if (overlay != null) _holdFill.material = overlay;
 		}
 	}
 }

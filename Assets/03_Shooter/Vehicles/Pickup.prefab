@@ -848,7 +848,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7575f0326cec73048b88c2db18005016, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.Seat
-  Role: 0
+  Role: 1
   InteractRangeValue: 2.5
   SeatAnchor: {fileID: 2149958193869307942}
   ExitPoint: {fileID: 5941477708864671766}

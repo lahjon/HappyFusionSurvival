@@ -12,6 +12,8 @@ namespace Starter.Shooter
 		Fire,
 		Sprint,
 		ClimbDrop,
+		Crouch,
+		Brake,
 	}
 
 	/// <summary>
@@ -74,6 +76,18 @@ namespace Starter.Shooter
 			if (craftingSession != null)
 			{
 				craftingSession.Initialize();
+			}
+
+			var computerSession = GetComponent<ComputerSession>();
+			if (computerSession != null)
+			{
+				computerSession.Initialize();
+			}
+
+			var sleepSession = GetComponent<SleepSession>();
+			if (sleepSession != null)
+			{
+				sleepSession.Initialize();
 			}
 
 			var scanner = GetComponent<InteractionScanner>();
@@ -156,22 +170,28 @@ namespace Starter.Shooter
 
 			if (isSeated)
 			{
-				// Driver: WASD goes to vehicle as throttle/steer, Fire is honk. Passenger sends the
-				// same fields but the vehicle ignores them (input authority is on the driver only).
+				// Driver: WASD goes to vehicle as throttle/steer, Fire is honk, Space (Jump action)
+				// doubles as the brake/handbrake while seated. Passenger sends the same fields but
+				// the vehicle ignores them (input authority is on the driver only).
 				var moveSeated = _actions.Move.ReadValue<Vector2>();
 				_input.MoveDirection = moveSeated.normalized;
 				_input.Buttons = default;
 				_input.Buttons.Set(EInputButton.Fire, _actions.Fire.IsPressed());
+				_input.Buttons.Set(EInputButton.Brake, _actions.Jump.IsPressed());
 			}
 			else
 			{
 				var moveDirection = _actions.Move.ReadValue<Vector2>();
 				_input.MoveDirection = moveDirection.normalized;
 
+				bool crouchHeld = _actions.Crouch.IsPressed();
 				_input.Buttons.Set(EInputButton.Fire, !isClimbing && _actions.Fire.IsPressed());
 				_input.Buttons.Set(EInputButton.Jump, _actions.Jump.IsPressed());
 				_input.Buttons.Set(EInputButton.Sprint, !isClimbing && _actions.Sprint.IsPressed());
-				_input.Buttons.Set(EInputButton.ClimbDrop, _actions.Crouch.IsPressed());
+				// Same physical key drives both. While anchored on a wall it means "let go",
+				// otherwise "crouch". ProcessClimbInput / ProcessInput each read only the relevant button.
+				_input.Buttons.Set(EInputButton.ClimbDrop, crouchHeld);
+				_input.Buttons.Set(EInputButton.Crouch, !isClimbing && crouchHeld);
 			}
 		}
 

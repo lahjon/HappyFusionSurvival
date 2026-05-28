@@ -7,20 +7,16 @@ using UnityEngine;
 namespace Starter.Shooter
 {
 	/// <summary>
-	/// Networked crafting station. Implements <see cref="IInteractable"/> so the player's
-	/// <see cref="InteractionScanner"/> can target it; on interact, hands the bench off
-	/// to the local <see cref="CraftingSession"/> which drives the menu UI.
+	/// Networked crafting station. Inherits <see cref="InteractableStation"/> for the
+	/// shared IInteractable boilerplate; on interact, hands off to the local
+	/// <see cref="CraftingSession"/> which drives the menu UI.
 	///
 	/// Multi-user: nothing on the bench is mutated when a player crafts, so there is no
 	/// exclusivity lock (unlike <see cref="Starter.Common.Inventory.LootContainer"/>).
 	/// </summary>
-	[RequireComponent(typeof(NetworkObject))]
-	public sealed class CraftingBench : NetworkBehaviour, IInteractable
+	public sealed class CraftingBench : InteractableStation
 	{
-		[Header("Authoring")]
-		public string DisplayName = "Workbench";
-		public float InteractRange = 2.5f;
-
+		[Header("Crafting")]
 		[Tooltip("Recipes this bench can craft. Each bench is a specific station (workbench, forge, ...) with a disjoint set.")]
 		public RecipeDefinition[] AllowedRecipes;
 
@@ -35,14 +31,7 @@ namespace Starter.Shooter
 			return false;
 		}
 
-		// --- IInteractable ---
-
-		float IInteractable.InteractRange => InteractRange;
-		bool IInteractable.CanInteract => true;
-		Vector3 IInteractable.InteractionPoint => transform.position;
-		string IInteractable.LockedReason => string.Empty;
-
-		void IInteractable.OnInteract(InteractionScanner scanner)
+		protected override void OnInteract(InteractionScanner scanner)
 		{
 			var session = scanner.GetComponent<CraftingSession>();
 			if (session != null) session.TryOpen(this);
@@ -59,9 +48,7 @@ namespace Starter.Shooter
 			var playerObj = Runner.GetPlayerObject(source);
 			if (playerObj == null) return;
 
-			float allowed = InteractRange * 1.25f;
-			if ((playerObj.transform.position - transform.position).sqrMagnitude > allowed * allowed)
-				return;
+			if (!IsWithinHostRange(playerObj.transform.position)) return;
 
 			if (!IsRecipeAllowed(recipeId)) return;
 

@@ -148,6 +148,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.CraftingBench
   DisplayName: Workbench
   InteractRange: 2.5
+  InteractionPointOffset: {x: 0, y: 0, z: 0}
+  IsPickupable: 1
+  PickupItem: {fileID: 11400000, guid: 5578e534240349b988fcab73c4a99792, type: 2}
+  PickupHoldSeconds: 2
   AllowedRecipes:
   - {fileID: 11400000, guid: b1c5e7d3a0f1b2c4d5e6f70891a2b301, type: 2}
   - {fileID: 11400000, guid: b2c5e7d3a0f1b2c4d5e6f70891a2b302, type: 2}

@@ -58,7 +58,6 @@ namespace Starter.Shooter
 
 		void IInteractable.OnInteract(InteractionScanner scanner)
 		{
-			Debug.Log($"[Seat:{name}] OnInteract called by scanner on '{scanner?.name}'. Sending RPC_RequestEnter.");
 			RPC_RequestEnter();
 		}
 
@@ -66,32 +65,26 @@ namespace Starter.Shooter
 		public void RPC_RequestEnter(RpcInfo info = default)
 		{
 			var source = info.Source == PlayerRef.None ? Runner.LocalPlayer : info.Source;
-			Debug.Log($"[Seat:{name}] RPC_RequestEnter from {source} (Occupant={Occupant}, Role={Role})");
 
-			if (Occupant != PlayerRef.None) { Debug.Log("  rejected: seat occupied"); return; }
+			if (Occupant != PlayerRef.None) return;
 
 			var playerObj = Runner.GetPlayerObject(source);
-			if (playerObj == null) { Debug.Log("  rejected: no player object"); return; }
+			if (playerObj == null) return;
 
 			float allowed = InteractRangeValue * 1.25f;
 			float distSq = (playerObj.transform.position - transform.position).sqrMagnitude;
-			if (distSq > allowed * allowed) { Debug.Log($"  rejected: out of range dsq={distSq:F2} allowedSq={allowed * allowed:F2}"); return; }
+			if (distSq > allowed * allowed) return;
 
 			var player = playerObj.GetComponent<Player>();
-			if (player == null) { Debug.Log("  rejected: no Player component"); return; }
-			if (player.InCurrentSeat != null) { Debug.Log($"  rejected: player already seated in {player.InCurrentSeat.name}"); return; }
+			if (player == null) return;
+			if (player.InCurrentSeat != null) return;
 
 			Occupant = source;
-			player.HostEnterSeat(Object);
+			player.HostEnterSeat(this);
 
 			if (Role == ESeatRole.Driver && Vehicle != null)
 			{
 				Vehicle.Object.AssignInputAuthority(source);
-				Debug.Log($"  driver entered — vehicle input authority transferred to {source}");
-			}
-			else
-			{
-				Debug.Log("  passenger entered");
 			}
 		}
 
@@ -115,9 +108,7 @@ namespace Starter.Shooter
 		{
 			var who = Occupant;
 			var playerObj = Runner.GetPlayerObject(who);
-			Vector3 exit = ExitPoint != null
-				? ExitPoint.position
-				: transform.position + transform.right * 1.5f;
+			Vector3 exit = ResolveSafeExitPosition();
 
 			if (playerObj != null)
 			{
@@ -134,6 +125,67 @@ namespace Starter.Shooter
 			{
 				Vehicle.Object.RemoveInputAuthority();
 			}
+		}
+
+		// Player capsule dimensions used to validate the exit slot. Match Player.KCC authoring.
+		private const float ExitCapsuleRadius = 0.4f;
+		private const float ExitCapsuleHeight = 1.8f;
+		private static readonly Collider[] _exitOverlapBuf = new Collider[16];
+
+		/// <summary>
+		/// Picks an exit position that's guaranteed not to be inside this vehicle's colliders.
+		/// Starts from the authored <see cref="ExitPoint"/> and, if the player capsule would
+		/// clip the vehicle there, pushes outward along the (anchor → exit) direction in 0.25 m
+		/// steps until a clear slot is found (or we give up and fall back to the authored point).
+		/// Important when the vehicle is tilted/rotated and the authored offset rotates with it.
+		/// </summary>
+		private Vector3 ResolveSafeExitPosition()
+		{
+			Vector3 anchor = transform.position;
+			Vector3 baseExit = ExitPoint != null
+				? ExitPoint.position
+				: anchor + transform.right * 1.5f;
+
+			if (Vehicle == null) return baseExit;
+
+			Vector3 dir = baseExit - anchor;
+			float dist = dir.magnitude;
+			if (dist < 0.01f)
+			{
+				dir = transform.right;
+			}
+			else
+			{
+				dir /= dist;
+			}
+			// Keep the push horizontal so we don't shove the player up into the air or down through the ground.
+			dir.y = 0f;
+			if (dir.sqrMagnitude < 0.0001f) dir = Vector3.right;
+			else dir.Normalize();
+
+			if (!OverlapsThisVehicle(baseExit)) return baseExit;
+
+			for (float push = 0.25f; push <= 5f; push += 0.25f)
+			{
+				Vector3 trial = baseExit + dir * push;
+				if (!OverlapsThisVehicle(trial)) return trial;
+			}
+
+			return baseExit;
+		}
+
+		private bool OverlapsThisVehicle(Vector3 feetPosition)
+		{
+			Vector3 bottom = feetPosition + Vector3.up * ExitCapsuleRadius;
+			Vector3 top = feetPosition + Vector3.up * (ExitCapsuleHeight - ExitCapsuleRadius);
+			int count = Physics.OverlapCapsuleNonAlloc(bottom, top, ExitCapsuleRadius, _exitOverlapBuf, ~0, QueryTriggerInteraction.Ignore);
+			for (int i = 0; i < count; i++)
+			{
+				var col = _exitOverlapBuf[i];
+				if (col == null) continue;
+				if (col.GetComponentInParent<Vehicle>() == Vehicle) return true;
+			}
+			return false;
 		}
 
 		private void OnOccupantChanged()

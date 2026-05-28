@@ -39,7 +39,25 @@
       "mcp__UnityMCP__manage_editor",
       "mcp__UnityMCP__execute_menu_item",
       "Bash(powershell *)",
-      "mcp__UnityMCP__set_active_instance"
+      "mcp__UnityMCP__set_active_instance",
+      "Bash(grep -rn \"\\\\\\\\[Networked\\\\\\\\]\" \"C:/Unity Projects/HappyFusionSurvival/Assets/Photon\" --include=\"*.cs\")",
+      "Bash(grep *)",
+      "mcp__UnityMCP__unity_reflect",
+      "mcp__unity-mcp__Unity_GetProjectData",
+      "mcp__unity-mcp__Unity_ReadConsole",
+      "Bash(claude mcp *)",
+      "Bash(findstr /C:\"unity-mcp\" \"%USERPROFILE%\\\\.claude.json\")",
+      "Bash(where claude.cmd)",
+      "Bash(claude --version)",
+      "mcp__unity-mcp__Unity_ManageScene",
+      "mcp__unity-mcp__Unity_ManageMenuItem",
+      "mcp__unity-mcp__Unity_ManageEditor",
+      "mcp__unity-mcp__Unity_ValidateScript",
+      "mcp__unity-mcp__Unity_ManageAsset",
+      "mcp__unity-mcp__Unity_ManageGameObject",
+      "mcp__unity-mcp__Unity_RunCommand",
+      "mcp__unity-mcp__Unity_GetConsoleLogs",
+      "mcp__UnityMCP__execute_code"
     ]
   }
 }

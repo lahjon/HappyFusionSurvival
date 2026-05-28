@@ -39,6 +39,20 @@ namespace Starter.Shooter
 		public float UpGravity = 25f;
 		public float DownGravity = 40f;
 
+		[Header("Crouch")]
+		[Tooltip("Horizontal speed while crouched and grounded (m/s). Airborne movement keeps the normal walk/sprint speed.")]
+		public float CrouchSpeed = 1.2f;
+		[Tooltip("KCC capsule height while crouched (meters). The standing height is read from the KCC on Spawned and restored when standing.")]
+		public float CrouchHeight = 1.0f;
+		[Tooltip("Local-space vertical offset applied to CameraPivot while crouched (negative = lower). Local-only visual.")]
+		public float CrouchCameraDrop = -0.5f;
+		[Tooltip("How quickly the local camera eases between standing and crouched height.")]
+		public float CrouchCameraLerpSpeed = 12f;
+		[Tooltip("Upward clearance (meters above the KCC root) required to stand back up. Releasing Crouch while a ceiling is overhead keeps the player crouched.")]
+		public float CrouchStandClearance = 1.8f;
+		[Tooltip("Radius of the ceiling clearance sphere check. Should be ~KCC radius so a narrow gap above the head still blocks stand-up.")]
+		public float CrouchStandCheckRadius = 0.3f;
+
 		[Header("Stamina")]
 		public float MaxStamina = 100f;
 		public float StaminaDrainPerSecond = 25f;
@@ -182,6 +196,9 @@ namespace Starter.Shooter
 		public float Stamina { get; private set; }
 		[Networked, HideInInspector]
 		public float Hunger { get; private set; }
+		/// <summary>True while the player is crouched. Replicated so proxies shrink the capsule and mirror posture.</summary>
+		[Networked, HideInInspector]
+		public NetworkBool IsCrouching { get; private set; }
 
 		/// <summary>Effective stamina ceiling — naturally MaxStamina, but capped at the current Hunger so a starving player has a shrunken stamina bar.</summary>
 		public float EffectiveMaxStamina => Mathf.Min(MaxStamina, Hunger);
@@ -197,10 +214,14 @@ namespace Starter.Shooter
 
 		/// <summary>The seat the player is currently in (driver or passenger), or null if on foot. Set by <see cref="Seat.RPC_RequestEnter"/> on state authority.</summary>
 		[Networked, OnChangedRender(nameof(OnInCurrentSeatChanged))]
-		public NetworkObject InCurrentSeat { get; set; }
+		public Seat InCurrentSeat { get; set; }
 
 		/// <summary>True while occupying any seat. Drives input gating, capsule deactivation, and the seated render/camera path.</summary>
 		public bool IsSeated => InCurrentSeat != null;
+
+		/// <summary>True while the player is sleeping in a Bed. Sleep is local-camera-only — the body stays in place but movement, input, and damage are suppressed; the bed's <c>SleepSession</c> owns the camera.</summary>
+		[Networked, OnChangedRender(nameof(OnSleepingChanged))]
+		public NetworkBool IsSleeping { get; private set; }
 
 		/// <summary>Per-player ability gate. When false the player cannot enter climb. Defaults true; gameplay (item/perk) may toggle.</summary>
 		[Networked, OnChangedRender(nameof(OnCanClimbChanged))]
@@ -284,14 +305,18 @@ namespace Starter.Shooter
 			}
 		}
 
-		/// <summary>True while the player is knocked out, getting up, mantling, or seated in a vehicle — input and active control are suppressed.</summary>
-		public bool IsInputLocked => RagdollState != ERagdollState.Normal || IsMantling || IsSeated;
+		/// <summary>True while the player is knocked out, getting up, mantling, seated in a vehicle, or sleeping — input and active control are suppressed.</summary>
+		public bool IsInputLocked => RagdollState != ERagdollState.Normal || IsMantling || IsSeated || IsSleeping;
 
 		private float _visualRollAngle;
 		private float _deadSpinSpeedLocal;
 		private float _bobPhase;
 		private float _bobWeight;
 		private float _baseFOV = -1f;
+		// Standing capsule height and camera-pivot offset, captured on Spawned so SetHeight / camera
+		// drop can be cleanly unwound when standing back up.
+		private float _standHeight = -1f;
+		private Vector3 _standCameraPivotLocalPos;
 
 		// Animation IDs
 		private int _animIDSpeedX;
@@ -303,8 +328,6 @@ namespace Starter.Shooter
 
 		private int _visibleFireCount;
 		private Inventory _inventory;
-		private bool _lastLoggedSeated;
-		private int _seatDiagTicks;
 
 		public void Respawn(Vector3 position)
 		{
@@ -337,6 +360,9 @@ namespace Starter.Shooter
 			_mantleStart = Vector3.zero;
 			_mantleEnd = Vector3.zero;
 
+			IsCrouching = false;
+			if (_standHeight > 0f) KCC.SetHeight(_standHeight);
+
 			if (ActionInvoker != null)
 			{
 				ActionInvoker.CancelCharge();
@@ -363,6 +389,9 @@ namespace Starter.Shooter
 			KCC.SetActive(true);
 			KCC.SetPosition(transform.position);
 			KCC.SetLookRotation(0f, 0f);
+
+			_standHeight = KCC.Settings.Height;
+			if (CameraPivot != null) _standCameraPivotLocalPos = CameraPivot.localPosition;
 
 			if (HasStateAuthority)
 			{
@@ -402,18 +431,22 @@ namespace Starter.Shooter
 
 		public override void FixedUpdateNetwork()
 		{
+			// Mirror IsSleeping onto Health so TakeHit short-circuits while a player is in a bed.
+			// Set every tick on every peer (cheap, idempotent) so authority always sees the right value
+			// regardless of when OnSleepingChanged fired relative to the damage call.
+			if (Health != null) Health.IsInvulnerable = IsSleeping;
+
 			bool seatedNow = IsSeated;
-			if (seatedNow != _lastLoggedSeated)
+			// Dying while seated: pop the player out of the vehicle so the normal death/respawn flow
+			// can run. The seated branch returns early and skips CheckDeathRagdoll/UpdateRagdollState,
+			// so without this an HP=0 seated player would never enter the Dead ragdoll state and
+			// Respawn() would put them back into a still-occupied seat.
+			if (seatedNow && HasStateAuthority && Health.IsAlive == false)
 			{
-				Debug.Log($"[Player {Object.InputAuthority}] FUN tick {Runner.Tick}: seated state change {_lastLoggedSeated} -> {seatedNow} (InCurrentSeat={InCurrentSeat?.name ?? "null"})");
-				_lastLoggedSeated = seatedNow;
-				_seatDiagTicks = 30; // chatty for the next 30 ticks
+				InCurrentSeat.HostForceRelease();
+				seatedNow = false;
 			}
-			if (_seatDiagTicks > 0)
-			{
-				Debug.Log($"[Player {Object.InputAuthority}] FUN tick {Runner.Tick}: seatedNow={seatedNow}, InCurrentSeat={InCurrentSeat?.name ?? "null"}, KCC.IsActive={KCC?.IsActive}");
-				_seatDiagTicks--;
-			}
+
 			if (seatedNow)
 			{
 				UpdateSeated();
@@ -432,7 +465,7 @@ namespace Starter.Shooter
 				// animation finishing the climb-up onto the ledge. Input is locked via IsInputLocked.
 				ProcessMantle();
 			}
-			else if (Health.IsAlive && RagdollState == ERagdollState.Normal && GetInput<GameplayInput>(out var input))
+			else if (Health.IsAlive && RagdollState == ERagdollState.Normal && IsSleeping == false && GetInput<GameplayInput>(out var input))
 			{
 				drainedThisTick = IsClimbing
 					? ProcessClimbInput(input, Input.PreviousButtons)
@@ -454,6 +487,10 @@ namespace Starter.Shooter
 				{
 					ActionInvoker.CancelCharge();
 				}
+				// Ragdolled / dead / dropped-input — force uncrouch so the body doesn't stay shrunken
+				// during get-up or after respawn. Capsule height is restored by ApplyCrouchHeight.
+				if (IsCrouching) IsCrouching = false;
+				ApplyCrouchHeight();
 			}
 
 			if (drainedThisTick == false && _staminaRegenTimer.ExpiredOrNotRunning(Runner))
@@ -571,6 +608,15 @@ namespace Starter.Shooter
 			CameraPivot.localRotation = ragdollTilt * Quaternion.Euler(pitchRotation);
 			ScalingRoot.localRotation = ragdollTilt;
 
+			// Local-only: ease the camera pivot toward its crouched / standing local position.
+			// Driven from the networked IsCrouching flag so the lerp starts the moment the
+			// state replicates. Standing pose is captured on Spawned.
+			if (HasInputAuthority && _standHeight > 0f)
+			{
+				Vector3 target = _standCameraPivotLocalPos + (IsCrouching ? new Vector3(0f, CrouchCameraDrop, 0f) : Vector3.zero);
+				CameraPivot.localPosition = Vector3.Lerp(CameraPivot.localPosition, target, CrouchCameraLerpSpeed * Time.deltaTime);
+			}
+
 			if (isDeadRagdoll == false)
 			{
 				// Dummy IK solution, we are snapping chest bone to prepared ChestTargetPosition position
@@ -580,8 +626,10 @@ namespace Starter.Shooter
 				ChestBone.rotation = Quaternion.Lerp(ChestTargetPosition.rotation, ChestBone.rotation, blendAmount);
 			}
 
-			// Only InputAuthority needs to update camera
-			if (HasInputAuthority)
+			// Only InputAuthority needs to update camera. ComputerSession / SleepSession own
+			// the camera while the local player is docked at a station or sleeping in a bed,
+			// so skip our write to avoid fighting their zoom lerps.
+			if (HasInputAuthority && ComputerSession.IsAnyAtComputer == false && SleepSession.IsAnySleeping == false)
 			{
 				// Transfer properties from camera handle to Main Camera.
 				Camera.main.transform.SetPositionAndRotation(CameraHandle.position, CameraHandle.rotation);
@@ -721,13 +769,28 @@ namespace Starter.Shooter
 			// Calculate correct move direction from input (rotated based on latest KCC rotation)
 			var moveDirection = KCC.TransformRotation * new Vector3(input.MoveDirection.x, 0f, input.MoveDirection.y);
 
+			// Crouch: hold-to-crouch while grounded. Releasing the button stands back up unless a
+			// ceiling sits within CrouchStandClearance — in that case the player stays crouched.
+			// Knockback also forces stand-up clear-check anyway; the want-flag is just suppressed.
+			bool wantsCrouch = !knockbackActive && input.Buttons.IsSet(EInputButton.Crouch);
+			bool wantToBeCrouched = wantsCrouch && KCC.IsGrounded;
+			if (IsCrouching && !wantToBeCrouched && HasCeilingAbove())
+			{
+				wantToBeCrouched = true;
+			}
+			IsCrouching = wantToBeCrouched;
+			ApplyCrouchHeight();
+
 			bool wantsSprint = input.Buttons.IsSet(EInputButton.Sprint);
 			bool isMoving = input.MoveDirection.sqrMagnitude > 0.01f;
 			// Allow continuing a sprint as long as stamina > 0; require MinStaminaToStartSprint to (re)start.
 			float startThreshold = _wasSprinting ? 0f : MinStaminaToStartSprint;
-			bool isSprinting = !knockbackActive && wantsSprint && isMoving && Stamina > startThreshold;
+			bool isSprinting = !IsCrouching && !knockbackActive && wantsSprint && isMoving && Stamina > startThreshold;
 
-			float speed = isSprinting ? SprintSpeed : WalkSpeed;
+			float speed;
+			if (IsCrouching && KCC.IsGrounded) speed = CrouchSpeed;
+			else if (isSprinting) speed = SprintSpeed;
+			else speed = WalkSpeed;
 			if (_inventory != null) speed *= _inventory.SpeedMultiplier;
 			var desiredMoveVelocity = knockbackActive ? Vector3.zero : moveDirection * speed;
 
@@ -742,7 +805,7 @@ namespace Starter.Shooter
 
 			float jumpImpulse = 0f;
 
-			bool jumpPressed = !knockbackActive && input.Buttons.WasPressed(previousButtons, EInputButton.Jump);
+			bool jumpPressed = !knockbackActive && !IsCrouching && input.Buttons.WasPressed(previousButtons, EInputButton.Jump);
 
 			// Mid-air grab attempt: pressing Jump in the air OR holding forward into a wall while airborne
 			// tries to latch onto a climbable surface. The grounded jump-press path below never attempts
@@ -854,6 +917,8 @@ namespace Starter.Shooter
 		private bool TryEnterClimb()
 		{
 			if (CanClimb == false) return false;
+			// Crouch can't survive a wall-grab — the climb basis assumes a normal-height capsule.
+			if (IsCrouching) { IsCrouching = false; ApplyCrouchHeight(); }
 			// No stamina check here: zero-stamina grabs are intentionally allowed and degrade into a
 			// slow slide-down inside ProcessClimbInput. Acts as a soft failsafe — a falling player can
 			// still catch the wall, they just won't be able to climb up.
@@ -1224,6 +1289,30 @@ namespace Starter.Shooter
 			return ChestBone != null ? ChestBone.position : transform.position + Vector3.up * 1.0f;
 		}
 
+		// Drives the KCC capsule height from the networked IsCrouching state. Called from every path
+		// that touches IsCrouching so each peer's capsule matches the replicated state without an OnChangedRender.
+		private void ApplyCrouchHeight()
+		{
+			if (_standHeight <= 0f) return;
+			float target = IsCrouching ? CrouchHeight : _standHeight;
+			if (Mathf.Abs(KCC.Settings.Height - target) > 0.001f)
+			{
+				KCC.SetHeight(target);
+			}
+		}
+
+		// Sphere-cast straight up from the KCC root to detect a ceiling that would prevent standing.
+		// Excludes the player's own layer so the cast can't self-hit.
+		private bool HasCeilingAbove()
+		{
+			if (CrouchStandClearance <= 0f) return false;
+			Vector3 origin = transform.position + Vector3.up * Mathf.Max(0.1f, CrouchHeight * 0.5f);
+			float castDistance = Mathf.Max(0f, CrouchStandClearance - CrouchHeight * 0.5f);
+			if (castDistance <= 0f) return false;
+			int mask = Physics.DefaultRaycastLayers & ~(1 << gameObject.layer);
+			return Physics.SphereCast(origin, CrouchStandCheckRadius, Vector3.up, out _, castDistance, mask, QueryTriggerInteraction.Ignore);
+		}
+
 		private void MovePlayer(Vector3 desiredMoveVelocity, float jumpImpulse)
 		{
 			// It feels better when the player falls quicker
@@ -1559,32 +1648,54 @@ namespace Starter.Shooter
 			Nickname = nickname;
 		}
 
+		// ---------------- Sleep state ----------------
+
+		/// <summary>State-authority-only: flip the sleep flag and clean up any incompatible activity. Called by <see cref="Bed.RPC_RequestSleep"/> / <see cref="Bed.HostReleaseOccupant"/>.</summary>
+		public void AuthoritySetSleeping(bool sleeping)
+		{
+			if (HasStateAuthority == false) return;
+			if (IsSleeping == sleeping) return;
+
+			IsSleeping = sleeping;
+
+			if (sleeping)
+			{
+				// Cancel anything that doesn't survive lying down.
+				if (IsClimbing) ExitClimb();
+				if (ActionInvoker != null && ActionInvoker.IsCharging) ActionInvoker.CancelCharge();
+				if (IsCrouching) { IsCrouching = false; ApplyCrouchHeight(); }
+				_moveVelocity = Vector3.zero;
+				_isJumping = false;
+			}
+		}
+
+		private void OnSleepingChanged()
+		{
+			// SleepSession on the input authority listens to this via its own poll of Player.IsSleeping
+			// to drive the camera zoom in/out. Nothing extra to do here yet — kept as a hook for VFX/SFX.
+		}
+
 		// ---------------- Vehicle / seated state ----------------
 
 		/// <summary>State-authority-only: place this player into the given seat. Called by <see cref="Seat.RPC_RequestEnter"/>.</summary>
-		public void HostEnterSeat(NetworkObject seatObj)
+		public void HostEnterSeat(Seat seat)
 		{
-			Debug.Log($"[Player {Object.InputAuthority}] HostEnterSeat called. HasStateAuthority={HasStateAuthority}, seatObj={seatObj?.name}");
 			if (HasStateAuthority == false) return;
-			if (seatObj == null) return;
+			if (seat == null) return;
 
-			InCurrentSeat = seatObj;
-			Debug.Log($"[Player {Object.InputAuthority}] After assignment: InCurrentSeat={InCurrentSeat?.name}, IsSeated={IsSeated}");
+			InCurrentSeat = seat;
 
 			// Cancel any in-progress activity that doesn't survive entering a vehicle.
 			if (IsClimbing) ExitClimb();
 			if (ActionInvoker != null && ActionInvoker.IsCharging) ActionInvoker.CancelCharge();
+			if (IsCrouching) { IsCrouching = false; ApplyCrouchHeight(); }
 			_moveVelocity = Vector3.zero;
 			_isJumping = false;
 
 			// Disable the KCC capsule so it doesn't fight the truck collider. Snap to the seat anchor.
-			var seat = seatObj.GetComponent<Seat>();
-			if (seat != null)
-			{
-				var anchor = seat.Anchor;
-				KCC.SetPosition(anchor.position);
-				KCC.SetLookRotation(0f, anchor.eulerAngles.y);
-			}
+			var anchor = seat.Anchor;
+			KCC.SetPosition(anchor.position);
+			KCC.SetLookRotation(0f, anchor.eulerAngles.y);
 			KCC.SetActive(false);
 		}
 
@@ -1602,9 +1713,7 @@ namespace Starter.Shooter
 		private void UpdateSeated()
 		{
 			if (HasStateAuthority == false) return;
-			var seatObj = InCurrentSeat;
-			if (seatObj == null) return;
-			var seat = seatObj.GetComponent<Seat>();
+			var seat = InCurrentSeat;
 			if (seat == null) return;
 
 			var anchor = seat.Anchor;
@@ -1617,9 +1726,7 @@ namespace Starter.Shooter
 		/// <summary>Per-frame visual sync on every peer while seated: snap the player visual onto the seat anchor and suppress weapon/footstep visuals.</summary>
 		private void SeatedRender()
 		{
-			var seatObj = InCurrentSeat;
-			if (seatObj == null) return;
-			var seat = seatObj.GetComponent<Seat>();
+			var seat = InCurrentSeat;
 			if (seat == null) return;
 
 			var anchor = seat.Anchor;
@@ -1668,7 +1775,6 @@ namespace Starter.Shooter
 
 		private void OnInCurrentSeatChanged()
 		{
-			Debug.Log($"[Player {Object.InputAuthority}] OnInCurrentSeatChanged: IsSeated={IsSeated}, seat={InCurrentSeat?.name}, HasStateAuth={HasStateAuthority}, HasInputAuth={HasInputAuthority}");
 			// Local-side toggles. KCC active/inactive is driven by Host* helpers on the state
 			// authority side, but proxies/input-authority must mirror so collisions match.
 			if (KCC != null)

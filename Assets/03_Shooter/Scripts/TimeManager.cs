@@ -1,5 +1,6 @@
 using Fusion;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Starter.Shooter
 {
@@ -22,6 +23,10 @@ namespace Starter.Shooter
 		[Header("Sun")]
 		[Tooltip("Directional Light rotated by the cycle. If null, falls back to RenderSettings.sun.")]
 		public Light Sun;
+		[Tooltip("Directional light intensity at full daytime brightness.")]
+		public float DaySunIntensity = 1f;
+		[Tooltip("Directional light intensity at deep night. 0 = no direct sun contribution (ambient still lights the world).")]
+		public float NightSunIntensity = 0f;
 
 		[Header("Ambient Palette")]
 		[Tooltip("Sky / equator / ground colors at full daytime. Defaults match the scene's existing spherical ambient.")]
@@ -73,6 +78,8 @@ namespace Starter.Shooter
 		private bool _wasNight;
 		private bool _hasLoggedAnything;
 		private Quaternion _sunBaseRotation;
+		private AmbientMode _originalAmbientMode;
+		private bool _ambientModeOverridden;
 
 		public override void Spawned()
 		{
@@ -81,17 +88,47 @@ namespace Starter.Shooter
 			// Cache the sun's authored rotation so the X-axis spin preserves the scene's Y/Z arc.
 			if (Sun == null) Sun = RenderSettings.sun;
 			if (Sun != null) _sunBaseRotation = Sun.transform.rotation;
+
+			// Trilight is the only ambientMode where the sky/equator/ground fields apply at runtime;
+			// Skybox/Flat silently ignore them, which would make the day-night lerp invisible.
+			_originalAmbientMode = RenderSettings.ambientMode;
+			if (_originalAmbientMode != AmbientMode.Trilight)
+			{
+				RenderSettings.ambientMode = AmbientMode.Trilight;
+				_ambientModeOverridden = true;
+			}
 		}
 
 		public override void Despawned(NetworkRunner runner, bool hasState)
 		{
 			if (Instance == this) Instance = null;
+
+			if (_ambientModeOverridden)
+			{
+				RenderSettings.ambientMode = _originalAmbientMode;
+				_ambientModeOverridden = false;
+			}
 		}
 
 		public override void FixedUpdateNetwork()
 		{
 			if (HasStateAuthority == false) return;
 			SessionTime += Runner.DeltaTime;
+		}
+
+		/// <summary>State-authority-only: snap <see cref="SessionTime"/> forward to the start of the next day cycle.
+		/// Called by <see cref="GameManager"/> when every player is asleep, so morning arrives instantly.
+		/// All clients re-derive day/phase/sun from the replicated <see cref="SessionTime"/> jump.</summary>
+		public void AdvanceToNextMorning()
+		{
+			if (HasStateAuthority == false) return;
+
+			float cycle = FullCycleLength;
+			if (cycle <= 0f) return;
+
+			// Add a tiny epsilon so we always advance to the NEXT cycle boundary even if SessionTime
+			// happens to already sit exactly on a cycle start (e.g. day 1 second 0).
+			SessionTime = Mathf.Ceil((SessionTime + 0.001f) / cycle) * cycle;
 		}
 
 		private void Update()
@@ -145,6 +182,15 @@ namespace Starter.Shooter
 			RenderSettings.ambientSkyColor     = Color.Lerp(NightSkyColor,     DaySkyColor,     brightness);
 			RenderSettings.ambientEquatorColor = Color.Lerp(NightEquatorColor, DayEquatorColor, brightness);
 			RenderSettings.ambientGroundColor  = Color.Lerp(NightGroundColor,  DayGroundColor,  brightness);
+
+			if (Sun != null)
+			{
+				// Drive intensity from the sun's actual elevation rather than the piecewise brightness
+				// curve, so the arc is smooth across the whole day (not flat for 70+ seconds and then
+				// only fading during twilight). -forward.y is positive when the sun shines downward.
+				float elevation = Mathf.Clamp01(-Sun.transform.forward.y);
+				Sun.intensity = Mathf.Lerp(NightSunIntensity, DaySunIntensity, elevation);
+			}
 		}
 
 		private void LogPhaseTransitions()

@@ -40,6 +40,12 @@ namespace Starter.Shooter
 		[Tooltip("Yaw rate (deg/s) at full forward speed.")]
 		[Min(0f)] public float MinTurnDegPerSec = 28f;
 
+		[Header("Tuning — Brake / Drift")]
+		[Tooltip("Forward speed threshold (m/s). Brake held below this just stops the truck; above it preserves lateral velocity so the truck can slide.")]
+		[Min(0f)] public float DriftMinSpeed = 5f;
+		[Tooltip("Rate (m/s²) at which sideways momentum bleeds off during a drift. Lower = longer slides.")]
+		[Min(0f)] public float DriftLateralDecay = 4f;
+
 		[Header("Tuning — Physics")]
 		[Tooltip("Local-space center-of-mass offset, applied on Spawned. Lower than 0 keeps the truck from flipping.")]
 		public Vector3 CenterOfMassOffset = new Vector3(0f, -0.4f, 0f);
@@ -47,8 +53,12 @@ namespace Starter.Shooter
 		[Header("Wheels (cosmetic)")]
 		[Tooltip("Wheel transforms — local rotation around their forward axis is spun proportional to forward speed.")]
 		public Transform[] WheelVisuals;
-		[Tooltip("Radius (m) used to convert forward speed into wheel-spin rotation.")]
+		[Tooltip("Radius (m) used to convert forward speed into wheel-spin rotation. Also the world radius of the auto-created wheel sphere colliders.")]
 		public float WheelRadius = 0.35f;
+
+		[Header("Wheel Physics")]
+		[Tooltip("Auto-add a zero-friction SphereCollider to each WheelVisual on Spawned so the truck rests on its wheels (chassis stays clear of the ground). Disable if you author wheel colliders manually.")]
+		public bool AutoSetupWheelColliders = true;
 
 		[Header("Honk")]
 		[Tooltip("Optional one-shot AudioSource. Played on every peer when the driver presses Fire.")]
@@ -85,6 +95,48 @@ namespace Starter.Shooter
 			_rb.isKinematic = HasStateAuthority == false;
 			if (HonkSource == null) HonkSource = GetComponent<AudioSource>();
 			_visibleHonkCount = _honkCount;
+
+			if (AutoSetupWheelColliders) EnsureWheelColliders();
+		}
+
+		// Cached shared zero-friction material. Sphere colliders on the wheels need this so they
+		// don't drag the velocity we write each FixedUpdateNetwork tick — default PhysX friction
+		// at four ground contacts is enough to make ApplyDrive ineffective.
+		private static PhysicsMaterial _sharedWheelMaterial;
+
+		private void EnsureWheelColliders()
+		{
+			if (WheelVisuals == null) return;
+
+			if (_sharedWheelMaterial == null)
+			{
+				_sharedWheelMaterial = new PhysicsMaterial("Vehicle_WheelZeroFriction")
+				{
+					staticFriction = 0f,
+					dynamicFriction = 0f,
+					bounciness = 0f,
+					frictionCombine = PhysicsMaterialCombine.Minimum,
+					bounceCombine = PhysicsMaterialCombine.Minimum,
+				};
+			}
+
+			for (int i = 0; i < WheelVisuals.Length; i++)
+			{
+				var w = WheelVisuals[i];
+				if (w == null) continue;
+
+				var col = w.GetComponent<SphereCollider>();
+				if (col == null) col = w.gameObject.AddComponent<SphereCollider>();
+
+				// PhysX scales sphere collider radius by max(lossyScale). Compensate so the world-space
+				// radius equals WheelRadius regardless of the wheel transform's non-uniform scale.
+				Vector3 ls = w.lossyScale;
+				float maxScale = Mathf.Max(Mathf.Abs(ls.x), Mathf.Max(Mathf.Abs(ls.y), Mathf.Abs(ls.z)));
+				col.center = Vector3.zero;
+				col.radius = maxScale > 0.0001f ? WheelRadius / maxScale : WheelRadius;
+				col.isTrigger = false;
+				col.sharedMaterial = _sharedWheelMaterial;
+			}
 		}
 
 		public void RegisterSeat(Seat seat)
@@ -127,13 +179,21 @@ namespace Starter.Shooter
 		{
 			float throttle = Mathf.Clamp(input.MoveDirection.y, -1f, 1f);
 			float steer = Mathf.Clamp(input.MoveDirection.x, -1f, 1f);
+			bool brakeHeld = input.Buttons.IsSet(EInputButton.Brake);
 			float dt = Runner.DeltaTime;
 
 			Vector3 fwd = transform.forward;
+			Vector3 right = transform.right;
 			Vector3 vel = _rb.linearVelocity;
 			float currentForward = Vector3.Dot(vel, fwd);
+			float currentLateral = Vector3.Dot(vel, right);
 
-			if (Mathf.Abs(throttle) > 0.05f)
+			if (brakeHeld)
+			{
+				// Brake button overrides throttle — drag forward speed toward 0 at the brake rate.
+				currentForward = Mathf.MoveTowards(currentForward, 0f, BrakeDeceleration * dt);
+			}
+			else if (Mathf.Abs(throttle) > 0.05f)
 			{
 				float maxSpeed = throttle >= 0f ? MaxForwardSpeed : MaxReverseSpeed;
 				float target = throttle * maxSpeed;
@@ -147,8 +207,20 @@ namespace Starter.Shooter
 				currentForward = Mathf.MoveTowards(currentForward, 0f, IdleDeceleration * dt);
 			}
 
-			// Hard-kill lateral velocity — tank-style, no sideways drift.
-			Vector3 newVel = fwd * currentForward;
+			// Drift: while holding brake at speed, preserve lateral velocity so steering rotates the
+			// truck's nose without erasing its momentum — the body slides. Otherwise hard-kill lateral
+			// velocity for the tank-style no-drift baseline.
+			bool sliding = brakeHeld && Mathf.Abs(currentForward) > DriftMinSpeed;
+			if (sliding)
+			{
+				currentLateral = Mathf.MoveTowards(currentLateral, 0f, DriftLateralDecay * dt);
+			}
+			else
+			{
+				currentLateral = 0f;
+			}
+
+			Vector3 newVel = fwd * currentForward + right * currentLateral;
 			newVel.y = vel.y; // preserve gravity / vertical
 			_rb.linearVelocity = newVel;
 

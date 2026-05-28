@@ -26,5 +26,5 @@ MonoBehaviour:
     ThresholdSeconds: 2
     DamageMultiplier: 2
     KnockbackMultiplier: 2
-  Range: 1.5
+  Range: 1
   SingleTarget: 1

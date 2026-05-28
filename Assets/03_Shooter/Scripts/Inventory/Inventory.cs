@@ -248,7 +248,7 @@ namespace Starter.Shooter
 		[Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
 		public void RPC_RequestDropAt(int slot)
 		{
-			DropAt(slot);
+			DropAt(slot, 1);
 		}
 
 		public void RequestDropSlot(int slot)
@@ -442,10 +442,11 @@ namespace Starter.Shooter
 
 		public void DropSelected()
 		{
-			DropAt(SelectedSlot);
+			DropAt(SelectedSlot, 1);
 		}
 
-		public void DropAt(int slot)
+		/// <param name="dropCount">Number of items to drop; <= 0 means the entire stack.</param>
+		public void DropAt(int slot, short dropCount = 0)
 		{
 			if (slot < 0 || slot >= SlotCount) return;
 
@@ -461,6 +462,8 @@ namespace Starter.Shooter
 				return;
 			}
 
+			short amount = (dropCount <= 0 || dropCount >= s.Count) ? s.Count : dropCount;
+
 			// Spawn at the player's hand (where the held item visually lives) so the drop
 			// appears to fall out of the hand. Fall back to a chest-height offset on the
 			// player root if HandAnchor isn't wired up.
@@ -471,7 +474,7 @@ namespace Starter.Shooter
 			var spawned = Runner.Spawn(def.WorldPrefab, pos, Quaternion.identity);
 			if (spawned != null && spawned.TryGetComponent<PickupableItem>(out var pi))
 			{
-				pi.Initialize(s.ItemId, s.Count);
+				pi.Initialize(s.ItemId, amount);
 				Vector3 inherited = _player != null && _player.KCC != null
 					? _player.KCC.RealVelocity * PlayerVelocityContribution
 					: Vector3.zero;
@@ -479,7 +482,15 @@ namespace Starter.Shooter
 				pi.Throw(velocity, ThrowInteractionLock);
 			}
 
-			Slots.Set(slot, InventorySlot.Empty);
+			if (amount >= s.Count)
+			{
+				Slots.Set(slot, InventorySlot.Empty);
+			}
+			else
+			{
+				s.Count -= amount;
+				Slots.Set(slot, s);
+			}
 		}
 
 		public void SelectSlot(int idx)

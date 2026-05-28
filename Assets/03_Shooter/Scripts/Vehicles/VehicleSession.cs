@@ -52,13 +52,15 @@ namespace Starter.Shooter
 		private void OnInteractPerformed(InputAction.CallbackContext ctx)
 		{
 			if (_player == null) return;
-			var seatObj = _player.InCurrentSeat;
-			if (seatObj == null) return;
+			// Another Interact subscriber (the scanner) already handled this press — happens when
+			// the scanner just entered us into this seat on the same key press. Without this guard
+			// we'd immediately request exit and the player would never seat.
+			if (InteractionScanner.InteractConsumedFrame == Time.frameCount) return;
 
-			// Only intercept when seated. If not seated, the InteractionScanner handles E.
-			var seat = seatObj.GetComponent<Seat>();
+			var seat = _player.InCurrentSeat;
 			if (seat == null) return;
 
+			InteractionScanner.InteractConsumedFrame = Time.frameCount;
 			seat.RPC_RequestExit();
 		}
 	}

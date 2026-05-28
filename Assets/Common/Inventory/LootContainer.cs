@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Fusion;
 using Starter.Common.Interactions;
 using UnityEngine;
@@ -11,7 +12,7 @@ namespace Starter.Common.Inventory
 	/// State authority owns all slot mutations; clients drive interactions via RPCs.
 	/// </summary>
 	[RequireComponent(typeof(NetworkObject))]
-	public sealed class LootContainer : NetworkBehaviour, IPlayerLeft, IInteractable
+	public sealed class LootContainer : NetworkBehaviour, IPlayerLeft, IInteractable, IPickupableStation
 	{
 		public const int Capacity = 6;
 		public const byte InvPlayer = 0;
@@ -21,8 +22,24 @@ namespace Starter.Common.Inventory
 		public string DisplayName = "Container";
 		public float InteractRange = 2.5f;
 
+		[Header("Pickup")]
+		[Tooltip("If true, the player can hold Interact to pick up this container (only when empty and not in use).")]
+		public bool IsPickupable = false;
+		[Tooltip("Placeable granted to the player when pickup completes. Required when IsPickupable is on.")]
+		public PlaceableDefinition PickupItem;
+		[Tooltip("Seconds the player must hold Interact to pick this up.")]
+		[Min(0.1f)] public float PickupHoldSeconds = 2f;
+
 		[Tooltip("Initial inventory populated by state authority on Spawned().")]
 		[SerializeField] private InitialSlot[] _initialContents;
+
+		[Header("Procedural Loot")]
+		[Tooltip("Optional pool of possible items. If ItemCount > 0, slots are filled from this list at spawn.")]
+		[SerializeField] private List<LootEntry> _lootTable;
+		[Tooltip("ON: pick ItemCount weighted-random entries. OFF: take the first ItemCount entries (wrapping if shorter).")]
+		[SerializeField] private bool _randomize = true;
+		[Tooltip("How many slots to seed from the loot table. 0 disables procedural seeding (use _initialContents instead).")]
+		[SerializeField, Min(0)] private int _itemCount;
 
 		[Networked, Capacity(Capacity), OnChangedRender(nameof(OnSlotsChangedRender))]
 		public NetworkArray<InventorySlot> Slots => default;
@@ -60,8 +77,52 @@ namespace Starter.Common.Inventory
 					}
 				}
 
+				SeedProceduralLoot();
+
 				LockHeartbeat = TickTimer.CreateFromSeconds(Runner, 1f);
 			}
+		}
+
+		private void SeedProceduralLoot()
+		{
+			if (_lootTable == null || _lootTable.Count == 0 || _itemCount <= 0) return;
+
+			var rng = WorldGen.RngFor(transform.position);
+			int n = Mathf.Min(_itemCount, Slots.Length);
+			for (int i = 0; i < n; i++)
+			{
+				var entry = _randomize ? PickWeighted(_lootTable, rng) : _lootTable[i % _lootTable.Count];
+				if (entry.Item == null) continue;
+				short count = entry.Count > 0 ? entry.Count : (short)1;
+				InventoryOps.TryAdd(Slots, entry.Item.Id, count);
+			}
+		}
+
+		private static LootEntry PickWeighted(List<LootEntry> entries, System.Random rng)
+		{
+			float total = 0f;
+			for (int i = 0; i < entries.Count; i++)
+			{
+				if (entries[i].Item == null) continue;
+				if (entries[i].Weight > 0f) total += entries[i].Weight;
+			}
+
+			if (total <= 0f)
+			{
+				for (int i = 0; i < entries.Count; i++)
+					if (entries[i].Item != null) return entries[i];
+				return default;
+			}
+
+			float pick = (float)(rng.NextDouble() * total);
+			float acc = 0f;
+			for (int i = 0; i < entries.Count; i++)
+			{
+				if (entries[i].Item == null || entries[i].Weight <= 0f) continue;
+				acc += entries[i].Weight;
+				if (pick <= acc) return entries[i];
+			}
+			return entries[entries.Count - 1];
 		}
 
 		public override void FixedUpdateNetwork()
@@ -107,6 +168,53 @@ namespace Starter.Common.Inventory
 		{
 			var session = scanner.GetComponent<LootSession>();
 			if (session != null) session.TryOpen(this);
+		}
+
+		// --- IPickupableStation ---
+
+		bool IPickupableStation.IsPickupable => IsPickupable && PickupItem != null;
+		PlaceableDefinition IPickupableStation.AsItem => PickupItem;
+		float IPickupableStation.PickupHoldSeconds => PickupHoldSeconds;
+
+		string IPickupableStation.PickupBlockedReason
+		{
+			get
+			{
+				if (CurrentUser != PlayerRef.None) return $"{DisplayName} is in use";
+				for (int i = 0; i < Slots.Length; i++)
+				{
+					if (!Slots[i].IsEmpty) return "Empty first";
+				}
+				return string.Empty;
+			}
+		}
+
+		void IPickupableStation.LocalRequestPickup() => RPC_RequestPickup();
+
+		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+		private void RPC_RequestPickup(RpcInfo info = default)
+		{
+			if (Runner == null) return;
+			if (!IsPickupable || PickupItem == null) return;
+			if (CurrentUser != PlayerRef.None) return;
+
+			for (int i = 0; i < Slots.Length; i++)
+			{
+				if (!Slots[i].IsEmpty) return;
+			}
+
+			var source = ResolveSource(info);
+			if (!TryGetOpenerTransform(source, out var t)) return;
+
+			float distSq = (t.position - transform.position).sqrMagnitude;
+			float allowed = InteractRange * 1.25f;
+			if (distSq > allowed * allowed) return;
+
+			if (!TryResolvePlayerInventory(source, out var inv)) return;
+
+			if (!inv.AuthorityAcquireLarge(PickupItem.Id)) return;
+
+			Runner.Despawn(Object);
 		}
 
 		/// <summary>

@@ -13,6 +13,8 @@ GameObject:
   - component: {fileID: 5882788554311751136}
   - component: {fileID: 3570102335659779516}
   - component: {fileID: 8633273309563851801}
+  - component: {fileID: 1100000000000001234}
+  - component: {fileID: 1100000000000005678}
   m_Layer: 0
   m_Name: Placed_Crate
   m_TagString: Untagged
@@ -129,5 +131,44 @@ MonoBehaviour:
   ObjectInterest: 1
   Flags: 262145
   NestedObjects: []
-  NetworkedBehaviours: []
+  NetworkedBehaviours:
+  - {fileID: 1100000000000001234}
   ForceRemoteRenderTimeframe: 0
+--- !u!114 &1100000000000001234
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 10196581954467927}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b39b332903564849b718415c3ba651e9, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Interactions.PickupableProp
+  DisplayName: Crate
+  InteractRange: 2.5
+  InteractionPointOffset: {x: 0, y: 0, z: 0}
+  IsPickupable: 1
+  PickupItem: {fileID: 11400000, guid: 0cb2ee84da1a30e44b7b12a7e4286260, type: 2}
+  PickupHoldSeconds: 2
+--- !u!114 &1100000000000005678
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 10196581954467927}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a01df1db20125445860eb1cc6f7f19f, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Interactions.InteractionPrompt
+  LocalOffset: {x: 0, y: 0.6, z: 0}
+  CameraBias: 0
+  CanvasSortOrder: 100
+  VisibilityRange: 2.5
+  ActiveRange: 2.5
+  ActiveColor: {r: 0.3, g: 0.65, b: 1, a: 1}
+  InactiveColor: {r: 0.3, g: 0.65, b: 1, a: 0.35}
+  HoldColor: {r: 1, g: 0.85, b: 0.2, a: 1}

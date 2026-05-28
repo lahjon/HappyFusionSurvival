@@ -22,6 +22,11 @@ namespace Starter.Shooter
 		/// the default VisualRoot/DeathRoot swap is skipped and the body stays visible past death.</summary>
 		[System.NonSerialized] public bool SuppressDeathVisualSwap;
 
+		/// <summary>External "no damage" flag (e.g. set by <see cref="Player"/> while sleeping). Authority's
+		/// TakeHit short-circuits when true. Not networked — every peer that calls TakeHit must keep this
+		/// in sync with whatever gameplay state should grant invulnerability.</summary>
+		[System.NonSerialized] public bool IsInvulnerable;
+
 		public bool IsAlive => CurrentHealth > 0;
 		public bool IsFinished => IsAlive == false && _deathCooldown.Expired(Runner);
 
@@ -34,6 +39,8 @@ namespace Starter.Shooter
 		public bool TakeHit(int damage)
 		{
 			if (IsAlive == false)
+				return false;
+			if (IsInvulnerable)
 				return false;
 
 			CurrentHealth -= damage;

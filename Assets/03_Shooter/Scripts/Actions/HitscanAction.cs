@@ -48,6 +48,12 @@ namespace Starter.Shooter
 					}
 					result.KilledTarget = health.IsAlive == false;
 				}
+				else if (hit.Hitbox == null && hit.Collider != null && knockback > 0f)
+				{
+					// PhysX hit with no Hitbox/Health — e.g. a pickup item. Push it.
+					var knockable = hit.Collider.GetComponentInParent<IKnockbackable>();
+					knockable?.ApplyKnockback(ctx.AttackerPosition, knockback);
+				}
 			}
 
 			return result;

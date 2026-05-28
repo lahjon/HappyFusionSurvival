@@ -61,6 +61,23 @@ namespace Starter.Shooter
 				}
 			}
 
+			// Push IKnockbackable-only targets (pickups, props) regardless of SingleTarget —
+			// these have no Health so they don't conflict with the closest-target damage pick,
+			// and we want every nearby item to react to the swing.
+			if (knockback > 0f)
+			{
+				for (int i = 0; i < count; i++)
+				{
+					var col = _buffer[i];
+					if (col == null) continue;
+					if (col.GetComponentInParent<Health>() != null) continue;
+					var knockable = col.GetComponentInParent<IKnockbackable>();
+					if (knockable == null) continue;
+					if (ctx.AttackerRoot != null && (knockable as Component)?.gameObject == ctx.AttackerRoot) continue;
+					knockable.ApplyKnockback(ctx.AttackerPosition, knockback);
+				}
+			}
+
 			return result;
 		}
 

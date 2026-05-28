@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Action_Pistol
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.HitscanAction
   Damage: 1
-  Cooldown: 0.5
-  KnockbackDistance: 2
+  Cooldown: 0.2
+  KnockbackDistance: 0.5
   HitMask:
     serializedVersion: 2
     m_Bits: 1

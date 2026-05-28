@@ -13,7 +13,11 @@ MonoBehaviour:
   m_Name: vHierarchy Data
   m_EditorClassIdentifier: VHierarchy::VHierarchy.VHierarchyData
   sceneDatas_byGuid:
-    keys: []
-    values: []
+    keys:
+    - 71bd13dc7c9a68e4e91e8dafb79988d6
+    values:
+    - goDatas_byGlobalId:
+        keys: []
+        values: []
   bookmarks: []
   bookmarkedScenePaths: []
