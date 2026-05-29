@@ -79,6 +79,10 @@ namespace Starter.Shooter
 			var result = default(ActionHit);
 			if (action == null) return result;
 			if (CanFire == false) return result;
+			// Pre-fire gate (e.g. ammo check on ProjectileAction). Runs on every predicting peer
+			// — IA reads networked Slots, so the check resolves identically on SA and IA without
+			// an extra RPC and lets a dry-fire abort cleanly (no cooldown, no recoil, no audio).
+			if (action.CanExecute(in ctx) == false) return result;
 
 			result = action.Execute(in ctx, charged);
 			result.DidFire = true;

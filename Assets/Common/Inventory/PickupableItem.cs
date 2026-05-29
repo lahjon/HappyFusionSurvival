@@ -185,6 +185,30 @@ namespace Starter.Common.Inventory
 		}
 
 		/// <summary>
+		/// SA-only. Snap the pickup to <paramref name="position"/>/<paramref name="rotation"/>,
+		/// freeze its Rigidbody (kinematic, zero velocity) and snapshot the networked transform
+		/// so it stays planted exactly where a projectile landed. Pickup remains interactable.
+		/// </summary>
+		public void Stick(Vector3 position, Quaternion rotation)
+		{
+			if (Object.HasStateAuthority == false) return;
+			if (_rb == null) _rb = GetComponent<Rigidbody>();
+
+			transform.SetPositionAndRotation(position, rotation);
+
+			if (_rb != null)
+			{
+				_rb.linearVelocity = Vector3.zero;
+				_rb.angularVelocity = Vector3.zero;
+				_rb.isKinematic = true;
+				if (_rb.IsSleeping() == false) _rb.Sleep();
+			}
+
+			NetPosition = position;
+			NetRotation = rotation;
+		}
+
+		/// <summary>
 		/// SA-only. Apply a one-shot impulse via the local Rigidbody and lock interactions
 		/// (so the thrower can't immediately re-grab the item) for <paramref name="lockSeconds"/>.
 		/// </summary>

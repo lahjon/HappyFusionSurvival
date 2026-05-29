@@ -228,6 +228,10 @@ namespace Starter.Shooter
 		private NetworkBool _isJumping { get; set; }
 		[Networked]
 		private NetworkBool _wasSprinting { get; set; }
+		// True while a sprint-jump is in flight: latched at takeoff if the player was sprinting,
+		// cleared on landing. Lets us keep SprintSpeed in the air even if Sprint is released mid-jump.
+		[Networked]
+		private NetworkBool _airSprintCarry { get; set; }
 		[Networked]
 		private TickTimer _staminaRegenTimer { get; set; }
 
@@ -379,6 +383,7 @@ namespace Starter.Shooter
 			Stamina = MaxStamina;
 			Hunger = MaxHunger;
 			_wasSprinting = false;
+			_airSprintCarry = false;
 			_staminaRegenTimer = default;
 
 			IsDowned = false;
@@ -877,9 +882,15 @@ namespace Starter.Shooter
 			float startThreshold = _wasSprinting ? 0f : MinStaminaToStartSprint;
 			bool isSprinting = !IsCrouching && !knockbackActive && wantsSprint && isMoving && Stamina > startThreshold;
 
+			// Sprint-jump momentum carry: latched at takeoff (see jump block below), cleared on landing.
+			// While airborne and latched, treat the player as sprinting for speed purposes even if they
+			// release Sprint mid-air. Stamina was already paid on the ground, so no extra drain here.
+			if (KCC.IsGrounded) _airSprintCarry = false;
+			bool airSprinting = _airSprintCarry && !KCC.IsGrounded && isMoving && !IsCrouching && !knockbackActive;
+
 			float speed;
 			if (IsCrouching && KCC.IsGrounded) speed = CrouchSpeed;
-			else if (isSprinting) speed = SprintSpeed;
+			else if (isSprinting || airSprinting) speed = SprintSpeed;
 			else speed = WalkSpeed;
 			if (_inventory != null) speed *= _inventory.SpeedMultiplier;
 			var desiredMoveVelocity = knockbackActive ? Vector3.zero : moveDirection * speed;
@@ -922,6 +933,7 @@ namespace Starter.Shooter
 				// Set world space jump vector
 				jumpImpulse = JumpImpulse;
 				_isJumping = true;
+				_airSprintCarry = isSprinting;
 
 				Stamina = Mathf.Max(0f, Stamina - JumpStaminaCost);
 				_staminaRegenTimer = TickTimer.CreateFromSeconds(Runner, StaminaRegenDelay);
@@ -1597,6 +1609,7 @@ namespace Starter.Shooter
 				AttackerPosition = transform.position,
 				FireTransform = CameraHandle,
 				AttackerRoot = gameObject,
+				IsStateAuthority = HasStateAuthority,
 			};
 
 			var hit = ActionInvoker.TryFire(action, in ctx, charged);

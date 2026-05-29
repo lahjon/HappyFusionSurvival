@@ -277,6 +277,7 @@ namespace Starter.Shooter
 				AttackerPosition = transform.position,
 				FireTransform = transform,
 				AttackerRoot = gameObject,
+				IsStateAuthority = HasStateAuthority,
 			};
 
 			_invoker.TryFire(Attack, in ctx, false);

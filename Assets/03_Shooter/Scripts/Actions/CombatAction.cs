@@ -60,6 +60,14 @@ namespace Starter.Shooter
 		public virtual float EffectiveRange => 0f;
 
 		/// <summary>
+		/// Cheap pre-fire gate evaluated on every predicting peer before <see cref="Execute"/>
+		/// runs. Returning false aborts the fire (no cooldown, no feedback, no _fireCount++).
+		/// Used by ammo-consuming actions (ProjectileAction) to block dry-fires when the stack
+		/// is empty — Slots is networked, so IA and SA agree without an extra RPC.
+		/// </summary>
+		public virtual bool CanExecute(in ActorContext ctx) => true;
+
+		/// <summary>
 		/// Resolve targets, apply damage/knockback. Runs on every predicting peer (input
 		/// authority + state authority) so input auth can drive predicted hit FX from the
 		/// returned <see cref="ActionHit"/>. Side effects that mutate networked state
@@ -94,6 +102,8 @@ namespace Starter.Shooter
 		public Transform FireTransform;
 		/// <summary>Optional — the attacker's root GameObject. Used to skip self when an action's HitMask overlaps the attacker's layer.</summary>
 		public GameObject AttackerRoot;
+		/// <summary>True iff the caller is the state authority for the attacker. Predicting peers (IA) see false. Actions that spawn NetworkObjects (e.g. projectiles) gate the Runner.Spawn call on this.</summary>
+		public bool IsStateAuthority;
 	}
 
 	/// <summary>

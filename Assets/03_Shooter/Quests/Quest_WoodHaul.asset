@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7e09412c04845ce49a940dccca248523, type: 3}
+  m_Name: Quest_WoodHaul
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Quests.QuestDefinition
+  Id: 1
+  DisplayName: Wood haul
+  Icon: {fileID: 0}
+  Description: Bring 5 pieces of wood. Cash on delivery.
+  Requested:
+  - Item: {fileID: 11400000, guid: 937396294af95d448a9b450b9c0dede9, type: 2}
+    Count: 5
+  ItemRewards: []
+  MoneyReward: 20

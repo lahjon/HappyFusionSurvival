@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 215c4744854153b4a948021ef1445cc3, type: 3}
+  m_Name: Scanner
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.ItemDefinition
+  Id: 13
+  DisplayName: Scanner
+  Icon: {fileID: 0}
+  Description: Handheld radar device. Sweeps a 360° scan every 10 seconds and pings nearby enemies as red dots.
+  Stats: []
+  WorldPrefab: {fileID: 6600001000000001, guid: 3c2d4e5f60718293a4b5c6d7e8f90123, type: 3}
+  HandPrefab: {fileID: 5500001000000001, guid: 2b1c3d4e5f60718293a4b5c6d7e8f901, type: 3}
+  MaxStack: 1
+  Weight: 0.5

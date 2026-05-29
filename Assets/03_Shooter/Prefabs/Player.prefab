@@ -266,6 +266,7 @@ GameObject:
   - component: {fileID: 9096556335678368437}
   - component: {fileID: 8668036983329495619}
   - component: {fileID: 7886537220140394926}
+  - component: {fileID: 7567263523350443063}
   m_Layer: 6
   m_Name: Player
   m_TagString: Player
@@ -416,6 +417,13 @@ MonoBehaviour:
   RagdollAxisVerticalJitter: 0.25
   DeadRagdollSpinDecay: 360
   RagdollRollRadius: 0.5
+  DownedBleedOutSeconds: 20
+  ReviveHoldSeconds: 3
+  DownedCrawlSpeed: 0.8
+  DownedHeight: 0.55
+  DownedCameraDrop: -1.05
+  ReviveHealth: 1
+  ReviveInteractRange: 1.6
   ChestTargetPosition: {fileID: 536988984119202717}
   ChestBone: {fileID: 1992701519831656905}
   FireSound: {fileID: 3515788271502590058}
@@ -437,7 +445,7 @@ MonoBehaviour:
   CameraCollisionRadius: 0.15
   CameraCollisionPadding: 0.05
   _Nickname: 
-  _ChickenKills: 0
+  _Money: 0
   _Stamina: 0
   _Hunger: 0
   _IsCrouching:
@@ -445,6 +453,11 @@ MonoBehaviour:
   _InCurrentSeat: {fileID: 0}
   _IsSleeping:
     _value: 0
+  _IsDowned:
+    _value: 0
+  _DownedTimeRemaining: 0
+  _ReviveCount: 0
+  _ReviveProgress: 0
   _CanClimb:
     _value: 1
   _IsClimbing:
@@ -573,6 +586,7 @@ MonoBehaviour:
   _startingItem: {fileID: 11400000, guid: a4b8c9d1e2f34a5b67890c1d2e3f4a50, type: 2}
   _fallbackHandPrefab: {fileID: 971079267551747863, guid: d9aed784899f06440a56c27ce6a3e152, type: 3}
   _SelectedSlot: 0
+  _CarriedPlaceableId: 0
 --- !u!114 &7836687535027190686
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -708,6 +722,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8053910a13c09fd42a65c355653a4d89, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.SleepSession
+--- !u!114 &7567263523350443063
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3123905968297068043}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c17e8f9ca53bac94cb28eeefaf513efe, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.QuestSession
+  AutoCloseRangeMultiplier: 1.5
 --- !u!1 &3226221424221943437
 GameObject:
   m_ObjectHideFlags: 0

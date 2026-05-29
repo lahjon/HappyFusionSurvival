@@ -90,6 +90,7 @@ namespace Starter.Shooter
 				AttackerPosition = transform.position,
 				FireTransform = transform,
 				AttackerRoot = gameObject,
+				IsStateAuthority = HasStateAuthority,
 			};
 
 			var hit = _invoker.TryFire(action, in ctx, false);
