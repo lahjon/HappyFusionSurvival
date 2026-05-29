@@ -19,7 +19,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 1
   Style: 1
-  AttackClip: {fileID: 8300000, guid: 8f89cd87b391d3d41b31a7133da3e383, type: 3}
+  AttackClip: {fileID: 8300000, guid: e4c079e44ff50d64093962dbda5db72c, type: 3}
   AttackVolume: 1
   Charge:
     Enabled: 1

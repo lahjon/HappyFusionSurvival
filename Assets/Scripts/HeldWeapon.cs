@@ -70,6 +70,7 @@ namespace Starter.Shooter
 		private float _t = -1f;
 		private float _recoilT = -1f;
 		private Quaternion _restRotation;
+		private Quaternion _swingStartRotation;
 		private Vector3 _restPosition;
 		private bool _restCaptured;
 		private bool _isCharging;
@@ -133,10 +134,12 @@ namespace Starter.Shooter
 				_restRotation = transform.localRotation;
 				_restCaptured = true;
 			}
+			// Capture where the bat is right now (rest or mid-charge) so the strike
+			// animates from there rather than snapping back to rest first.
+			_swingStartRotation = transform.localRotation;
 			_t = 0f;
 			_activeSwingArcScale = charged ? ChargedSwingArcScale : 1f;
 			_activeSwingDurationScale = charged ? ChargedSwingDurationScale : 1f;
-			// Swing takes over from the charge pose.
 			_isCharging = false;
 			_chargeProgress = 0f;
 			_chargePoseT = 0f;
@@ -152,8 +155,14 @@ namespace Starter.Shooter
 				_t += Time.deltaTime;
 				float duration = Mathf.Max(0.01f, SwingDuration * _activeSwingDurationScale);
 				float u = Mathf.Clamp01(_t / duration);
-				float k = u < 0.5f ? u * 2f : (1f - u) * 2f;
-				transform.localRotation = _restRotation * Quaternion.Euler(SwingArcEuler * _activeSwingArcScale * k);
+
+				// First 40%: snap from wherever the bat is (rest or charge pose) to the strike peak.
+				// Last 60%: return smoothly to rest.
+				var strikePeak = _restRotation * Quaternion.Euler(-SwingArcEuler * _activeSwingArcScale);
+				if (u < 0.4f)
+					transform.localRotation = Quaternion.Lerp(_swingStartRotation, strikePeak, Mathf.SmoothStep(0f, 1f, u / 0.4f));
+				else
+					transform.localRotation = Quaternion.Lerp(strikePeak, _restRotation, Mathf.SmoothStep(0f, 1f, (u - 0.4f) / 0.6f));
 
 				if (u >= 1f)
 				{
@@ -177,7 +186,7 @@ namespace Starter.Shooter
 				return;
 			}
 
-			Vector3 backwardArc = -SwingArcEuler * ChargedBackMultiplier;
+			Vector3 backwardArc = SwingArcEuler * ChargedBackMultiplier;
 			transform.localRotation = _restRotation * Quaternion.Euler(backwardArc * _chargePoseT);
 		}
 

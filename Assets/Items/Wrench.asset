@@ -17,7 +17,7 @@ MonoBehaviour:
   Icon: {fileID: 21300000, guid: eacd17bbda960bf489937cefa1b8b532, type: 3}
   Description: 
   Stats: []
-  WorldPrefab: {fileID: 6893194096252801443, guid: 58e7bbea33eaa2a4fbd0757fe365cd65, type: 3}
-  HandPrefab: {fileID: 6893194096252801443, guid: 58e7bbea33eaa2a4fbd0757fe365cd65, type: 3}
+  WorldPrefab: {fileID: 6893194096252801443, guid: 846dba9527e9f634cb95edccb2235f3c, type: 3}
+  HandPrefab: {fileID: 6893194096252801443, guid: 846dba9527e9f634cb95edccb2235f3c, type: 3}
   MaxStack: 1
   Weight: 0
