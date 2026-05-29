@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using Starter.Common.Input;
+using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 namespace Starter.Common.Interactions
 {
@@ -22,7 +24,7 @@ namespace Starter.Common.Interactions
 
 		[Tooltip("Minimum dot(cameraForward, toTarget). 0 = anywhere in the front hemisphere; 0.5 ≈ within a 60° cone; 1 = exactly looking at it.")]
 		[Range(-1f, 1f)]
-		public float ViewConeDot = 0.3f;
+		public float ViewConeDot = 0.85f;
 
 		[Tooltip("Toast cooldown so locked-prompt messages don't spam.")]
 		public float ToastCooldown = 1f;
@@ -88,6 +90,15 @@ namespace Starter.Common.Interactions
 		private float _toastSuppressUntil;
 		private readonly List<IInteractionGate> _gates = new List<IInteractionGate>();
 
+		// Single shared prompt HUD — built once in Initialize() for the local player only.
+		private Camera _promptCamera;
+		private RectTransform _canvasRT;
+		private GameObject _promptGO;
+		private RectTransform _promptRT;
+		private Image _promptBox;
+		private Image _promptHoldFill;
+		private TextMeshProUGUI _promptCenterLabel;
+
 		// Hold-to-pickup state. Tap path stays simple: fire OnInteract immediately on
 		// release for non-pickupable targets. For pickupable targets we wait until
 		// release to decide tap-vs-hold so the same key drives both.
@@ -115,6 +126,7 @@ namespace Starter.Common.Interactions
 
 			LocalInstance = this;
 			_initialized = true;
+			BuildPromptHUD();
 		}
 
 		private void OnDestroy()
@@ -133,6 +145,7 @@ namespace Starter.Common.Interactions
 				HoldProgress = 0f;
 				IsScanningActive = false;
 			}
+			if (_promptGO != null) _promptGO.SetActive(false);
 		}
 
 		private void Update()
@@ -391,6 +404,104 @@ namespace Starter.Common.Interactions
 			float lenSq = to.sqrMagnitude;
 			if (lenSq < 0.0001f) return 1f;
 			return Vector3.Dot(camFwd, to) / Mathf.Sqrt(lenSq);
+		}
+
+		private static RectTransform FindMainCanvasRT()
+		{
+			// Find the root Screen Space Overlay canvas — ignores any in-world or sub-canvases.
+			foreach (var c in FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+			{
+				if (c.renderMode == RenderMode.ScreenSpaceOverlay && c.transform.parent == null)
+					return (RectTransform)c.transform;
+			}
+			return null;
+		}
+
+		private void BuildPromptHUD()
+		{
+			var visuals = FindAnyObjectByType<InteractionPromptVisuals>(FindObjectsInactive.Include);
+			if (visuals == null) return;
+
+			_canvasRT = FindMainCanvasRT();
+			_promptGO = visuals.gameObject;
+			_promptRT = (RectTransform)visuals.transform;
+			_promptBox = visuals.Box;
+			_promptHoldFill = visuals.HoldFill;
+			_promptCenterLabel = visuals.CenterLabel;
+
+			if (_promptHoldFill != null)
+			{
+				_promptHoldFill.fillAmount = 0f;
+				_promptHoldFill.enabled = false;
+			}
+			if (_promptCenterLabel != null)
+				_promptCenterLabel.enabled = false;
+
+			_promptGO.SetActive(false);
+		}
+
+		private void LateUpdate()
+		{
+			if (_promptGO == null) return;
+
+			if (_promptCamera == null && Camera.main != null)
+				_promptCamera = Camera.main;
+			if (_promptCamera == null) return;
+
+			Transform target = CurrentTarget;
+			if (target == null || !IsScanningActive)
+			{
+				if (_promptGO.activeSelf) _promptGO.SetActive(false);
+				if (_promptCenterLabel != null) _promptCenterLabel.enabled = false;
+				return;
+			}
+
+			var prompt = target.GetComponent<InteractionPrompt>();
+
+			if (prompt != null && prompt.HideWhenLocked && CurrentInteractable != null && !CurrentInteractable.CanInteract)
+			{
+				if (_promptGO.activeSelf) _promptGO.SetActive(false);
+				if (_promptCenterLabel != null) _promptCenterLabel.enabled = false;
+				return;
+			}
+
+			Vector3 anchor = target.position + (prompt != null ? target.TransformVector(prompt.LocalOffset) : Vector3.zero);
+			Vector3 screenPos = _promptCamera.WorldToScreenPoint(anchor);
+			if (screenPos.z < 0f)
+			{
+				if (_promptGO.activeSelf) _promptGO.SetActive(false);
+				if (_promptCenterLabel != null) _promptCenterLabel.enabled = false;
+				return;
+			}
+
+			if (!_promptGO.activeSelf) _promptGO.SetActive(true);
+
+			if (_canvasRT != null)
+			{
+				RectTransformUtility.ScreenPointToLocalPointInRectangle(_canvasRT, screenPos, null, out Vector2 localPos);
+				_promptRT.anchoredPosition = localPos;
+			}
+
+			_promptBox.color = prompt != null ? prompt.ActiveColor : new Color(0.3f, 0.65f, 1f, 1f);
+
+			Color holdColor = prompt != null ? prompt.HoldColor : new Color(1f, 0.85f, 0.2f, 1f);
+			bool holding = HoldingTarget == target;
+			float fill = holding ? HoldProgress : 0f;
+			_promptHoldFill.color = holdColor;
+			if (_promptHoldFill.fillAmount != fill) _promptHoldFill.fillAmount = fill;
+			if (_promptHoldFill.enabled != holding) _promptHoldFill.enabled = holding;
+
+			string centerText = (prompt != null && prompt.SuppressLabel)
+				? string.Empty
+				: (!string.IsNullOrEmpty(prompt?.CenterLabelText)
+					? prompt.CenterLabelText
+					: CurrentInteractable?.InteractLabel ?? string.Empty);
+			bool hasCenterLabel = !string.IsNullOrEmpty(centerText);
+			if (_promptCenterLabel != null)
+			{
+				if (_promptCenterLabel.enabled != hasCenterLabel) _promptCenterLabel.enabled = hasCenterLabel;
+				if (hasCenterLabel) _promptCenterLabel.text = centerText;
+			}
 		}
 
 		private void ShowToast(string text)

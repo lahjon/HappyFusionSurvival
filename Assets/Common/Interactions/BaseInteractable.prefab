@@ -68,6 +68,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Interactions.BaseInteractable
   InteractRangeValue: 2
+  InteractLabelText: Press E to interact
   LockedReasonText: 
   InteractionPointOffset: {x: 0, y: 0, z: 0}
   Interactable: 1
@@ -86,10 +87,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6a01df1db20125445860eb1cc6f7f19f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Interactions.InteractionPrompt
+  PromptPrefab: {fileID: 778839599450401013, guid: ce4850e12eeafc842bd8228c0a81c54f, type: 3}
   LocalOffset: {x: 0, y: 0, z: 0}
   CameraBias: 0
-  CanvasSortOrder: 100
   VisibilityRange: 2
   ActiveRange: 2
+  LabelText: 
+  HideWhenLocked: 0
   ActiveColor: {r: 0.3, g: 0.65, b: 1, a: 1}
   InactiveColor: {r: 0.3, g: 0.65, b: 1, a: 0.35}
+  HoldColor: {r: 1, g: 0.85, b: 0.2, a: 1}

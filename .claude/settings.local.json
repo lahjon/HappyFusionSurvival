@@ -58,7 +58,9 @@
       "mcp__unity-mcp__Unity_RunCommand",
       "mcp__unity-mcp__Unity_GetConsoleLogs",
       "mcp__UnityMCP__execute_code",
-      "Bash(sort -t: -k2 -n)"
+      "Bash(sort -t: -k2 -n)",
+      "Bash(Remove-Item -Path \"C:\\\\Game projects\\\\HappyFusionSurvival\\\\Assets\\\\Editor\" -Recurse -Force)",
+      "Bash(Remove-Item -Path \"C:\\\\Game projects\\\\HappyFusionSurvival\\\\Assets\\\\Editor.meta\" -Force)"
     ]
   }
 }

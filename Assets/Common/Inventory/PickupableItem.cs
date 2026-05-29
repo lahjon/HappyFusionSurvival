@@ -228,6 +228,7 @@ namespace Starter.Common.Inventory
 		// --- IInteractable ---
 
 		float IInteractable.InteractRange => PickupRange;
+		string IInteractable.InteractLabel => Definition != null ? Definition.DisplayName : "Item";
 		bool IInteractable.CanInteract
 		{
 			get

@@ -1867,8 +1867,6 @@ namespace Starter.Shooter
 			var prompt = gameObject.AddComponent<InteractionPrompt>();
 			prompt.HideWhenLocked = true;
 			prompt.LocalOffset = new Vector3(0f, 0.6f, 0f);
-			prompt.VisibilityRange = Mathf.Max(3f, ReviveInteractRange + 1f);
-			prompt.ActiveRange = ReviveInteractRange;
 		}
 
 		private bool IsReviverInRange(PlayerRef reviver)

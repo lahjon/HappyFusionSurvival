@@ -424,6 +424,7 @@ MonoBehaviour:
   DownedCameraDrop: -1.05
   ReviveHealth: 1
   ReviveInteractRange: 1.6
+  ReviveInteractLabel: Revive
   ChestTargetPosition: {fileID: 536988984119202717}
   ChestBone: {fileID: 1992701519831656905}
   FireSound: {fileID: 3515788271502590058}
@@ -636,6 +637,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bab51eb621e26bf4eb38e42e35653bf1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.InteractionScanner
+  PromptPrefab: {fileID: 6924722002235829336, guid: f68f64b2d127a7749bd7ad99c3dfc61a, type: 3}
   ScanRadius: 3
   ViewConeDot: 0.3
   ToastCooldown: 1
