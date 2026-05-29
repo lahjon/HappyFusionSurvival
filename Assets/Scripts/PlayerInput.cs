@@ -40,6 +40,13 @@ namespace Starter.Shooter
 		public NetworkButtons PreviousButtons { get; private set; }
 		public Vector2 LookRotation => _input.LookRotation;
 
+		/// <summary>Snap the locally accumulated look rotation (x = pitch, y = yaw) so the next ticks aim there. Input authority only — call e.g. when entering a vehicle to face the cab forward.</summary>
+		public void SetLookRotation(Vector2 lookRotation)
+		{
+			if (HasInputAuthority == false) return;
+			_input.LookRotation = lookRotation;
+		}
+
 		private GameplayInput _input;
 		private GameInputActions _actions;
 		private Player _player;
@@ -82,6 +89,12 @@ namespace Starter.Shooter
 			if (questSession != null)
 			{
 				questSession.Initialize();
+			}
+
+			var shopSession = GetComponent<ShopSession>();
+			if (shopSession != null)
+			{
+				shopSession.Initialize();
 			}
 
 			var computerSession = GetComponent<ComputerSession>();

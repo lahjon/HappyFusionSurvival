@@ -15,9 +15,6 @@ MonoBehaviour:
   Damage: 2
   Cooldown: 1.5
   KnockbackDistance: 4
-  HitMask:
-    serializedVersion: 2
-    m_Bits: 0
   Style: 1
   AttackClip: {fileID: 0}
   AttackVolume: 1

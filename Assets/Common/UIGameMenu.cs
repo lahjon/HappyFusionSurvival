@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Fusion;
+using Starter.Common.Input;
 using Starter.Common.Inventory;
 using TMPro;
 using UnityEngine;
@@ -134,9 +135,20 @@ namespace Starter
 
 		private void Update()
 		{
-			// While a loot container or crafting bench is open, or the player is sleeping in a bed,
-			// Esc/Enter and cursor management belong to that UI — the menu must not steal Escape.
-			if (LootSession.IsAnyLooting || Starter.Shooter.CraftingSession.IsAnyCrafting || Starter.Shooter.SleepSession.IsAnySleeping)
+			// While a loot container, crafting bench, quest giver, or computer is open, or the player
+			// is sleeping in a bed, Esc/Enter and cursor management belong to that UI — the menu must
+			// not steal Escape, and must not re-lock the cursor each frame.
+			if (LootSession.IsAnyLooting
+				|| Starter.Shooter.CraftingSession.IsAnyCrafting
+				|| Starter.Shooter.QuestSession.IsAnyOpen
+				|| Starter.Shooter.ShopSession.IsAnyOpen
+				|| Starter.Shooter.ComputerSession.IsAnyAtComputer
+				|| Starter.Shooter.SleepSession.IsAnySleeping)
+				return;
+
+			// A session that closed on this very frame (via the InventoryMap Close action bound to
+			// Escape) already consumed the key — don't let the same press also toggle the pause menu.
+			if (InputContextController.LastExitInventoryFrame == Time.frameCount)
 				return;
 
 			// Enter/Esc key is used for locking/unlocking cursor in game view.

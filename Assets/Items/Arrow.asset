@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 215c4744854153b4a948021ef1445cc3, type: 3}
+  m_Name: Arrow
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.ItemDefinition
+  Id: 15
+  DisplayName: Arrow
+  Icon: {fileID: 0}
+  Description: "Ammunition for the bow. Sticks where it lands — recover and re-use."
+  Stats: []
+  WorldPrefab: {fileID: 4222000000000001, guid: 4d63a2cb0e1f2a3b4c5d6e7f8091a2b4, type: 3}
+  HandPrefab: {fileID: 0}
+  MaxStack: 32
+  Weight: 0.05

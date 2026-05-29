@@ -132,7 +132,10 @@ namespace Starter.Shooter
 			if (hit.Hitbox != null)
 			{
 				var health = hit.Hitbox.Root.GetComponent<Health>();
-				if (health != null && health.TakeHit(Damage, Attacker))
+				int finalDamage = Damage;
+				var region = BodyHitbox.From(hit.Hitbox);
+				if (region != null) finalDamage = region.Apply(Damage);
+				if (health != null && health.TakeHit(finalDamage, Attacker))
 				{
 					if (KnockbackDistance > 0f)
 					{

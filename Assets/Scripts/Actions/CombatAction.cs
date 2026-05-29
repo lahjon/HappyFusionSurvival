@@ -39,9 +39,11 @@ namespace Starter.Shooter
 		[Tooltip("Distance (meters) the target is pushed away from the attacker. 0 = no knockback.")]
 		public float KnockbackDistance = 0f;
 
-		[Header("Targeting")]
-		[Tooltip("Layers this action can hit. Used by raycast/overlap. Excluding the attacker's own layer prevents self-hits.")]
-		public LayerMask HitMask = ~0;
+		/// <summary>Shared layer mask for every combat action's hit query. All current actions (pistol, bat,
+		/// punch, peck, throwing knife) target the same set of layers — using a static keeps a forgotten
+		/// per-asset HitMask=0 from silently making projectiles pass through the world. Edit here if you
+		/// add a new layer that combat queries should respect.</summary>
+		public static readonly LayerMask HitMask = 1; // Default layer
 
 		[Header("Feedback")]
 		[Tooltip("Drives visual hook on the holder: Ranged plays muzzle + recoil, Melee plays swing/punch.")]

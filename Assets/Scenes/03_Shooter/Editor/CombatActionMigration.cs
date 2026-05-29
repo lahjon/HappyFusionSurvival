@@ -35,7 +35,6 @@ namespace Starter.Shooter.EditorTools
 				a.Damage = 1;
 				a.Cooldown = 0.5f;
 				a.KnockbackDistance = 2f;
-				a.HitMask = 1;                          // Default layer (matches the old Player.HitMask)
 				a.Range = 200f;
 				a.Style = EFeedbackStyle.Ranged;
 				a.AttackClip = LoadByGuid<AudioClip>(PistolClipGuid);
@@ -48,7 +47,6 @@ namespace Starter.Shooter.EditorTools
 				a.Damage = 2;
 				a.Cooldown = 0.5f;
 				a.KnockbackDistance = 2f;
-				a.HitMask = 1;                          // Default layer (chickens, dummies)
 				a.Range = 2f;
 				a.SingleTarget = true;
 				a.Style = EFeedbackStyle.Melee;
@@ -66,7 +64,6 @@ namespace Starter.Shooter.EditorTools
 				a.Damage = 1;
 				a.Cooldown = 1.5f;
 				a.KnockbackDistance = 0.5f;
-				a.HitMask = 1 << 6;                     // Player layer
 				a.Range = 2.5f;
 				a.SingleTarget = true;
 				a.Style = EFeedbackStyle.Melee;
@@ -78,7 +75,6 @@ namespace Starter.Shooter.EditorTools
 				a.Damage = 2;
 				a.Cooldown = 1.5f;
 				a.KnockbackDistance = 4f;
-				a.HitMask = 1 << 6;                     // Player layer
 				a.Range = 3.5f;
 				a.SingleTarget = true;
 				a.Style = EFeedbackStyle.Melee;

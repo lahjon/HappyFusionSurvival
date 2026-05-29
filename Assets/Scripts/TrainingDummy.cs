@@ -106,7 +106,7 @@ namespace Starter.Shooter
 			if (range <= 0f) return null;
 
 			int count = Physics.OverlapSphereNonAlloc(
-				transform.position, range, _overlapBuffer, action.HitMask, QueryTriggerInteraction.Ignore);
+				transform.position, range, _overlapBuffer, CombatAction.HitMask, QueryTriggerInteraction.Ignore);
 
 			Player closest = null;
 			float closestSqr = float.MaxValue;

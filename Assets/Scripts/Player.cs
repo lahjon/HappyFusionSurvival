@@ -63,6 +63,10 @@ namespace Starter.Shooter
 		[Tooltip("Stamina must reach this value before sprinting can start again after being fully depleted.")]
 		public float MinStaminaToStartSprint = 5f;
 
+		[Header("Money")]
+		[Tooltip("Money granted to the player on spawn. Seeded once on state authority in Spawned(); not re-applied on respawn (Money survives death).")]
+		public int StartingMoney = 30;
+
 		[Header("Hunger")]
 		[Tooltip("Maximum fullness value. Hunger starts here on spawn/respawn and is the cap restored by food.")]
 		public float MaxHunger = 100f;
@@ -474,6 +478,7 @@ namespace Starter.Shooter
 			{
 				Stamina = MaxStamina;
 				Hunger = MaxHunger;
+				Money = StartingMoney;
 			}
 
 			if (HasInputAuthority)
@@ -2104,6 +2109,15 @@ namespace Starter.Shooter
 					// which has replicated by the time this hook fires.
 					KCC.SetActive(true);
 				}
+			}
+
+			// On the input-authority client, snap the locally accumulated look to the seat's forward
+			// so the seated camera starts facing where the car is pointed instead of carrying the
+			// player's pre-entry aim (SeatedLateUpdate reads Input.LookRotation each frame).
+			if (IsSeated && HasInputAuthority && Input != null && InCurrentSeat != null)
+			{
+				var seatAnchor = InCurrentSeat.Anchor;
+				Input.SetLookRotation(new Vector2(0f, seatAnchor.eulerAngles.y));
 			}
 
 			if (_inventory != null)

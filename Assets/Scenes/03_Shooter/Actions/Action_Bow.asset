@@ -10,23 +10,26 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ddcd134804b5df64b9df6de5d98f8d10, type: 3}
-  m_Name: Action_ThrowingKnife
+  m_Name: Action_Bow
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ProjectileAction
-  Damage: 30
-  Cooldown: 0.4
+  Damage: 35
+  Cooldown: 0.35
   KnockbackDistance: 0.5
+  HitMask:
+    serializedVersion: 2
+    m_Bits: 1
   Style: 0
   AttackClip: {fileID: 0}
   AttackVolume: 0.6
   Charge:
-    Enabled: 0
-    ThresholdSeconds: 2
+    Enabled: 1
+    ThresholdSeconds: 1
     DamageMultiplier: 2
-    KnockbackMultiplier: 2
-  ProjectilePrefab: {fileID: 6454465201060607585, guid: 2f3116a2c98fdbc4692d7fed59737189, type: 3}
-  ProjectileSpeed: 30
-  ProjectileDropRate: 12
-  MaxLifetime: 4
+    KnockbackMultiplier: 1.5
+  ProjectilePrefab: {fileID: 4444000000000001, guid: 1056a5f81f2e3b4c5d6e7f8a9091b2c7, type: 3}
+  ProjectileSpeed: 45
+  ProjectileDropRate: 6
+  MaxLifetime: 5
   SpawnForwardOffset: 0.4
   ChargedSpeedMultiplier: 2
-  AmmoItem: {fileID: 0}
+  AmmoItem: {fileID: 11400000, guid: 7a90c1de2f3b4c5d6e7f8091a2b3c4d5, type: 2}
