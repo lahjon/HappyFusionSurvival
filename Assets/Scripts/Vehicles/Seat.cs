@@ -61,7 +61,13 @@ namespace Starter.Shooter
 		float IInteractable.InteractRange => InteractRangeValue;
 		bool IInteractable.CanInteract => Occupant == PlayerRef.None;
 		Vector3 IInteractable.InteractionPoint => transform.position;
-		string IInteractable.LockedReason => "Seat occupied";
+		[Tooltip("Text shown in the interaction HUD when this seat is empty.")]
+		public string InteractLabelText = "Enter vehicle";
+		[Tooltip("Text shown in the interaction HUD when this seat is already occupied.")]
+		public string OccupiedText = "Seat occupied";
+
+		string IInteractable.LockedReason => OccupiedText;
+		string IInteractable.InteractLabel => InteractLabelText;
 
 		void IInteractable.OnInteract(InteractionScanner scanner)
 		{

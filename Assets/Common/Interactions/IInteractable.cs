@@ -31,5 +31,8 @@ namespace Starter.Common.Interactions
 
 		/// <summary>Invoked when the player presses Interact and this is the chosen target.</summary>
 		void OnInteract(InteractionScanner scanner);
+
+		/// <summary>Short action label shown in the screen-space HUD when this is the current target (e.g. "Open chest", "Enter vehicle"). Defaults to a generic prompt.</summary>
+		string InteractLabel => "Press E to interact";
 	}
 }

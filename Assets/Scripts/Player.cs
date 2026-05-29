@@ -163,6 +163,8 @@ namespace Starter.Shooter
 		public int ReviveHealth = 1;
 		[Tooltip("Maximum distance from the downed player at which a revive is accepted. Host re-validates with a 1.25x slack.")]
 		public float ReviveInteractRange = 1.6f;
+		[Tooltip("Text shown in the interaction HUD when this player is downed and can be revived.")]
+		public string ReviveInteractLabel = "Revive";
 
 		[Header("Animation Setup")]
 		public Transform ChestTargetPosition;
@@ -1915,6 +1917,7 @@ namespace Starter.Shooter
 		bool IInteractable.CanInteract => IsDowned;
 		Vector3 IInteractable.InteractionPoint => transform.position;
 		string IInteractable.LockedReason => string.Empty;
+		string IInteractable.InteractLabel => ReviveInteractLabel;
 		void IInteractable.OnInteract(InteractionScanner scanner)
 		{
 			// Revive is hold-only — the tap path is reachable when the scanner can't engage hold

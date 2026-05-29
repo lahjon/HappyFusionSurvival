@@ -21,6 +21,9 @@ namespace Starter.Common.Interactions
 		[Tooltip("Max distance from the local player at which this can be interacted with.")]
 		[Min(0f)] public float InteractRangeValue = 2f;
 
+		[Tooltip("Text shown in the interaction HUD when this is the current target (e.g. \"Open door\", \"Pull lever\").")]
+		public string InteractLabelText = "Press E to interact";
+
 		[Tooltip("Optional toast shown when CanInteract is false (e.g. \"Locked\", \"In use\"). Leave empty for silent.")]
 		public string LockedReasonText = string.Empty;
 
@@ -44,6 +47,7 @@ namespace Starter.Common.Interactions
 		bool IInteractable.CanInteract => Interactable && isActiveAndEnabled;
 		Vector3 IInteractable.InteractionPoint => transform.TransformPoint(InteractionPointOffset);
 		string IInteractable.LockedReason => LockedReasonText;
+		string IInteractable.InteractLabel => InteractLabelText;
 
 		void IInteractable.OnInteract(InteractionScanner scanner)
 		{

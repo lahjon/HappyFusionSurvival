@@ -47,6 +47,7 @@ namespace Starter.Common.Interactions
 
 		bool IInteractable.CanInteract => CanInteract;
 		string IInteractable.LockedReason => LockedReason;
+		string IInteractable.InteractLabel => DisplayName;
 
 		void IInteractable.OnInteract(InteractionScanner scanner) => OnInteract(scanner);
 

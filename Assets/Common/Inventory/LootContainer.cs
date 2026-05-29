@@ -163,6 +163,7 @@ namespace Starter.Common.Inventory
 		bool IInteractable.CanInteract => CurrentUser == PlayerRef.None;
 		Vector3 IInteractable.InteractionPoint => transform.position;
 		string IInteractable.LockedReason => $"{DisplayName} is in use";
+		string IInteractable.InteractLabel => $"Open {DisplayName}";
 
 		void IInteractable.OnInteract(InteractionScanner scanner)
 		{
