@@ -271,6 +271,57 @@ namespace Starter.Shooter
             if (musicRoutine != null) { StopCoroutine(musicRoutine); musicRoutine = null; }
         }
 
+        /// <summary>Fade out current music, hold silence, then fade in the new clip.</summary>
+        public void TransitionMusic(AudioClip clip, bool loop = true, float fadeDuration = -1f, float silenceDuration = 0f)
+        {
+            if (clip == null) { StopMusic(fadeDuration); return; }
+            if (fadeDuration < 0f) fadeDuration = defaultFadeDuration;
+            StopMusicRoutine();
+            musicRoutine = StartCoroutine(TransitionRoutine(clip, loop, fadeDuration, silenceDuration));
+        }
+
+        IEnumerator TransitionRoutine(AudioClip clip, bool loop, float fadeDuration, float silenceDuration)
+        {
+            // Fade out the currently playing source
+            var outgoing = ActiveMusic;
+            if (outgoing.isPlaying)
+            {
+                float startVol = outgoing.volume;
+                float elapsed  = 0f;
+                while (elapsed < fadeDuration)
+                {
+                    elapsed        += Time.unscaledDeltaTime;
+                    outgoing.volume = Mathf.Lerp(startVol, 0f, Mathf.Clamp01(elapsed / fadeDuration));
+                    yield return null;
+                }
+                outgoing.Stop();
+                outgoing.volume = 0f;
+            }
+
+            // Silence gap
+            if (silenceDuration > 0f)
+                yield return new WaitForSecondsRealtime(silenceDuration);
+
+            // Fade in on the other source
+            usingMusicA = !usingMusicA;
+            var incoming = ActiveMusic;
+            incoming.clip   = clip;
+            incoming.loop   = loop;
+            incoming.volume = 0f;
+            incoming.Play();
+
+            float vol     = 1f;
+            float elapsed2 = 0f;
+            while (elapsed2 < fadeDuration)
+            {
+                elapsed2        += Time.unscaledDeltaTime;
+                incoming.volume  = Mathf.Lerp(0f, vol, Mathf.Clamp01(elapsed2 / fadeDuration));
+                yield return null;
+            }
+            incoming.volume = vol;
+            musicRoutine    = null;
+        }
+
         // ── SFX — clip overloads ───────────────────────────────────────────────
         public AudioSource PlaySFX(AudioClip clip, Vector3 position, float volume = 1f, float pitchVariance = 0f)
         {
