@@ -9,9 +9,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1124e8986dbadb6408229b6a8167e3f3, type: 3}
+  m_Script: {fileID: 11500000, guid: 215c4744854153b4a948021ef1445cc3, type: 3}
   m_Name: Food
-  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.FoodConsumable
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.ItemDefinition
   Id: 6
   DisplayName: Apple
   Icon: {fileID: 0}
@@ -21,5 +21,13 @@ MonoBehaviour:
   HandPrefab: {fileID: 0}
   MaxStack: 8
   Weight: 0
-  UseCooldownSeconds: 1
-  HungerAmount: 25
+  Capabilities:
+  - rid: 8357564934323699988
+  references:
+    version: 2
+    RefIds:
+    - rid: 8357564934323699988
+      type: {class: FoodCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
+      data:
+        UseCooldownSeconds: 1
+        HungerAmount: 25

@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 215c4744854153b4a948021ef1445cc3, type: 3}
+  m_Name: Unarmed
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.ItemDefinition
+  Id: 0
+  DisplayName: Unarmed
+  Icon: {fileID: 0}
+  Description: 
+  Stats: []
+  WorldPrefab: {fileID: 0}
+  HandPrefab: {fileID: 0}
+  MaxStack: 1
+  Weight: 0
+  Capabilities:
+  - rid: 8357564934323700029
+  references:
+    version: 2
+    RefIds:
+    - rid: 8357564934323700029
+      type: {class: WeaponCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
+      data:
+        Actions:
+        - {fileID: 11400000, guid: fddbb2429d384923b847df68bf789f37, type: 2}

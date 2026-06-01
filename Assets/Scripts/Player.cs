@@ -67,6 +67,10 @@ namespace Starter.Shooter
 		[Tooltip("Money granted to the player on spawn. Seeded once on state authority in Spawned(); not re-applied on respawn (Money survives death).")]
 		public int StartingMoney = 30;
 
+		[Header("Scraps")]
+		[Tooltip("Scraps (generic crafting currency) granted on spawn. Seeded once on state authority in Spawned(); not re-applied on respawn (Scraps survive death). Earned by scavenging items at a crafting bench.")]
+		public int StartingScraps = 0;
+
 		[Header("Hunger")]
 		[Tooltip("Maximum fullness value. Hunger starts here on spawn/respawn and is the cap restored by food.")]
 		public float MaxHunger = 100f;
@@ -216,6 +220,9 @@ namespace Starter.Shooter
 		/// <summary>Soft currency. Survives respawn — death does not reset money. Granted by money pickups (auto-collected on proximity) and any future loot/sell/quest hook via <see cref="AddMoney"/>.</summary>
 		[Networked, HideInInspector]
 		public int Money { get; private set; }
+		/// <summary>Generic crafting currency. Survives respawn — death does not reset scraps. Earned by scavenging items at a crafting bench (<see cref="AddScraps"/>); spent on recipes with a ScrapCost (<see cref="TrySpendScraps"/>).</summary>
+		[Networked, HideInInspector]
+		public int Scraps { get; private set; }
 		[Networked, HideInInspector]
 		public float Stamina { get; private set; }
 		[Networked, HideInInspector]
@@ -448,6 +455,24 @@ namespace Starter.Shooter
 			return true;
 		}
 
+		/// <summary>Grant <paramref name="amount"/> scraps. State-authority only — remote peers no-op. Used by the crafting bench when an item is scavenged.</summary>
+		public void AddScraps(int amount)
+		{
+			if (HasStateAuthority == false) return;
+			if (amount <= 0) return;
+			Scraps += amount;
+		}
+
+		/// <summary>Try to spend <paramref name="amount"/> scraps. Returns false (no-op) if the player can't afford it or the caller isn't on the state authority. Use for recipe ScrapCost.</summary>
+		public bool TrySpendScraps(int amount)
+		{
+			if (HasStateAuthority == false) return false;
+			if (amount <= 0) return true; // nothing to spend is a trivial success
+			if (Scraps < amount) return false;
+			Scraps -= amount;
+			return true;
+		}
+
 		public override void Spawned()
 		{
 			// Player draws its own death visual via the ragdoll tilt — keep the body
@@ -479,6 +504,7 @@ namespace Starter.Shooter
 				Stamina = MaxStamina;
 				Hunger = MaxHunger;
 				Money = StartingMoney;
+				Scraps = StartingScraps;
 			}
 
 			if (HasInputAuthority)
@@ -666,17 +692,17 @@ namespace Starter.Shooter
 
 		private void UpdateMeleeChargingVisual()
 		{
-			var provider = GetActionProvider();
-			if (provider == null) return;
+			var visual = GetHeldVisual();
+			if (visual == null) return;
 
-			var action = GetActiveAction(provider);
+			var action = GetActiveAction();
 			if (action == null || action.Charge.Enabled == false)
 			{
-				provider.SetCharging(false, 0f);
+				visual.SetCharging(false, 0f);
 				return;
 			}
 
-			provider.SetCharging(ActionInvoker.IsCharging, ActionInvoker.ChargeProgress(action));
+			visual.SetCharging(ActionInvoker.IsCharging, ActionInvoker.ChargeProgress(action));
 		}
 
 		private void Awake()
@@ -978,7 +1004,8 @@ namespace Starter.Shooter
 
 			// Consumable in hand: LMB press consumes one and applies its effect.
 			// Cancel any stale charge so re-equipping a melee weapon can't release a charged swing.
-			if (_inventory != null && _inventory.SelectedDefinition is ConsumableDefinition)
+			if (_inventory != null && _inventory.SelectedDefinition != null
+			    && _inventory.SelectedDefinition.HasCapability<ConsumableCapability>())
 			{
 				if (ActionInvoker != null && ActionInvoker.IsCharging) ActionInvoker.CancelCharge();
 				if (input.Buttons.WasPressed(previousButtons, EInputButton.Fire))
@@ -988,7 +1015,7 @@ namespace Starter.Shooter
 				return;
 			}
 
-			var action = GetActiveAction(GetActionProvider());
+			var action = GetActiveAction();
 			if (action == null)
 			{
 				// Nothing to fire with — drop any stale charge so it doesn't bleed into the next held item.
@@ -1640,46 +1667,54 @@ namespace Starter.Shooter
 			// local player mispredicted fire (e.g. input got lost) and fireCount property got decreased.
 			if (_visibleFireCount < _fireCount)
 			{
-				var provider = GetActionProvider();
-				var action = GetActiveAction(provider);
+				var visual = GetHeldVisual();
+				var action = GetActiveAction();
 
-				if (provider != null && action != null)
+				if (visual != null && action != null)
 				{
-					provider.PlayAttackSound(action);
+					visual.PlayAttackSound(action);
 					if (action.Style == EFeedbackStyle.Melee)
 					{
-						provider.PlayMeleeFeedback(ActionInvoker != null && ActionInvoker.LastFireWasCharged);
+						visual.PlayMeleeFeedback(ActionInvoker != null && ActionInvoker.LastFireWasCharged);
 					}
 					else
 					{
-						provider.PlayRangedFeedback();
+						visual.PlayRangedFeedback();
 					}
 				}
 
 				Animator.SetTrigger(_animIDShoot);
 
-				if (_hitPosition != Vector3.zero && ImpactPrefab != null)
+				if (_hitPosition != Vector3.zero)
 				{
-					// Impact gets destroyed automatically with DestroyAfter script
-					Instantiate(ImpactPrefab, _hitPosition, Quaternion.LookRotation(_hitNormal));
+					// Per-action impact VFX (e.g. pistol spark, bat dust) overrides the
+					// global default; both are local-only and self-destruct via DestroyAfter.
+					var impact = action != null && action.ImpactEffect != null ? action.ImpactEffect : ImpactPrefab;
+					if (impact != null)
+					{
+						// Overlap/melee hits leave the normal zero — fall back to identity so
+						// LookRotation doesn't spam "zero viewing vector" warnings.
+						var rot = _hitNormal != Vector3.zero ? Quaternion.LookRotation(_hitNormal) : Quaternion.identity;
+						Instantiate(impact, _hitPosition, rot);
+					}
 				}
 			}
 
 			_visibleFireCount = _fireCount;
 		}
 
-		private IActionProvider GetActionProvider()
+		// Feedback sink: the spawned hand prefab's visual rig (weapon swing/recoil, fist punch).
+		private IHeldVisual GetHeldVisual()
 		{
 			if (_inventory == null) return null;
 			var instance = _inventory.HeldInstance;
-			return instance != null ? instance.GetComponent<IActionProvider>() : null;
+			return instance != null ? instance.GetComponent<IHeldVisual>() : null;
 		}
 
-		private static CombatAction GetActiveAction(IActionProvider provider)
-		{
-			if (provider == null || provider.Actions == null || provider.Actions.Count == 0) return null;
-			return provider.Actions[0];
-		}
+		// Active action is sourced from the item asset, not the prefab (see Inventory.ActiveAction):
+		// the selected item's WeaponCapability, or the unarmed (fists) action when the hand is empty.
+		// A non-weapon held item (medkit, wood, ...) yields null, so it can't attack.
+		private CombatAction GetActiveAction() => _inventory != null ? _inventory.ActiveAction : null;
 
 		private void AssignAnimationIDs()
 		{

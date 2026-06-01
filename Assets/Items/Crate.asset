@@ -9,26 +9,46 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 79df8f16751454d45adc1cf7b22a9142, type: 3}
+  m_Script: {fileID: 11500000, guid: 215c4744854153b4a948021ef1445cc3, type: 3}
   m_Name: Crate
-  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.PlaceableDefinition
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.ItemDefinition
   Id: 10
   DisplayName: Crate
   Icon: {fileID: 0}
   Description: A simple test crate. Place it on flat ground.
   Stats: []
+  Visual:
+    Mesh: {fileID: 0}
+    Material: {fileID: 0}
+    WorldScale: {x: 0.3, y: 0.3, z: 0.3}
+    WorldBob: 0
+    WorldRotate: 0
+    PromptOffset: {x: 0, y: 0, z: 0}
+    HeldScale: {x: 1, y: 1, z: 1}
+    HeldLocalPosition: {x: 0, y: 0, z: 0}
+    HeldLocalEuler: {x: 0, y: 0, z: 0}
+    VisualOverride: {fileID: 0}
   WorldPrefab: {fileID: 7810697307764163876, guid: 942cb8a9d2c061543a4366d19843c434, type: 3}
   HandPrefab: {fileID: 1279201605963086, guid: 6b175562dadefb44abdb3cc1b40abbbc, type: 3}
   MaxStack: 99
   Weight: 0
-  PlacedPrefab: {fileID: 10196581954467927, guid: 9e65893ce4f3e0b4ca36aa1f568f7e3f, type: 3}
-  GhostPrefab: {fileID: 0}
-  AllowedSurfaces: 1
-  PlacementMask:
-    serializedVersion: 2
-    m_Bits: 513
-  PlacementRange: 2.5
-  Footprint: 0.4
-  MaxGroundAngle: 30
-  AlignToSurface: 1
-  RotationSpeed: 90
+  ScrapValue: 1
+  Capabilities:
+  - rid: 8357564934323699983
+  references:
+    version: 2
+    RefIds:
+    - rid: 8357564934323699983
+      type: {class: PlaceableCapability, ns: Starter.Common.Inventory, asm: Assembly-CSharp}
+      data:
+        PlacedPrefab: {fileID: 10196581954467927, guid: 9e65893ce4f3e0b4ca36aa1f568f7e3f, type: 3}
+        GhostPrefab: {fileID: 0}
+        AllowedSurfaces: 1
+        PlacementMask:
+          serializedVersion: 2
+          m_Bits: 513
+        PlacementRange: 2.5
+        Footprint: 0.4
+        MaxGroundAngle: 30
+        AlignToSurface: 1
+        RotationSpeed: 90

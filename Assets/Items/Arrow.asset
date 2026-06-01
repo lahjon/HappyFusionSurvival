@@ -15,9 +15,25 @@ MonoBehaviour:
   Id: 15
   DisplayName: Arrow
   Icon: {fileID: 0}
-  Description: "Ammunition for the bow. Sticks where it lands — recover and re-use."
+  Description: "Ammunition for the bow. Sticks where it lands \u2014 recover and
+    re-use."
   Stats: []
-  WorldPrefab: {fileID: 4222000000000001, guid: 4d63a2cb0e1f2a3b4c5d6e7f8091a2b4, type: 3}
+  Visual:
+    Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    Material: {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+    WorldScale: {x: 0.05, y: 0.05, z: 0.4}
+    WorldBob: 0
+    WorldRotate: 0
+    PromptOffset: {x: 0, y: 0, z: 0}
+    HeldScale: {x: 1, y: 1, z: 1}
+    HeldLocalPosition: {x: 0, y: 0, z: 0}
+    HeldLocalEuler: {x: 0, y: 0, z: 0}
+    VisualOverride: {fileID: 0}
+  WorldPrefab: {fileID: 0}
   HandPrefab: {fileID: 0}
   MaxStack: 32
   Weight: 0.05
+  Capabilities: []
+  references:
+    version: 2
+    RefIds: []

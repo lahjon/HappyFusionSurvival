@@ -36,7 +36,17 @@ namespace Starter.Shooter
 				result.Point = hit.Point;
 				result.Normal = hit.Normal;
 
-				var health = hit.Hitbox != null ? hit.Hitbox.Root.GetComponent<Health>() : null;
+				// Registered Fusion hitboxes (players, lag-compensated) resolve Health via
+				// hit.Hitbox.Root. Targets with only a PhysX collider — e.g. the training
+				// dummy, whose Fusion hitbox isn't baked — resolve via the collider hierarchy,
+				// mirroring OverlapAction.ResolveHealth so the same things are damageable by
+				// gun and melee alike.
+				Health health = null;
+				if (hit.Hitbox != null)
+					health = hit.Hitbox.Root.GetComponent<Health>();
+				else if (hit.Collider != null)
+					health = hit.Collider.GetComponentInParent<Health>();
+
 				int finalDamage = damage;
 				var region = BodyHitbox.From(hit.Hitbox);
 				if (region != null) finalDamage = region.Apply(damage);
@@ -46,14 +56,14 @@ namespace Starter.Shooter
 					result.Target = health;
 					if (knockback > 0f)
 					{
-						var knockable = hit.Hitbox.Root.GetComponent<IKnockbackable>();
+						var knockable = health.GetComponentInParent<IKnockbackable>();
 						knockable?.ApplyKnockback(ctx.AttackerPosition, knockback);
 					}
 					result.KilledTarget = health.IsAlive == false;
 				}
-				else if (hit.Hitbox == null && hit.Collider != null && knockback > 0f)
+				else if (health == null && hit.Collider != null && knockback > 0f)
 				{
-					// PhysX hit with no Hitbox/Health — e.g. a pickup item. Push it.
+					// PhysX hit with no Health — e.g. a pickup item. Push it.
 					var knockable = hit.Collider.GetComponentInParent<IKnockbackable>();
 					knockable?.ApplyKnockback(ctx.AttackerPosition, knockback);
 				}

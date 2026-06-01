@@ -1,17 +1,15 @@
-using System.Collections.Generic;
-
 namespace Starter.Shooter
 {
 	/// <summary>
-	/// Implemented by anything a Player or AI can "hold" or attach actions to —
-	/// HeldWeapon, FistPunchAnimator, future creature claws, etc. The owner reads
-	/// Actions to pick what to fire and calls the feedback hooks when the
-	/// authoritative fire counter advances.
+	/// Feedback sink implemented by a held item's visual rig (HeldWeapon, FistPunchAnimator, future
+	/// creature claws). The owner reads the active <see cref="CombatAction"/> from the item's
+	/// <see cref="WeaponCapability"/> (data on the asset) and calls these hooks on the spawned hand
+	/// prefab to play audio / swing / recoil / charge-pose when the authoritative fire counter
+	/// advances. Separates "what the item does" (capability data) from "how the held model reacts"
+	/// (this visual rig).
 	/// </summary>
-	public interface IActionProvider
+	public interface IHeldVisual
 	{
-		IReadOnlyList<CombatAction> Actions { get; }
-
 		/// <summary>Play the action's audio clip on the holder's local AudioSource.</summary>
 		void PlayAttackSound(CombatAction action);
 

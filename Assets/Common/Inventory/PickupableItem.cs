@@ -26,6 +26,11 @@ namespace Starter.Common.Inventory
 		[Tooltip("ON: pick a weighted-random entry at spawn. OFF: take the first entry of the list.")]
 		[SerializeField] private bool _randomize = true;
 
+		[Header("Generic visual")]
+		[Tooltip("Child whose MeshFilter/MeshRenderer/ItemView is configured from the item's ItemVisual " +
+		         "(mesh/material/scale) at spawn. Set on Pickup_Generic; null on bespoke prefabs that bake their own model.")]
+		[SerializeField] private Transform _visualRoot;
+
 		[Header("Interaction")]
 		[Tooltip("Max distance from the player at which this can be picked up.")]
 		public float PickupRange = 2f;
@@ -44,7 +49,7 @@ namespace Starter.Common.Inventory
 		[Tooltip("Upward velocity (m/s) added per unit of KnockbackDistance, for a small toss arc.")]
 		[SerializeField] private float _knockbackUpScale = 2f;
 
-		[Networked] public short ItemId { get; set; }
+		[Networked, OnChangedRender(nameof(OnItemIdChanged))] public short ItemId { get; set; }
 		[Networked] public short Count { get; set; }
 		[Networked] public Vector3 NetPosition { get; set; }
 		[Networked] public Quaternion NetRotation { get; set; }
@@ -56,6 +61,7 @@ namespace Starter.Common.Inventory
 		private Rigidbody _rb;
 		private Collider _col;
 		private bool _isSpawned;
+		private GameObject _visualOverrideInstance;
 		private static readonly Collider[] s_pushBuffer = new Collider[8];
 
 		/// <summary>Authority-only. Call right after Runner.Spawn for programmatic pickups.</summary>
@@ -99,6 +105,52 @@ namespace Starter.Common.Inventory
 				// Remote clients never simulate — physics is SA-only. They follow NetPosition / NetRotation.
 				_rb.isKinematic = true;
 				_rb.interpolation = RigidbodyInterpolation.None;
+			}
+
+			// Build the visual now in case ItemId was already set before Spawned (scene-placed / SA).
+			// For programmatic spawns that call Initialize() after Spawn, OnItemIdChanged covers it.
+			ConfigureVisual();
+		}
+
+		// ItemId is the single networked input for the visual — every peer builds the same model
+		// deterministically from it (no networked visual state). Fires on SA when Initialize/loot sets
+		// it, and on proxies when it replicates.
+		private void OnItemIdChanged() => ConfigureVisual();
+
+		/// <summary>
+		/// Configure the generic pickup's Visual child from the item's <see cref="ItemVisual"/>:
+		/// mesh/material/scale + ItemView flair, or instantiate <see cref="ItemVisual.VisualOverride"/>.
+		/// No-op on bespoke prefabs (those leave <c>_visualRoot</c> null and bake their own visual).
+		/// </summary>
+		private void ConfigureVisual()
+		{
+			if (_visualRoot == null) return;
+
+			var def = Definition;
+			var v = def != null ? def.Visual : null;
+			if (v == null) return;
+
+			if (v.VisualOverride != null)
+			{
+				if (_visualOverrideInstance == null)
+					_visualOverrideInstance = Instantiate(v.VisualOverride, _visualRoot);
+				if (_visualRoot.TryGetComponent<MeshRenderer>(out var primRenderer))
+					primRenderer.enabled = false;
+				return;
+			}
+
+			if (v.Mesh != null && _visualRoot.TryGetComponent<MeshFilter>(out var mf))
+				mf.sharedMesh = v.Mesh;
+			if (_visualRoot.TryGetComponent<MeshRenderer>(out var mr))
+			{
+				if (v.Material != null) mr.sharedMaterial = v.Material;
+				mr.enabled = true;
+			}
+			_visualRoot.localScale = v.WorldScale;
+			if (_visualRoot.TryGetComponent<ItemView>(out var view))
+			{
+				view.Bob = v.WorldBob;
+				view.Rotate = v.WorldRotate;
 			}
 		}
 

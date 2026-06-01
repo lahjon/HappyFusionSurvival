@@ -1,21 +1,15 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace Starter.Shooter
 {
 	/// <summary>
-	/// Authoring component on the Fist hand prefab. Carries the action(s) used by
-	/// bare-fist punches and animates the fist forward-back when the held fire
-	/// counter advances. Same role as <see cref="HeldWeapon"/> for fists.
+	/// Visual rig on the Fist hand prefab: animates the fist forward-back when the held fire counter
+	/// advances. The unarmed punch CombatAction now lives on the off-catalog "Unarmed" item asset's
+	/// <see cref="WeaponCapability"/> (wired into Inventory._unarmedItem); this component only reacts
+	/// via <see cref="IHeldVisual"/>. Same role as <see cref="HeldWeapon"/> for fists.
 	/// </summary>
-	public sealed class FistPunchAnimator : MonoBehaviour, IActionProvider
+	public sealed class FistPunchAnimator : MonoBehaviour, IHeldVisual
 	{
-		[Header("Combat")]
-		[Tooltip("Ordered list of actions this fist can perform. Most setups have one; the first is used by default.")]
-		[SerializeField] private List<CombatAction> _actions = new List<CombatAction>();
-
-		public IReadOnlyList<CombatAction> Actions => _actions;
-
 		[Header("Audio")]
 		[Tooltip("Optional AudioSource. If left empty, one is auto-added at runtime configured for 3D playback.")]
 		public AudioSource AttackSource;

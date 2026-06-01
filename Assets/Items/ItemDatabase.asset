@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 44e9c477d04271240bb08767f3104dd8, type: 3}
   m_Name: ItemDatabase
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ItemDatabase
+  GenericWorldPrefab: {fileID: 9211657559894916144, guid: d6be30b7870ee414c884bea67ee7e83b, type: 3}
   _items:
   - {fileID: 11400000, guid: 937396294af95d448a9b450b9c0dede9, type: 2}
   - {fileID: 11400000, guid: 79683915c9c0e314aae32371617049f1, type: 2}

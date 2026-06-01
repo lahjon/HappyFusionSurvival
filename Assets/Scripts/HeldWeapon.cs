@@ -1,71 +1,46 @@
-using System.Collections.Generic;
+using Starter.Common.Inventory;
 using UnityEngine;
 
 namespace Starter.Shooter
 {
 	/// <summary>
-	/// Authoring component on a weapon's HandPrefab. Carries the list of CombatActions
-	/// the weapon can perform (most weapons use just <see cref="Actions"/>[0]) plus
-	/// the visual/animation tuning for ranged kick or melee swing. Inventory moves
-	/// the whole instance to the FirstPersonOverlay layer when held by the local player.
+	/// Visual rig on a weapon's HandPrefab: the audio/particle refs and the animation tuning for
+	/// ranged kick or melee swing. The weapon's actual CombatActions now live on the item asset's
+	/// <see cref="WeaponCapability"/>; this component only reacts via <see cref="IHeldVisual"/> when
+	/// the holder fires. Inventory moves the whole instance to the FirstPersonOverlay layer when
+	/// held by the local player.
 	/// </summary>
-	public sealed class HeldWeapon : MonoBehaviour, IActionProvider
+	public sealed class HeldWeapon : MonoBehaviour, IHeldVisual
 	{
-		[Header("Combat")]
-		[Tooltip("Ordered list of actions this weapon can perform. Most weapons have one; the first is used by default.")]
-		[SerializeField] private List<CombatAction> _actions = new List<CombatAction>();
+		[Header("Rig refs (Hand_Generic)")]
+		[Tooltip("Child holding the in-hand mesh — configured from the item's ItemVisual at equip.")]
+		[SerializeField] private Transform _meshChild;
+		[Tooltip("Muzzle-flash particle on the MuzzleAnchor child; positioned + enabled per weapon at equip.")]
+		[SerializeField] private ParticleSystem _muzzle;
 
-		public IReadOnlyList<CombatAction> Actions => _actions;
-
-		[Header("Audio")]
 		[Tooltip("Optional AudioSource on the held visual. If left empty, one is auto-added at runtime configured for 3D playback.")]
 		public AudioSource AttackSource;
 
-		[Header("Ranged FX")]
-		[Tooltip("Plays when the weapon fires. Used when the fired action's Style is Ranged.")]
-		public ParticleSystem MuzzleParticle;
+		// Runtime tuning, copied from the held item's WeaponCapability.Rig in Configure(). Public so
+		// PlayerInput can read sway/aim-recoil; NOT serialized — the authored values live on the asset.
+		[System.NonSerialized] public Vector3 SwingArcEuler = new Vector3(-80f, 0f, 0f);
+		[System.NonSerialized] public float SwingDuration = 0.28f;
+		[System.NonSerialized] public float ChargedBackMultiplier = 0.8f;
+		[System.NonSerialized] public float ChargePoseLerpSpeed = 12f;
+		[System.NonSerialized] public float ChargedSwingArcScale = 1.35f;
+		[System.NonSerialized] public float ChargedSwingDurationScale = 1.2f;
+		[System.NonSerialized] public float RecoilBackKick = 0.06f;
+		[System.NonSerialized] public float RecoilPitchDegrees = -8f;
+		[System.NonSerialized] public float RecoilDuration = 0.12f;
+		[System.NonSerialized] public float WeaponSway = 0f;
+		[System.NonSerialized] public float SwayMaxDegrees = 1.25f;
+		[System.NonSerialized] public float SwayFrequency = 0.9f;
+		[System.NonSerialized] public float AimRecoil = 0f;
+		[System.NonSerialized] public float AimRecoilPitchPerShot = 3.5f;
+		[System.NonSerialized] public float AimRecoilHorizontalRandom = 1.5f;
+		[System.NonSerialized] public float AimRecoilLerpSpeed = 18f;
 
-		[Header("Melee Swing")]
-		[Tooltip("Local-space rotation arc at the peak of the swing (in euler degrees).")]
-		public Vector3 SwingArcEuler = new Vector3(-80f, 0f, 0f);
-		[Tooltip("Total duration of the forward-and-back swing in seconds.")]
-		public float SwingDuration = 0.28f;
-
-		[Header("Charged Attack Visuals")]
-		[Tooltip("How far backward the weapon is pulled while charging. Expressed as a multiplier of the mirrored SwingArcEuler.")]
-		[Range(0f, 1.5f)] public float ChargedBackMultiplier = 0.8f;
-		[Tooltip("Smoothing speed for easing into/out of the charge pose.")]
-		public float ChargePoseLerpSpeed = 12f;
-		[Tooltip("Arc multiplier when releasing a fully-charged swing — sells the heavier hit.")]
-		public float ChargedSwingArcScale = 1.35f;
-		[Tooltip("Duration multiplier when releasing a fully-charged swing.")]
-		public float ChargedSwingDurationScale = 1.2f;
-
-		[Header("Recoil (ranged only)")]
-		[Tooltip("Distance (meters) the weapon kicks backward along local -Z at peak.")]
-		public float RecoilBackKick = 0.06f;
-		[Tooltip("Muzzle-up pitch (degrees, around local X). Negative tilts the muzzle up — that's the usual sign for recoil.")]
-		public float RecoilPitchDegrees = -8f;
-		[Tooltip("Total recoil duration in seconds (kick out + return).")]
-		public float RecoilDuration = 0.12f;
-
-		[Header("Aim Sway (ranged only)")]
-		[Tooltip("Slight oscillating wobble of the aim that makes it harder to keep on target. 0 = no sway, 1 = max sway.")]
-		[Range(0f, 1f)] public float WeaponSway = 0f;
-		[Tooltip("Max sway amplitude in degrees when WeaponSway = 1.")]
-		public float SwayMaxDegrees = 1.25f;
-		[Tooltip("Sway oscillation frequency in Hz. Lower = slower wobble.")]
-		public float SwayFrequency = 0.9f;
-
-		[Header("Aim Recoil (ranged only, CS-style)")]
-		[Tooltip("Per-shot recoil kick applied to the camera/crosshair. 0 = no recoil, 1 = max. Aim is lerped toward the new offset; the kick is sticky until the player compensates.")]
-		[Range(0f, 1f)] public float AimRecoil = 0f;
-		[Tooltip("Vertical pitch-up (degrees) per shot at AimRecoil = 1.")]
-		public float AimRecoilPitchPerShot = 3.5f;
-		[Tooltip("Horizontal random spread (± degrees) per shot at AimRecoil = 1.")]
-		public float AimRecoilHorizontalRandom = 1.5f;
-		[Tooltip("How fast the aim lerps to the new recoil target. Larger = snappier kick.")]
-		public float AimRecoilLerpSpeed = 18f;
+		private ParticleSystem _muzzleParticle;
 
 		private float _t = -1f;
 		private float _recoilT = -1f;
@@ -117,8 +92,71 @@ namespace Starter.Shooter
 
 		public void PlayRangedFeedback()
 		{
-			if (MuzzleParticle != null) MuzzleParticle.Play();
+			if (_muzzleParticle != null) _muzzleParticle.Play();
 			Recoil();
+		}
+
+		/// <summary>
+		/// Equip-time setup for the generic hand rig: build the held mesh from <paramref name="visual"/>
+		/// and copy the swing/recoil/sway tuning + muzzle from the held item's <paramref name="weapon"/>
+		/// capability. Called by Inventory.RefreshHeldItem right after instantiation. A null
+		/// <paramref name="weapon"/> (non-weapon held item) leaves the rig at rest with no muzzle.
+		/// </summary>
+		public void Configure(ItemVisual visual, WeaponCapability weapon)
+		{
+			if (_meshChild != null && visual != null)
+			{
+				if (visual.VisualOverride != null)
+				{
+					Instantiate(visual.VisualOverride, _meshChild);
+					if (_meshChild.TryGetComponent<MeshRenderer>(out var pr)) pr.enabled = false;
+				}
+				else
+				{
+					if (visual.Mesh != null && _meshChild.TryGetComponent<MeshFilter>(out var mf))
+						mf.sharedMesh = visual.Mesh;
+					if (_meshChild.TryGetComponent<MeshRenderer>(out var mr))
+					{
+						if (visual.Material != null) mr.sharedMaterial = visual.Material;
+						mr.enabled = true;
+					}
+				}
+				_meshChild.localScale = visual.HeldScale;
+				_meshChild.localPosition = visual.HeldLocalPosition;
+				_meshChild.localRotation = Quaternion.Euler(visual.HeldLocalEuler);
+			}
+
+			var r = weapon?.Rig;
+			if (r != null)
+			{
+				SwingArcEuler = r.SwingArcEuler;
+				SwingDuration = r.SwingDuration;
+				ChargedBackMultiplier = r.ChargedBackMultiplier;
+				ChargePoseLerpSpeed = r.ChargePoseLerpSpeed;
+				ChargedSwingArcScale = r.ChargedSwingArcScale;
+				ChargedSwingDurationScale = r.ChargedSwingDurationScale;
+				RecoilBackKick = r.RecoilBackKick;
+				RecoilPitchDegrees = r.RecoilPitchDegrees;
+				RecoilDuration = r.RecoilDuration;
+				WeaponSway = r.WeaponSway;
+				SwayMaxDegrees = r.SwayMaxDegrees;
+				SwayFrequency = r.SwayFrequency;
+				AimRecoil = r.AimRecoil;
+				AimRecoilPitchPerShot = r.AimRecoilPitchPerShot;
+				AimRecoilHorizontalRandom = r.AimRecoilHorizontalRandom;
+				AimRecoilLerpSpeed = r.AimRecoilLerpSpeed;
+			}
+
+			// Hide the muzzle anchor entirely for weapons without a muzzle. Hand_Generic is built from
+			// the pistol, so it always carries the pistol's muzzle particle child — without this, a
+			// throwing knife / bat would show a stray bit of the pistol's muzzle flash.
+			bool useMuzzle = r != null && r.HasMuzzle;
+			if (_muzzle != null)
+			{
+				if (useMuzzle) _muzzle.transform.localPosition = r.MuzzleLocalPosition;
+				_muzzle.gameObject.SetActive(useMuzzle);
+			}
+			_muzzleParticle = useMuzzle ? _muzzle : null;
 		}
 
 		public void SetCharging(bool charging, float progress)

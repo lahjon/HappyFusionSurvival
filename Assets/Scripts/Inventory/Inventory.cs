@@ -44,6 +44,18 @@ namespace Starter.Shooter
 		[Tooltip("Local-only hand prefab shown when the selected slot is empty (e.g. fists for the punch attack).")]
 		[SerializeField] private GameObject _fallbackHandPrefab;
 
+		[Tooltip("Item supplying the unarmed (empty-hand) WeaponCapability — i.e. the fist punch action. " +
+		         "Read by Player.GetActiveAction when no item is selected. Not placed in the hotbar.")]
+		[SerializeField] private ItemDefinition _unarmedItem;
+
+		[Tooltip("Shared world-pickup prefab (NetworkObject + PickupableItem) spawned for any dropped item whose " +
+		         "ItemDefinition has no bespoke WorldPrefab override. Builds its visual from the item's ItemVisual.")]
+		[SerializeField] private GameObject _genericWorldPrefab;
+
+		[Tooltip("Shared in-hand rig (HeldWeapon + Mesh + MuzzleAnchor) used for any held item whose ItemDefinition " +
+		         "has no bespoke HandPrefab override. Configured from the item's Visual + WeaponCapability at equip.")]
+		[SerializeField] private GameObject _genericHandPrefab;
+
 		[Networked, Capacity(SlotCount), OnChangedRender(nameof(OnSlotsChanged))]
 		public NetworkArray<InventorySlot> Slots => default;
 
@@ -100,15 +112,37 @@ namespace Starter.Shooter
 			}
 		}
 
-		/// <summary>Placeable currently carried in-hand, or null. Independent of any hotbar slot.</summary>
-		public PlaceableDefinition CarriedDefinition
+		/// <summary>Weapon facet used when the hand is empty (the fists), or null if no unarmed item is wired.</summary>
+		public WeaponCapability UnarmedWeapon => _unarmedItem != null ? _unarmedItem.GetCapability<WeaponCapability>() : null;
+
+		/// <summary>
+		/// The CombatAction the held item would fire: the selected item's WeaponCapability action,
+		/// or the unarmed (fists) action when the hand is empty. Null if the held item isn't a weapon.
+		/// Single source of truth for both Player (fire/feedback) and PlayerInput (sway/aim-recoil).
+		/// </summary>
+		public CombatAction ActiveAction
+		{
+			get
+			{
+				var def = SelectedDefinition;
+				var weapon = def != null ? def.GetCapability<WeaponCapability>() : UnarmedWeapon;
+				if (weapon == null || weapon.Actions == null || weapon.Actions.Count == 0) return null;
+				return weapon.Actions[0];
+			}
+		}
+
+		/// <summary>Item currently carried in-hand, or null. Independent of any hotbar slot.</summary>
+		public ItemDefinition CarriedDefinition
 		{
 			get
 			{
 				if (CarriedPlaceableId == 0 || ItemDatabase.Instance == null) return null;
-				return ItemDatabase.Instance.GetById(CarriedPlaceableId) as PlaceableDefinition;
+				return ItemDatabase.Instance.GetById(CarriedPlaceableId);
 			}
 		}
+
+		/// <summary>Placement rules for the carried item, or null if nothing placeable is carried.</summary>
+		public PlaceableCapability CarriedPlaceable => CarriedDefinition?.GetCapability<PlaceableCapability>();
 
 		/// <summary>Sum of every slot's (Weight * Count). 0 when no ItemDatabase.</summary>
 		public float CurrentWeight
@@ -245,7 +279,7 @@ namespace Starter.Shooter
 			if (distSq > allowed * allowed) return;
 
 			var def = ItemDatabase.Instance != null ? ItemDatabase.Instance.GetById(pickup.ItemId) : null;
-			if (def is PlaceableDefinition)
+			if (def != null && def.HasCapability<PlaceableCapability>())
 			{
 				// Placeables route into the carry channel, not the hotbar. Any existing carry
 				// is dropped first inside AuthorityStartCarry.
@@ -322,22 +356,22 @@ namespace Starter.Shooter
 		private bool TryPlaceCarried(Vector3 position, Quaternion rotation)
 		{
 			if (HasStateAuthority == false) return false;
-			var def = CarriedDefinition;
-			if (def == null || def.PlacedPrefab == null) return false;
-			if (def.PlacedPrefab.GetComponent<NetworkObject>() == null)
+			var cap = CarriedPlaceable;
+			if (cap == null || cap.PlacedPrefab == null) return false;
+			if (cap.PlacedPrefab.GetComponent<NetworkObject>() == null)
 			{
-				Debug.LogWarning($"[Inventory] Placeable '{def.DisplayName}' has PlacedPrefab '{def.PlacedPrefab.name}' without a NetworkObject component — place ignored.");
+				Debug.LogWarning($"[Inventory] Placeable '{CarriedDefinition?.DisplayName}' has PlacedPrefab '{cap.PlacedPrefab.name}' without a NetworkObject component — place ignored.");
 				return false;
 			}
 
 			// Range check tolerates camera height + a little network jitter.
 			const float RangeSlack = 2f;
-			float maxDist = def.PlacementRange + RangeSlack;
+			float maxDist = cap.PlacementRange + RangeSlack;
 			if ((position - transform.position).sqrMagnitude > maxDist * maxDist) return false;
 
-			if (def.Footprint > 0f && IsObstructed(position, def.Footprint, def.PlacementMask)) return false;
+			if (cap.Footprint > 0f && IsObstructed(position, cap.Footprint, cap.PlacementMask)) return false;
 
-			Runner.Spawn(def.PlacedPrefab, position, rotation);
+			Runner.Spawn(cap.PlacedPrefab, position, rotation);
 			CarriedPlaceableId = 0;
 			return true;
 		}
@@ -353,7 +387,8 @@ namespace Starter.Shooter
 		{
 			if (HasStateAuthority == false) return false;
 			if (itemId == 0 || ItemDatabase.Instance == null) return false;
-			if (ItemDatabase.Instance.GetById(itemId) is not PlaceableDefinition) return false;
+			var carryDef = ItemDatabase.Instance.GetById(itemId);
+			if (carryDef == null || carryDef.HasCapability<PlaceableCapability>() == false) return false;
 
 			// Already carrying something — drop the old one loose before swapping.
 			if (CarriedPlaceableId != 0)
@@ -381,14 +416,15 @@ namespace Starter.Shooter
 			if (HasStateAuthority == false) return;
 			if (CarriedPlaceableId == 0 || ItemDatabase.Instance == null) return;
 
-			var def = ItemDatabase.Instance.GetById(CarriedPlaceableId) as PlaceableDefinition;
+			var def = ItemDatabase.Instance.GetById(CarriedPlaceableId);
 			short carried = CarriedPlaceableId;
 			CarriedPlaceableId = 0;
 
-			if (def == null || def.WorldPrefab == null) return;
-			if (def.WorldPrefab.GetComponent<NetworkObject>() == null)
+			var worldPrefab = ResolveWorldPrefab(def);
+			if (worldPrefab == null) return;
+			if (worldPrefab.GetComponent<NetworkObject>() == null)
 			{
-				Debug.LogWarning($"[Inventory] Placeable '{def.DisplayName}' has WorldPrefab '{def.WorldPrefab.name}' without a NetworkObject component — drop ignored.");
+				Debug.LogWarning($"[Inventory] Placeable '{def?.DisplayName}' world prefab '{worldPrefab.name}' has no NetworkObject component — drop ignored.");
 				return;
 			}
 
@@ -396,7 +432,7 @@ namespace Starter.Shooter
 				? HandAnchor.position + transform.forward * DropForwardOffset
 				: transform.position + transform.forward * DropForwardOffset + Vector3.up * DropUpOffset;
 
-			var spawned = Runner.Spawn(def.WorldPrefab, pos, Quaternion.identity);
+			var spawned = Runner.Spawn(worldPrefab, pos, Quaternion.identity);
 			if (spawned != null && spawned.TryGetComponent<PickupableItem>(out var pi))
 			{
 				pi.Initialize(carried, 1);
@@ -466,7 +502,7 @@ namespace Starter.Shooter
 			if (s.IsEmpty || ItemDatabase.Instance == null) return false;
 
 			var def = ItemDatabase.Instance.GetById(s.ItemId);
-			if (def is not ConsumableDefinition consumable) return false;
+			if (def == null || def.TryGetCapability<ConsumableCapability>(out var consumable) == false) return false;
 
 			_useCooldownTimer = TickTimer.CreateFromSeconds(Runner, consumable.UseCooldownSeconds);
 
@@ -503,6 +539,13 @@ namespace Starter.Shooter
 			return true;
 		}
 
+		/// <summary>Bespoke WorldPrefab override if the item sets one, else the shared generic pickup. Null if neither exists.</summary>
+		private GameObject ResolveWorldPrefab(ItemDefinition def)
+		{
+			if (def == null) return null;
+			return def.WorldPrefab != null ? def.WorldPrefab : _genericWorldPrefab;
+		}
+
 		public void DropSelected()
 		{
 			DropAt(SelectedSlot, 1);
@@ -518,10 +561,11 @@ namespace Starter.Shooter
 			if (ItemDatabase.Instance == null) return;
 
 			var def = ItemDatabase.Instance.GetById(s.ItemId);
-			if (def == null || def.WorldPrefab == null) return;
-			if (def.WorldPrefab.GetComponent<NetworkObject>() == null)
+			var worldPrefab = ResolveWorldPrefab(def);
+			if (worldPrefab == null) return;
+			if (worldPrefab.GetComponent<NetworkObject>() == null)
 			{
-				Debug.LogWarning($"[Inventory] Item '{def.DisplayName}' has WorldPrefab '{def.WorldPrefab.name}' without a NetworkObject component — drop ignored.");
+				Debug.LogWarning($"[Inventory] Item '{def?.DisplayName}' world prefab '{worldPrefab.name}' has no NetworkObject component — drop ignored.");
 				return;
 			}
 
@@ -534,7 +578,7 @@ namespace Starter.Shooter
 				? HandAnchor.position + transform.forward * DropForwardOffset
 				: transform.position + transform.forward * DropForwardOffset + Vector3.up * DropUpOffset;
 
-			var spawned = Runner.Spawn(def.WorldPrefab, pos, Quaternion.identity);
+			var spawned = Runner.Spawn(worldPrefab, pos, Quaternion.identity);
 			if (spawned != null && spawned.TryGetComponent<PickupableItem>(out var pi))
 			{
 				pi.Initialize(s.ItemId, amount);
@@ -609,38 +653,41 @@ namespace Starter.Shooter
 			if (Object == null || Object.IsValid == false) return;
 
 			GameObject prefab = null;
+			ItemDefinition heldDef = null;
 
 			// Carried placeable wins over the selected slot's visual.
 			if (CarriedPlaceableId != 0 && ItemDatabase.Instance != null)
 			{
-				var carriedDef = ItemDatabase.Instance.GetById(CarriedPlaceableId);
-				if (carriedDef != null)
-				{
-					prefab = carriedDef.HandPrefab;
-					_heldItemId = carriedDef.Id;
-				}
+				heldDef = ItemDatabase.Instance.GetById(CarriedPlaceableId);
+				if (heldDef != null) _heldItemId = heldDef.Id;
 			}
 			else
 			{
 				var s = Slots[SelectedSlot];
 				if (s.IsEmpty)
 				{
-					prefab = _fallbackHandPrefab;
+					prefab = _fallbackHandPrefab; // fists — bespoke rig (FistPunchAnimator), not configured
 				}
 				else if (ItemDatabase.Instance != null)
 				{
-					var def = ItemDatabase.Instance.GetById(s.ItemId);
-					if (def != null)
-					{
-						prefab = def.HandPrefab;
-						_heldItemId = def.Id;
-					}
+					heldDef = ItemDatabase.Instance.GetById(s.ItemId);
+					if (heldDef != null) _heldItemId = heldDef.Id;
 				}
 			}
+
+			// Ordinary items: bespoke HandPrefab override if set, else the shared generic hand rig.
+			if (heldDef != null)
+				prefab = heldDef.HandPrefab != null ? heldDef.HandPrefab : _genericHandPrefab;
 
 			if (prefab == null) return;
 
 			_heldInstance = Instantiate(prefab, HandAnchor);
+
+			// Generic rig: build the mesh + copy weapon tuning from the held item's asset BEFORE the
+			// rest-pose reset and overlay-layer sweep so the attached mesh inherits the overlay layer.
+			if (heldDef != null && _heldInstance.TryGetComponent<HeldWeapon>(out var rig))
+				rig.Configure(heldDef.Visual, heldDef.GetCapability<WeaponCapability>());
+
 			_heldInstance.transform.localPosition = Vector3.zero;
 			_heldInstance.transform.localRotation = Quaternion.identity;
 

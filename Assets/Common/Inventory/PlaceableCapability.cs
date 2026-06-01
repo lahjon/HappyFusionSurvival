@@ -1,8 +1,9 @@
+using System;
 using UnityEngine;
 
 namespace Starter.Common.Inventory
 {
-	[System.Flags]
+	[Flags]
 	public enum PlacementSurfaces
 	{
 		None    = 0,
@@ -13,14 +14,16 @@ namespace Starter.Common.Inventory
 	}
 
 	/// <summary>
-	/// Item that can be placed into the world from the player's hand. Placeables are
-	/// carried in a dedicated channel on Inventory (not deposited into hotbar slots).
-	/// The local PlacementController reads these rules to drive ghost validation; the
-	/// inventory's RPC_RequestPlaceCarried re-checks them on the state authority before
-	/// spawning <see cref="PlacedPrefab"/>.
+	/// Item facet for things that can be placed into the world from the player's hand. The carry
+	/// channel on Inventory holds the item id; the local <c>PlacementController</c> reads these
+	/// rules to drive ghost validation, and <c>Inventory.RPC_RequestPlaceCarried</c> re-checks them
+	/// on the state authority before spawning <see cref="PlacedPrefab"/>.
+	///
+	/// Relocated from the old <c>PlaceableDefinition</c> subclass to a composable capability so a
+	/// placeable can also carry other facets (e.g. a deployable that is also a weapon).
 	/// </summary>
-	[CreateAssetMenu(fileName = "Placeable", menuName = "Inventory/Placeable Definition", order = 2)]
-	public sealed class PlaceableDefinition : ItemDefinition
+	[Serializable]
+	public sealed class PlaceableCapability : ItemCapability
 	{
 		[Header("Placement")]
 		[Tooltip("NetworkObject prefab spawned via Runner.Spawn when placement is confirmed. Must have a NetworkObject component.")]

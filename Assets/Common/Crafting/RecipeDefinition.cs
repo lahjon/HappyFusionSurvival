@@ -15,7 +15,11 @@ namespace Starter.Common.Crafting
 		[TextArea(2, 6)]
 		public string Description;
 
-		[Tooltip("Items consumed when this recipe is crafted. Empty entries are ignored.")]
+		[Tooltip("Scraps (the generic crafting currency) consumed when this recipe is crafted. 0 = no scrap cost.")]
+		[Min(0)]
+		public int ScrapCost = 0;
+
+		[Tooltip("Items consumed when this recipe is crafted, on top of ScrapCost. Convention: at most 4 distinct items. Empty entries are ignored.")]
 		public Ingredient[] Ingredients;
 
 		[Tooltip("Item granted on successful craft.")]

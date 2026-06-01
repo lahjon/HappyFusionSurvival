@@ -17,6 +17,7 @@ namespace Starter.Shooter
 	{
 		private const int MaxRows = 12;
 		private const int MaxIngredientRows = 6;
+		private const float ScavengeStripHeight = 64f;
 
 		[Header("Layout")]
 		public Vector2 PanelSize = new Vector2(640f, 420f);
@@ -39,19 +40,24 @@ namespace Starter.Shooter
 		private CraftingSession _session;
 		private RecipeBook _book;
 		private Inventory _inventory;
+		private Player _player;
 
 		private GameObject _root;
 		private TMP_Text _headerLabel;
+		private TMP_Text _scrapsLabel;
 		private RowWidget[] _rows = new RowWidget[MaxRows];
 
 		private Image _detailIcon;
 		private TMP_Text _detailName;
 		private TMP_Text _detailDescription;
+		private TMP_Text _scrapCostLabel;
 		private IngredientWidget[] _ingredientRows = new IngredientWidget[MaxIngredientRows];
 		private Button _craftButton;
 		private Image _craftButtonBg;
 		private TMP_Text _craftLabel;
 		private TMP_Text _emptyHint;
+
+		private ScavengeWidget[] _scavengeSlots;
 
 		private readonly List<int> _displayedRecipeIds = new();
 		private int _selectedRecipeId;
@@ -74,6 +80,16 @@ namespace Starter.Shooter
 			public TMP_Text Counts;
 		}
 
+		private struct ScavengeWidget
+		{
+			public GameObject Root;
+			public Image Background;
+			public Image Icon;
+			public TMP_Text Value;
+			public Button Button;
+			public int SlotIndex;
+		}
+
 		private void Awake()
 		{
 			BuildLayout();
@@ -82,8 +98,15 @@ namespace Starter.Shooter
 
 		private void Update()
 		{
-			if (_session != null) return;
-			TryBind();
+			if (_session == null)
+			{
+				TryBind();
+				return;
+			}
+
+			// Scraps tick in from scavenging while the panel is open; the slot-change event
+			// covers item moves, but a scraps-only delta (e.g. a scraps→item craft) needs this.
+			if (_session.Current != null) RefreshScraps();
 		}
 
 		private void OnDestroy()
@@ -99,11 +122,13 @@ namespace Starter.Shooter
 			var session = gm.LocalPlayer.GetComponent<CraftingSession>();
 			var book = gm.LocalPlayer.GetComponent<RecipeBook>();
 			var inv = gm.LocalPlayer.GetComponent<Inventory>();
-			if (session == null || book == null || inv == null) return;
+			var player = gm.LocalPlayer.GetComponent<Player>();
+			if (session == null || book == null || inv == null || player == null) return;
 
 			_session = session;
 			_book = book;
 			_inventory = inv;
+			_player = player;
 
 			_session.OpenedChanged += OnOpenedChanged;
 			_book.KnownChanged += OnKnownChanged;
@@ -118,6 +143,7 @@ namespace Starter.Shooter
 			_session = null;
 			_book = null;
 			_inventory = null;
+			_player = null;
 		}
 
 		private void OnOpenedChanged(CraftingBench bench)
@@ -127,6 +153,8 @@ namespace Starter.Shooter
 
 			_headerLabel.text = bench.DisplayName;
 			RebuildRecipeList(bench);
+			RefreshScraps();
+			RefreshScavengeBar();
 		}
 
 		private void OnKnownChanged()
@@ -139,6 +167,13 @@ namespace Starter.Shooter
 			if (_session?.Current == null) return;
 			RefreshRowAvailability();
 			RefreshDetail();
+			RefreshScavengeBar();
+		}
+
+		private void RefreshScraps()
+		{
+			if (_scrapsLabel != null && _player != null)
+				_scrapsLabel.text = $"Scraps: {_player.Scraps}";
 		}
 
 		private void SetVisible(bool visible)
@@ -232,6 +267,7 @@ namespace Starter.Shooter
 				_detailIcon.enabled = false;
 				_detailName.text = string.Empty;
 				_detailDescription.text = string.Empty;
+				if (_scrapCostLabel != null) _scrapCostLabel.text = string.Empty;
 				for (int i = 0; i < MaxIngredientRows; i++)
 				{
 					if (_ingredientRows[i].Root != null) _ingredientRows[i].Root.SetActive(false);
@@ -256,6 +292,29 @@ namespace Starter.Shooter
 			_detailDescription.text = recipe.Description ?? string.Empty;
 
 			bool allOK = true;
+
+			// Scrap cost line — gates the craft alongside item ingredients.
+			bool scrapsOK = true;
+			if (_scrapCostLabel != null)
+			{
+				if (recipe.ScrapCost > 0)
+				{
+					int haveScraps = _player != null ? _player.Scraps : 0;
+					scrapsOK = haveScraps >= recipe.ScrapCost;
+					_scrapCostLabel.text = $"Scraps  {haveScraps}/{recipe.ScrapCost}";
+					_scrapCostLabel.color = scrapsOK ? TextOK : TextMissing;
+				}
+				else
+				{
+					_scrapCostLabel.text = string.Empty;
+				}
+			}
+			else if (recipe.ScrapCost > 0)
+			{
+				scrapsOK = _player != null && _player.Scraps >= recipe.ScrapCost;
+			}
+			if (!scrapsOK) allOK = false;
+
 			int count = recipe.Ingredients != null ? Mathf.Min(recipe.Ingredients.Length, MaxIngredientRows) : 0;
 
 			for (int i = 0; i < MaxIngredientRows; i++)
@@ -294,7 +353,9 @@ namespace Starter.Shooter
 			bool hasRoom = recipe.Output != null
 				&& InventoryOps.RoomFor(_inventory.Slots, recipe.Output.Id) >= recipe.OutputCount;
 
-			string reason = !allOK ? "Missing ingredients" : (!hasRoom ? "Inventory full" : string.Empty);
+			string reason = !scrapsOK ? "Not enough scraps"
+				: !allOK ? "Missing ingredients"
+				: (!hasRoom ? "Inventory full" : string.Empty);
 			SetCraftEnabled(allOK && hasRoom, reason);
 		}
 
@@ -370,6 +431,13 @@ namespace Starter.Shooter
 			header.GetComponent<Image>().color = HeaderColor;
 			_headerLabel = AddText(header.transform, "HeaderLabel", "Workbench", 18, TextAlignmentOptions.Center, Vector2.zero, Vector2.one);
 
+			// Scraps readout, right-aligned over the header bar.
+			_scrapsLabel = AddText(header.transform, "ScrapsLabel", "Scraps: 0", 15, TextAlignmentOptions.MidlineRight,
+				Vector2.zero, Vector2.one);
+			_scrapsLabel.rectTransform.offsetMin = new Vector2(8f, 0f);
+			_scrapsLabel.rectTransform.offsetMax = new Vector2(-10f, 0f);
+			_scrapsLabel.color = new Color(1f, 0.85f, 0.4f, 1f);
+
 			// List column
 			var list = new GameObject("RecipeList", typeof(RectTransform));
 			list.transform.SetParent(_root.transform, false);
@@ -378,7 +446,7 @@ namespace Starter.Shooter
 			lrt.anchorMax = new Vector2(0f, 1f);
 			lrt.pivot = new Vector2(0f, 1f);
 			lrt.anchoredPosition = new Vector2(8f, -42f);
-			lrt.sizeDelta = new Vector2(ListWidth, -50f);
+			lrt.sizeDelta = new Vector2(ListWidth, -(50f + ScavengeStripHeight));
 
 			for (int i = 0; i < MaxRows; i++)
 			{
@@ -400,7 +468,7 @@ namespace Starter.Shooter
 			drt.anchorMin = new Vector2(0f, 0f);
 			drt.anchorMax = new Vector2(1f, 1f);
 			drt.pivot = new Vector2(0f, 0f);
-			drt.offsetMin = new Vector2(ListWidth + 16f, 8f);
+			drt.offsetMin = new Vector2(ListWidth + 16f, 8f + ScavengeStripHeight);
 			drt.offsetMax = new Vector2(-8f, -42f);
 
 			var iconGO = new GameObject("OutputIcon", typeof(RectTransform), typeof(Image));
@@ -437,6 +505,14 @@ namespace Starter.Shooter
 			ihrt.anchoredPosition = new Vector2(0f, -90f);
 			ihrt.sizeDelta = new Vector2(0f, 20f);
 
+			// Scrap-cost line, right-aligned on the Ingredients header row. Empty when the recipe has no scrap cost.
+			_scrapCostLabel = AddText(detail.transform, "ScrapCost", string.Empty, 14,
+				TextAlignmentOptions.Right, new Vector2(1f, 1f), new Vector2(1f, 1f));
+			var scrt = _scrapCostLabel.rectTransform;
+			scrt.pivot = new Vector2(1f, 1f);
+			scrt.anchoredPosition = new Vector2(0f, -90f);
+			scrt.sizeDelta = new Vector2(180f, 20f);
+
 			for (int i = 0; i < MaxIngredientRows; i++)
 			{
 				_ingredientRows[i] = BuildIngredientRow(detail.transform, i);
@@ -459,6 +535,128 @@ namespace Starter.Shooter
 			_craftLabel = AddText(btnGO.transform, "Label", "CRAFT", 18, TextAlignmentOptions.Center,
 				Vector2.zero, Vector2.one);
 			_craftLabel.raycastTarget = false;
+
+			BuildScavengeStrip();
+		}
+
+		// --- Scavenge strip ---
+
+		private void BuildScavengeStrip()
+		{
+			int slotCount = Inventory.SlotCount;
+			_scavengeSlots = new ScavengeWidget[slotCount];
+
+			var strip = new GameObject("ScavengeStrip", typeof(RectTransform), typeof(Image));
+			strip.transform.SetParent(_root.transform, false);
+			var strt = (RectTransform)strip.transform;
+			strt.anchorMin = new Vector2(0f, 0f);
+			strt.anchorMax = new Vector2(1f, 0f);
+			strt.pivot = new Vector2(0.5f, 0f);
+			strt.anchoredPosition = new Vector2(0f, 0f);
+			strt.sizeDelta = new Vector2(0f, ScavengeStripHeight);
+			strip.GetComponent<Image>().color = HeaderColor;
+
+			var label = AddText(strip.transform, "ScavengeHeader", "SCAVENGE  (destroy → scraps)", 13,
+				TextAlignmentOptions.MidlineLeft, new Vector2(0f, 1f), new Vector2(1f, 1f));
+			var lrt = label.rectTransform;
+			lrt.pivot = new Vector2(0f, 1f);
+			lrt.anchoredPosition = new Vector2(10f, -2f);
+			lrt.sizeDelta = new Vector2(-20f, 18f);
+
+			const float cell = 44f;
+			const float gap = 6f;
+			float totalWidth = slotCount * cell + (slotCount - 1) * gap;
+			float startX = -totalWidth * 0.5f + cell * 0.5f;
+
+			for (int i = 0; i < slotCount; i++)
+			{
+				var btnGO = new GameObject($"Scavenge_{i}", typeof(RectTransform), typeof(Image), typeof(Button));
+				btnGO.transform.SetParent(strip.transform, false);
+				var brt = (RectTransform)btnGO.transform;
+				brt.anchorMin = new Vector2(0.5f, 0f);
+				brt.anchorMax = new Vector2(0.5f, 0f);
+				brt.pivot = new Vector2(0.5f, 0f);
+				brt.anchoredPosition = new Vector2(startX + i * (cell + gap), 6f);
+				brt.sizeDelta = new Vector2(cell, cell);
+				var bg = btnGO.GetComponent<Image>();
+				bg.color = RowNormal;
+
+				var iconGO = new GameObject("Icon", typeof(RectTransform), typeof(Image));
+				iconGO.transform.SetParent(btnGO.transform, false);
+				var irt = (RectTransform)iconGO.transform;
+				irt.anchorMin = Vector2.zero;
+				irt.anchorMax = Vector2.one;
+				irt.offsetMin = new Vector2(4f, 4f);
+				irt.offsetMax = new Vector2(-4f, -4f);
+				var icon = iconGO.GetComponent<Image>();
+				icon.preserveAspect = true;
+				icon.raycastTarget = false;
+				icon.enabled = false;
+
+				var value = AddText(btnGO.transform, "Value", string.Empty, 12, TextAlignmentOptions.BottomRight,
+					Vector2.zero, Vector2.one);
+				value.rectTransform.offsetMin = new Vector2(0f, 1f);
+				value.rectTransform.offsetMax = new Vector2(-3f, 0f);
+				value.raycastTarget = false;
+				value.color = new Color(1f, 0.85f, 0.4f, 1f);
+
+				var button = btnGO.GetComponent<Button>();
+				button.targetGraphic = bg;
+				int captured = i;
+				button.onClick.AddListener(() => OnScavengeClicked(captured));
+
+				_scavengeSlots[i] = new ScavengeWidget
+				{
+					Root = btnGO,
+					Background = bg,
+					Icon = icon,
+					Value = value,
+					Button = button,
+					SlotIndex = i,
+				};
+			}
+		}
+
+		private void RefreshScavengeBar()
+		{
+			if (_scavengeSlots == null || _inventory == null) return;
+
+			for (int i = 0; i < _scavengeSlots.Length; i++)
+			{
+				var w = _scavengeSlots[i];
+				var slot = _inventory.Slots[i];
+
+				if (slot.IsEmpty)
+				{
+					w.Icon.enabled = false;
+					w.Value.text = string.Empty;
+					w.Background.color = RowNormal;
+					if (w.Button != null) w.Button.interactable = false;
+					continue;
+				}
+
+				var def = ItemDatabase.Instance != null ? ItemDatabase.Instance.GetById(slot.ItemId) : null;
+				if (def != null && def.Icon != null)
+				{
+					w.Icon.sprite = def.Icon;
+					w.Icon.enabled = true;
+				}
+				else
+				{
+					w.Icon.enabled = false;
+				}
+
+				int scrap = def != null ? def.ScrapValue : 0;
+				w.Value.text = scrap > 0 ? $"+{scrap}" : string.Empty;
+				w.Background.color = RowNormal;
+				if (w.Button != null) w.Button.interactable = true;
+			}
+		}
+
+		private void OnScavengeClicked(int slotIndex)
+		{
+			if (_session == null) return;
+			_session.RequestScavenge(slotIndex);
 		}
 
 		private RowWidget BuildRow(Transform parent, int index)

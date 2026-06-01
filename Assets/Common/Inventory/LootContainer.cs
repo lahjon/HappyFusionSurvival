@@ -25,8 +25,8 @@ namespace Starter.Common.Inventory
 		[Header("Pickup")]
 		[Tooltip("If true, the player can hold Interact to pick up this container (only when empty and not in use).")]
 		public bool IsPickupable = false;
-		[Tooltip("Placeable granted to the player when pickup completes. Required when IsPickupable is on.")]
-		public PlaceableDefinition PickupItem;
+		[Tooltip("Item granted to the player when pickup completes. Must carry a PlaceableCapability. Required when IsPickupable is on.")]
+		public ItemDefinition PickupItem;
 		[Tooltip("Seconds the player must hold Interact to pick this up.")]
 		[Min(0.1f)] public float PickupHoldSeconds = 2f;
 
@@ -174,7 +174,7 @@ namespace Starter.Common.Inventory
 		// --- IPickupableStation ---
 
 		bool IPickupableStation.IsPickupable => IsPickupable && PickupItem != null;
-		PlaceableDefinition IPickupableStation.AsItem => PickupItem;
+		ItemDefinition IPickupableStation.AsItem => PickupItem;
 		float IPickupableStation.PickupHoldSeconds => PickupHoldSeconds;
 
 		string IPickupableStation.PickupBlockedReason
@@ -354,8 +354,8 @@ namespace Starter.Common.Inventory
 		/// <summary>
 		/// State-authority-only: put a placeable into the player's hands (carry channel — not a
 		/// hotbar slot). Drops any currently-carried placeable loose first, auto-selects an empty
-		/// hotbar slot so the previously-held visual goes away. Returns false if the id isn't a
-		/// registered <see cref="PlaceableDefinition"/>.
+		/// hotbar slot so the previously-held visual goes away. Returns false if the id's item
+		/// doesn't carry a <see cref="PlaceableCapability"/>.
 		/// </summary>
 		bool AuthorityStartCarry(short itemId);
 	}

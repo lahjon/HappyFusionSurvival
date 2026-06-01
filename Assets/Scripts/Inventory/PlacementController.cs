@@ -9,7 +9,7 @@ namespace Starter.Shooter
 {
 	/// <summary>
 	/// Local-only placement preview driver. Activates whenever the inventory is carrying a
-	/// <see cref="PlaceableDefinition"/>: instantiates a ghost from the def's GhostPrefab,
+	/// <see cref="PlaceableCapability"/>: instantiates a ghost from the def's GhostPrefab,
 	/// raycasts from the camera, validates against the def's rules, tints the ghost green/red,
 	/// and fires the inventory's RPC_RequestPlaceCarried on LMB.
 	///
@@ -45,7 +45,7 @@ namespace Starter.Shooter
 
 		private GameObject _ghost;
 		private Renderer[] _ghostRenderers;
-		private PlaceableDefinition _ghostFor;
+		private PlaceableCapability _ghostFor;
 		private float _yawOffset;
 		private float _pivotToBottomOffset;
 		private bool _validThisFrame;
@@ -70,7 +70,7 @@ namespace Starter.Shooter
 				return;
 			}
 
-			var def = _inventory.CarriedDefinition;
+			var def = _inventory.CarriedPlaceable;
 			if (def == null || def.PlacedPrefab == null)
 			{
 				TeardownGhost();
@@ -107,7 +107,7 @@ namespace Starter.Shooter
 			TeardownGhost();
 		}
 
-		private void TryConfirmPlacement(PlaceableDefinition def)
+		private void TryConfirmPlacement(PlaceableCapability def)
 		{
 			if (_validThisFrame == false) return;
 			if (_postPlaceCooldownLeft > 0f) return;
@@ -116,7 +116,7 @@ namespace Starter.Shooter
 			_postPlaceCooldownLeft = _postPlaceCooldown;
 		}
 
-		private void EnsureGhost(PlaceableDefinition def)
+		private void EnsureGhost(PlaceableCapability def)
 		{
 			if (_ghost != null && _ghostFor == def) return;
 
@@ -126,7 +126,7 @@ namespace Starter.Shooter
 			if (prefab == null) return;
 
 			_ghost = Instantiate(prefab);
-			_ghost.name = $"PlacementGhost_{def.DisplayName}";
+			_ghost.name = $"PlacementGhost_{_inventory.CarriedDefinition?.DisplayName}";
 			StripGhostComponents(_ghost);
 
 			_ghostRenderers = _ghost.GetComponentsInChildren<Renderer>(true);
@@ -205,7 +205,7 @@ namespace Starter.Shooter
 			return Mathf.Max(0f, -b.min.y);
 		}
 
-		private void UpdateGhostPose(PlaceableDefinition def)
+		private void UpdateGhostPose(PlaceableCapability def)
 		{
 			if (_ghost == null) return;
 			if (_rayOrigin == null)
@@ -274,7 +274,7 @@ namespace Starter.Shooter
 		// Object up axis = surface normal (when AlignToSurface) or world up. Yaw around that
 		// axis is composed from (a) the camera direction projected onto the surface plane,
 		// so the ghost initially faces the player, and (b) the held-R offset.
-		private Quaternion ComputeRotation(Vector3 cameraForward, Vector3 normal, PlaceableDefinition def)
+		private Quaternion ComputeRotation(Vector3 cameraForward, Vector3 normal, PlaceableCapability def)
 		{
 			Vector3 up = def.AlignToSurface ? normal : Vector3.up;
 

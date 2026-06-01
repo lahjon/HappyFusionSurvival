@@ -18,6 +18,7 @@ MonoBehaviour:
   Style: 1
   AttackClip: {fileID: 0}
   AttackVolume: 1
+  ImpactEffect: {fileID: 921809749201012083, guid: 659b30ca31af426caa42f11b8735178d, type: 3}
   Charge:
     Enabled: 1
     ThresholdSeconds: 2

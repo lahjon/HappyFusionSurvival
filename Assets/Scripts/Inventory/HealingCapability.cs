@@ -4,8 +4,12 @@ using UnityEngine;
 
 namespace Starter.Shooter
 {
-	[CreateAssetMenu(fileName = "HealingConsumable", menuName = "Inventory/Consumables/Healing", order = 10)]
-	public sealed class HealingConsumable : ConsumableDefinition
+	/// <summary>
+	/// Consumable facet that restores health on use. Capability replacement for the old
+	/// <c>HealingConsumable</c> ScriptableObject.
+	/// </summary>
+	[System.Serializable]
+	public sealed class HealingCapability : ConsumableCapability
 	{
 		[Tooltip("HP restored when used. Capped at the target's InitialHealth.")]
 		[Min(1)] public int HealAmount = 1;
