@@ -89,6 +89,8 @@ namespace Starter.Shooter
 			Current = shopkeeper;
 			IsAnyOpen = true;
 			if (_context != null) _context.EnterInventoryMode();
+			// Tell the NPC (if it's an NpcAgent) to stop and face us while we shop.
+			shopkeeper.GetComponent<NpcAgent>()?.LocalBeginAttending();
 			OpenedChanged?.Invoke(Current);
 			Debug.Log($"[ShopSession] Opened '{shopkeeper.DisplayName}'.");
 		}
@@ -101,6 +103,7 @@ namespace Starter.Shooter
 			Current = null;
 			IsAnyOpen = false;
 			if (_context != null) _context.EnterPlayerMode();
+			closed.GetComponent<NpcAgent>()?.LocalEndAttending();
 			OpenedChanged?.Invoke(null);
 			Debug.Log($"[ShopSession] Closed '{closed.DisplayName}'.");
 		}

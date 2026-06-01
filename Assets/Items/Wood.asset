@@ -17,6 +17,23 @@ MonoBehaviour:
   Icon: {fileID: 132286653, guid: a6271bc89b55e954aafdfc2301e6f9a2, type: 3}
   Description: 
   Stats: []
-  WorldPrefab: {fileID: 2848020348106660934, guid: 8015e7f4c750618478daf9a2337e1e6e, type: 3}
-  HandPrefab: {fileID: 1577575726583460350, guid: 91d766df9aea34d4b9b6360e5ff0a4ba, type: 3}
+  Visual:
+    Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    Material: {fileID: 2100000, guid: dcb43ef226a13f945b1fb6347caf2085, type: 2}
+    WorldScale: {x: 0.3, y: 0.3, z: 0.3}
+    WorldBob: 0
+    WorldRotate: 0
+    PromptOffset: {x: 0, y: 0, z: 0}
+    HeldScale: {x: 0.15, y: 0.15, z: 0.15}
+    HeldLocalPosition: {x: 0, y: 0, z: 0}
+    HeldLocalEuler: {x: 0, y: 0, z: 0}
+    VisualOverride: {fileID: 0}
+  WorldPrefab: {fileID: 0}
+  HandPrefab: {fileID: 0}
   MaxStack: 99
+  Weight: 0
+  ScrapValue: 1
+  Capabilities: []
+  references:
+    version: 2
+    RefIds: []

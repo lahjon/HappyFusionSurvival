@@ -51,6 +51,8 @@ namespace Starter.Shooter
 		[Tooltip("Sound played when this action fires. Played on the holder's AudioSource.")]
 		public AudioClip AttackClip;
 		[Range(0f, 1f)] public float AttackVolume = 1f;
+		[Tooltip("Optional VFX spawned (local-only) at the impact point when this action hits. Lets each weapon have its own impact (spark, dust, splash). Falls back to the holder's global ImpactPrefab when unset. Use a short-lived prefab — e.g. one with a DestroyAfter component.")]
+		public GameObject ImpactEffect;
 
 		[Header("Charge")]
 		public ChargeProfile Charge = new ChargeProfile();

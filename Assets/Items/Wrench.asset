@@ -17,7 +17,48 @@ MonoBehaviour:
   Icon: {fileID: 21300000, guid: eacd17bbda960bf489937cefa1b8b532, type: 3}
   Description: 
   Stats: []
+  Visual:
+    Mesh: {fileID: 0}
+    Material: {fileID: 0}
+    WorldScale: {x: 0.3, y: 0.3, z: 0.3}
+    WorldBob: 0
+    WorldRotate: 0
+    PromptOffset: {x: 0, y: 0, z: 0}
+    HeldScale: {x: 1, y: 1, z: 1}
+    HeldLocalPosition: {x: 0, y: 0, z: 0}
+    HeldLocalEuler: {x: 0, y: 0, z: 0}
+    VisualOverride: {fileID: 0}
   WorldPrefab: {fileID: 6893194096252801443, guid: 846dba9527e9f634cb95edccb2235f3c, type: 3}
   HandPrefab: {fileID: 6893194096252801443, guid: 846dba9527e9f634cb95edccb2235f3c, type: 3}
   MaxStack: 1
   Weight: 0
+  ScrapValue: 1
+  Capabilities:
+  - rid: 8357564934323699990
+  references:
+    version: 2
+    RefIds:
+    - rid: 8357564934323699990
+      type: {class: WeaponCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
+      data:
+        Actions:
+        - {fileID: 11400000, guid: 1316574e19883cd40b91587e4a96835d, type: 2}
+        Rig:
+          SwingArcEuler: {x: -80, y: 0, z: 0}
+          SwingDuration: 0.28
+          ChargedBackMultiplier: 0.8
+          ChargePoseLerpSpeed: 12
+          ChargedSwingArcScale: 1.35
+          ChargedSwingDurationScale: 1.2
+          RecoilBackKick: 0.06
+          RecoilPitchDegrees: -8
+          RecoilDuration: 0.12
+          WeaponSway: 0
+          SwayMaxDegrees: 1.25
+          SwayFrequency: 0.9
+          AimRecoil: 0
+          AimRecoilPitchPerShot: 3.5
+          AimRecoilHorizontalRandom: 1.5
+          AimRecoilLerpSpeed: 18
+          HasMuzzle: 0
+          MuzzleLocalPosition: {x: 0, y: 0, z: 0}

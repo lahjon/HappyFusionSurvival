@@ -89,6 +89,8 @@ namespace Starter.Shooter
 			Current = giver;
 			IsAnyOpen = true;
 			if (_context != null) _context.EnterInventoryMode();
+			// Tell the NPC (if it's an NpcAgent) to stop and face us during the turn-in.
+			giver.GetComponent<NpcAgent>()?.LocalBeginAttending();
 			OpenedChanged?.Invoke(Current);
 			Debug.Log($"[QuestSession] Opened '{giver.DisplayName}'.");
 		}
@@ -101,6 +103,7 @@ namespace Starter.Shooter
 			Current = null;
 			IsAnyOpen = false;
 			if (_context != null) _context.EnterPlayerMode();
+			closed.GetComponent<NpcAgent>()?.LocalEndAttending();
 			OpenedChanged?.Invoke(null);
 			Debug.Log($"[QuestSession] Closed '{closed.DisplayName}'.");
 		}

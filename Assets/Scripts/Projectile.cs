@@ -36,6 +36,16 @@ namespace Starter.Shooter
 		[Tooltip("Seconds the dropped pickup stays non-interactable after landing, so the thrower can't instantly re-grab it.")]
 		[SerializeField] private float _dropInteractionLock = 0.5f;
 
+		[Header("Bounce")]
+		[Tooltip("How many times the projectile ricochets off surfaces before it lands and sticks/drops. 0 = stick on first contact (classic arrow/knife).")]
+		[SerializeField] private int _maxBounces = 2;
+		[Tooltip("Fraction of speed kept on each ricochet (restitution). 0.5 halves the speed per bounce.")]
+		[SerializeField, Range(0f, 1f)] private float _bounciness = 0.5f;
+		[Tooltip("Minimum speed (m/s) required to deal damage on a hit (and to keep ricocheting). Keep it small — it just stops a nearly-stopped late bounce from dealing damage.")]
+		[SerializeField] private float _minDamageSpeed = 2f;
+		[Tooltip("After it has bounced, the projectile can hit the thrower too (ricochet self-damage). The initial throw never self-hits.")]
+		[SerializeField] private bool _bouncedHitsAttacker = true;
+
 		[Networked] public Vector3 NetPosition { get; set; }
 		[Networked] public Quaternion NetRotation { get; set; }
 		[Networked] public Vector3 Velocity { get; set; }
@@ -47,9 +57,11 @@ namespace Starter.Shooter
 		[Networked] public PlayerRef Attacker { get; set; }
 		[Networked] public short ItemId { get; set; }
 
-		// HitOptions mirrors HitscanAction: ignore the attacker's input authority + include
-		// PhysX colliders (for stationary props / surfaces that don't have a Fusion Hitbox).
-		private const HitOptions Hits = HitOptions.IncludePhysX | HitOptions.IgnoreInputAuthority;
+		// SA-only ricochet counter. Reset on (re)spawn via AuthorityInitialize; not networked because
+		// only the state authority ever simulates the projectile. HitOptions are built per-raycast in
+		// FixedUpdateNetwork — they include PhysX always, and ignore the thrower only until the first
+		// bounce (after which a ricochet can hit the thrower too).
+		private int _bounceCount;
 
 		/// <summary>
 		/// SA-only. Seed the projectile's networked simulation state. Called from
@@ -71,6 +83,7 @@ namespace Starter.Shooter
 			Lifetime = TickTimer.CreateFromSeconds(runner, lifetimeSeconds);
 			NetPosition = transform.position;
 			NetRotation = transform.rotation;
+			_bounceCount = 0;
 		}
 
 		public override void FixedUpdateNetwork()
@@ -96,18 +109,41 @@ namespace Starter.Shooter
 			if (dist > 0.0001f)
 			{
 				Vector3 dir = delta / dist;
-				if (Runner.LagCompensation.Raycast(fromPos, dir, dist, Attacker, out var hit,
-					    HitMaskValue, Hits, QueryTriggerInteraction.Ignore))
+
+				// Initial throw ignores the thrower (no instant self-hit). After a ricochet, the
+				// projectile can come back and hit the thrower too — intentional bounce self-damage.
+				bool ignoreAttacker = _bounceCount == 0 || _bouncedHitsAttacker == false;
+				PlayerRef ignorePlayer = ignoreAttacker ? Attacker : PlayerRef.None;
+				HitOptions opts = HitOptions.IncludePhysX;
+				if (ignoreAttacker) opts |= HitOptions.IgnoreInputAuthority;
+
+				if (Runner.LagCompensation.Raycast(fromPos, dir, dist, ignorePlayer, out var hit,
+					    HitMaskValue, opts, QueryTriggerInteraction.Ignore))
 				{
-					// Land at the hit point and freeze. ResolveImpact handles damage + pickup spawn
-					// + despawn, so we don't touch NetPosition past this point on this tick.
+					float speed = vel.magnitude;
+					Vector3 facing = speed > 0.0001f ? vel / speed : dir;
+					Vector3 normal = hit.Normal != Vector3.zero ? hit.Normal : -facing;
+					bool isHealthHit = hit.Hitbox != null && hit.Hitbox.Root.GetComponent<Health>() != null;
+
+					// Surface ricochet: while bounces remain and it's still moving fast enough, reflect
+					// and keep flying. A Health hit never bounces — it resolves immediately.
+					if (isHealthHit == false && _bounceCount < _maxBounces && speed >= _minDamageSpeed)
+					{
+						_bounceCount++;
+						Vector3 reflected = Vector3.Reflect(vel, normal) * _bounciness;
+						NetPosition = hit.Point + normal * 0.02f; // lift off the surface so we don't immediately re-hit it
+						Velocity = reflected;
+						if (reflected.sqrMagnitude > 0.0001f)
+							NetRotation = Quaternion.LookRotation(reflected.normalized);
+						return;
+					}
+
+					// Land + resolve. Damage only when still moving fast enough — a near-stopped late
+					// bounce that grazes a target deals nothing.
 					NetPosition = hit.Point;
-					Vector3 facing = vel.sqrMagnitude > 0.0001f ? vel.normalized : dir;
 					NetRotation = Quaternion.LookRotation(facing);
-					// Capture the incoming velocity for the deflection impulse before zeroing it.
-					Vector3 incoming = vel;
 					Velocity = Vector3.zero;
-					ResolveImpact(hit, incoming);
+					ResolveImpact(hit, vel, isHealthHit && speed >= _minDamageSpeed);
 					return;
 				}
 			}
@@ -133,14 +169,14 @@ namespace Starter.Shooter
 			}
 		}
 
-		private void ResolveImpact(LagCompensatedHit hit, Vector3 incomingVelocity)
+		private void ResolveImpact(LagCompensatedHit hit, Vector3 incomingVelocity, bool applyDamage)
 		{
 			Vector3 facing = incomingVelocity.sqrMagnitude > 0.0001f ? incomingVelocity.normalized : transform.forward;
 			Vector3 normal = hit.Normal != Vector3.zero ? hit.Normal : -facing;
 
-			// Damage path — only when the raycast hit an actual Fusion Hitbox with a Health component.
-			// PhysX-only hits (walls, props) skip this branch and just stick the pickup.
-			if (hit.Hitbox != null)
+			// Damage path — only when allowed (moving fast enough) and the raycast hit a Fusion Hitbox
+			// with a Health component. PhysX-only hits (walls, props) skip this and just stick the pickup.
+			if (applyDamage && hit.Hitbox != null)
 			{
 				var health = hit.Hitbox.Root.GetComponent<Health>();
 				int finalDamage = Damage;
@@ -156,19 +192,21 @@ namespace Starter.Shooter
 				}
 			}
 
-			// Spawn the pickup at the impact point so the projectile can be retrieved. The pickup's
-			// WorldPrefab is the same one used for inventory drops — pickup/stacking logic is shared.
+			// Spawn the pickup at the impact point so the projectile can be retrieved. Uses the item's
+			// bespoke WorldPrefab if set, else the database's shared generic pickup (zero-prefab items).
 			if (ItemId != 0 && ItemDatabase.Instance != null)
 			{
 				var def = ItemDatabase.Instance.GetById(ItemId);
-				if (def != null && def.WorldPrefab != null
-					&& def.WorldPrefab.GetComponent<NetworkObject>() != null)
+				GameObject worldPrefab = def != null
+					? (def.WorldPrefab != null ? def.WorldPrefab : ItemDatabase.Instance.GenericWorldPrefab)
+					: null;
+				if (worldPrefab != null && worldPrefab.GetComponent<NetworkObject>() != null)
 				{
 					Quaternion stickRot = Quaternion.LookRotation(facing);
 					// When dropping, lift the spawn point off the surface along the normal so the
 					// dynamic Rigidbody doesn't start interpenetrating the wall/floor it just hit.
 					Vector3 spawnPos = _dropOnImpact ? NetPosition + normal * 0.05f : NetPosition;
-					var spawned = Runner.Spawn(def.WorldPrefab, spawnPos, stickRot, Attacker);
+					var spawned = Runner.Spawn(worldPrefab, spawnPos, stickRot, Attacker);
 					if (spawned != null && spawned.TryGetComponent<PickupableItem>(out var pi))
 					{
 						pi.Initialize(ItemId, 1);

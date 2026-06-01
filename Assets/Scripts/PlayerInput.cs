@@ -293,10 +293,9 @@ namespace Starter.Shooter
 			if (instance == null) return null;
 			var weapon = instance.GetComponent<HeldWeapon>();
 			if (weapon == null) return null;
-			// Sway / aim-recoil apply only when the active action is a ranged firearm.
-			var actions = weapon.Actions;
-			if (actions == null || actions.Count == 0) return null;
-			var action = actions[0];
+			// Sway / aim-recoil apply only when the active action is a ranged firearm. The action
+			// now lives on the item asset (Inventory.ActiveAction), not the HeldWeapon prefab.
+			var action = _inventory.ActiveAction;
 			if (action == null || action.Style != EFeedbackStyle.Ranged) return null;
 			return weapon;
 		}

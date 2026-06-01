@@ -15,6 +15,10 @@ namespace Starter.Common.Inventory
 
 		[SerializeField] private List<ItemDefinition> _items = new();
 
+		[Tooltip("Shared world-pickup prefab spawned for any item without a bespoke WorldPrefab override " +
+		         "(e.g. a thrown weapon landing). Same Pickup_Generic the Inventory uses; builds its visual from ItemVisual.")]
+		public GameObject GenericWorldPrefab;
+
 		private Dictionary<short, ItemDefinition> _byId;
 
 		public IReadOnlyList<ItemDefinition> All => _items;

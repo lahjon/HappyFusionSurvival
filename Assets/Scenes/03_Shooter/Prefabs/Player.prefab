@@ -585,6 +585,8 @@ MonoBehaviour:
   StaminaRegenDelay: 1
   JumpStaminaCost: 15
   MinStaminaToStartSprint: 5
+  StartingMoney: 30
+  StartingScraps: 0
   MaxHunger: 100
   HungerDrainPer5Seconds: 1
   HungerPerStaminaPoint: 0.005
@@ -655,6 +657,7 @@ MonoBehaviour:
   CameraCollisionPadding: 0.05
   _Nickname: 
   _Money: 0
+  _Scraps: 0
   _Stamina: 0
   _Hunger: 0
   _IsCrouching:
@@ -801,6 +804,9 @@ MonoBehaviour:
   HandAnchor: {fileID: 6811691744029035999}
   _startingItem: {fileID: 11400000, guid: a4b8c9d1e2f34a5b67890c1d2e3f4a50, type: 2}
   _fallbackHandPrefab: {fileID: 971079267551747863, guid: d9aed784899f06440a56c27ce6a3e152, type: 3}
+  _unarmedItem: {fileID: 11400000, guid: e6151234e9bcba347a5efb1d5c4eaf71, type: 2}
+  _genericWorldPrefab: {fileID: 9211657559894916144, guid: d6be30b7870ee414c884bea67ee7e83b, type: 3}
+  _genericHandPrefab: {fileID: 7105590064792317012, guid: 8641147143044194282e8b474b784675, type: 3}
   _SelectedSlot: 0
   _CarriedPlaceableId: 0
 --- !u!114 &7836687535027190686

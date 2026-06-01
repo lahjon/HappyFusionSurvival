@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 575a0442216daee438eddd320269db98, type: 3}
+  m_Name: Shopkeeper_Wander
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.NpcDefinition
+  DisplayName: Shopkeeper
+  Prefab: {fileID: 0}
+  Behavior: 1
+  MoveSpeed: 1.2
+  ArrivalTolerance: 0.3
+  LookAround: 0
+  LookAroundSpeed: 15
+  WanderRadius: 3
+  WanderIdleMin: 1
+  WanderIdleMax: 3
+  PatrolMode: 0
+  WaypointWaitSeconds: 1
+  Hostile: 0
+  Attack: {fileID: 0}
+  AggroRadius: 10
+  ChaseSpeed: 4.5
+  ResetGraceSeconds: 3
+  ChaseRepathTicks: 5
+  LeashChaseToArea: 1
+  ActivePhases: 

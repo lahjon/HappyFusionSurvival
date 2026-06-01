@@ -113,6 +113,13 @@ namespace Starter.Shooter
 			Current.RPC_RequestCraft(recipeId);
 		}
 
+		/// <summary>Forward a scavenge request (destroy one unit of an inventory slot → scraps) to the open bench's state authority.</summary>
+		public void RequestScavenge(int slotIndex)
+		{
+			if (Current == null) return;
+			Current.RPC_RequestScavenge(slotIndex);
+		}
+
 		private void OnClosePerformed(InputAction.CallbackContext ctx)
 		{
 			RequestClose();

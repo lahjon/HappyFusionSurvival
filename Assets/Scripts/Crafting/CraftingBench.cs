@@ -62,7 +62,12 @@ namespace Starter.Shooter
 			var inventory = playerObj.GetComponent<Inventory>();
 			if (inventory == null) return;
 
-			// Validate: every ingredient available, output fits.
+			var player = playerObj.GetComponent<Player>();
+			if (player == null) return;
+
+			// Validate: scraps affordable, every ingredient available, output fits.
+			if (recipe.ScrapCost > 0 && player.Scraps < recipe.ScrapCost) return;
+
 			if (recipe.Ingredients != null)
 			{
 				for (int i = 0; i < recipe.Ingredients.Length; i++)
@@ -75,7 +80,9 @@ namespace Starter.Shooter
 
 			if (InventoryOps.RoomFor(inventory.Slots, recipe.Output.Id) < recipe.OutputCount) return;
 
-			// Commit: consume ingredients, then grant output.
+			// Commit: spend scraps, consume ingredients, then grant output.
+			if (!player.TrySpendScraps(recipe.ScrapCost)) return;
+
 			if (recipe.Ingredients != null)
 			{
 				for (int i = 0; i < recipe.Ingredients.Length; i++)
@@ -87,6 +94,43 @@ namespace Starter.Shooter
 			}
 
 			inventory.TryAdd(recipe.Output.Id, recipe.OutputCount);
+		}
+
+		// --- Scavenging ---
+
+		/// <summary>
+		/// Destroy one unit from the player's inventory <paramref name="slotIndex"/> and grant the
+		/// item's <see cref="ItemDefinition.ScrapValue"/> in scraps. Authoritative + host-range gated,
+		/// mirroring <see cref="RPC_RequestCraft"/>. Scavenging is only possible at a bench.
+		/// </summary>
+		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+		public void RPC_RequestScavenge(int slotIndex, RpcInfo info = default)
+		{
+			var source = ResolveSource(info);
+			if (Runner == null) return;
+
+			var playerObj = Runner.GetPlayerObject(source);
+			if (playerObj == null) return;
+
+			if (!IsWithinHostRange(playerObj.transform.position)) return;
+
+			var inventory = playerObj.GetComponent<Inventory>();
+			if (inventory == null) return;
+			if (slotIndex < 0 || slotIndex >= Inventory.SlotCount) return;
+
+			var slot = inventory.Slots[slotIndex];
+			if (slot.IsEmpty) return;
+
+			if (ItemDatabase.Instance == null) return;
+			var def = ItemDatabase.Instance.GetById(slot.ItemId);
+			if (def == null) return;
+
+			var player = playerObj.GetComponent<Player>();
+			if (player == null) return;
+
+			// Remove one unit first; only grant scraps if the destroy actually happened.
+			if (!inventory.RemoveAt(slotIndex, 1)) return;
+			player.AddScraps(def.ScrapValue);
 		}
 
 		private PlayerRef ResolveSource(RpcInfo info)

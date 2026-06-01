@@ -4,8 +4,13 @@ using UnityEngine;
 
 namespace Starter.Shooter
 {
-	[CreateAssetMenu(fileName = "FoodConsumable", menuName = "Inventory/Consumables/Food", order = 11)]
-	public sealed class FoodConsumable : ConsumableDefinition
+	/// <summary>
+	/// Consumable facet that restores hunger on use. Capability replacement for the old
+	/// <c>FoodConsumable</c> ScriptableObject. (Hunger is legacy — see CLAUDE.md — but kept
+	/// functional so the Food item migrates cleanly.)
+	/// </summary>
+	[System.Serializable]
+	public sealed class FoodCapability : ConsumableCapability
 	{
 		[Tooltip("Hunger (fullness) restored when consumed. Result is clamped to Player.MaxHunger.")]
 		[Min(0f)] public float HungerAmount = 25f;

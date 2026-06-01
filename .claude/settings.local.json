@@ -61,7 +61,14 @@
       "Bash(sort -t: -k2 -n)",
       "Bash(Remove-Item -Path \"C:\\\\Game projects\\\\HappyFusionSurvival\\\\Assets\\\\Editor\" -Recurse -Force)",
       "Bash(Remove-Item -Path \"C:\\\\Game projects\\\\HappyFusionSurvival\\\\Assets\\\\Editor.meta\" -Force)",
-      "Bash(awk '/^  NetworkedBehaviours:/{f=1} f{print} /^  ForceRemoteRenderTimeframe/{if\\(f\\)exit}' \"Assets/Scenes/03_Shooter/Prefabs/Player.prefab\")"
+      "Bash(awk '/^  NetworkedBehaviours:/{f=1} f{print} /^  ForceRemoteRenderTimeframe/{if\\(f\\)exit}' \"Assets/Scenes/03_Shooter/Prefabs/Player.prefab\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Unity Projects\\\\HappyFusionSurvival\\\\Assets\\\\03_Shooter\" -Recurse -Filter \"*.cs\")",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Unity Projects\\\\HappyFusionSurvival\\\\Assets\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(awk '/m_Script: {fileID: 11500000, guid: 188d9993f89faeb44b052a01958ce9a2/{found=1} found{print} found&&/^--- /&&!/188d9993/{c++; if\\(c>1\\) exit}' Assets/03_Shooter/03_Shooter.unity)",
+      "mcp__UnityMCP__manage_camera"
     ]
   }
 }

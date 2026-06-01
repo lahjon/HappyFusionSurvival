@@ -5,12 +5,13 @@ using UnityEngine;
 namespace Starter.Common.Crafting
 {
 	/// <summary>
-	/// Consumable "recipe scroll": when used, grants <see cref="Recipe"/> to the target
-	/// player's <see cref="IRecipeBook"/>. Lives in Common because the data is shared;
+	/// Consumable facet "recipe scroll": when used, grants <see cref="Recipe"/> to the target
+	/// player's <see cref="IRecipeBook"/>. Capability replacement for the old
+	/// <c>RecipeUnlockConsumable</c> ScriptableObject. Lives in Common because the data is shared;
 	/// per-mode players supply the concrete RecipeBook implementation.
 	/// </summary>
-	[CreateAssetMenu(fileName = "RecipeScroll", menuName = "Crafting/Recipe Unlock Consumable", order = 10)]
-	public sealed class RecipeUnlockConsumable : ConsumableDefinition
+	[System.Serializable]
+	public sealed class RecipeUnlockCapability : ConsumableCapability
 	{
 		[Tooltip("The recipe granted when this scroll is used.")]
 		public RecipeDefinition Recipe;

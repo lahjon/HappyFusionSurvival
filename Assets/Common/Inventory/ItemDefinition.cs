@@ -1,4 +1,4 @@
-using Fusion;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Starter.Common.Inventory
@@ -8,17 +8,6 @@ namespace Starter.Common.Inventory
 	{
 		public string Label;
 		public string Value;
-	}
-
-	// Subclass of ItemDefinition for items that are spent when used.
-	// Apply runs on every predicting peer during FixedUpdateNetwork; any networked
-	// mutations inside the effect must guard on HasStateAuthority themselves.
-	public abstract class ConsumableDefinition : ItemDefinition
-	{
-		[Tooltip("Seconds before the next use of any consumable is allowed. Shared across the inventory.")]
-		[Min(0f)] public float UseCooldownSeconds = 1f;
-
-		public abstract void Apply(GameObject target, NetworkRunner runner);
 	}
 
 	[CreateAssetMenu(fileName = "Item", menuName = "Inventory/Item Definition", order = 0)]
@@ -36,10 +25,17 @@ namespace Starter.Common.Inventory
 		[Tooltip("Optional list of stat rows shown in the tooltip (e.g. Damage / 12).")]
 		public ItemStat[] Stats;
 
-		[Tooltip("World prefab spawned when this item is dropped or seeded as loot. Must have NetworkObject + PickupableItem.")]
+		[Header("Visuals")]
+		[Tooltip("Mesh/material/scale the shared generic prefabs use to build this item's world pickup and " +
+		         "in-hand model. A new ordinary item needs only this — no bespoke prefab.")]
+		public ItemVisual Visual = new();
+
+		[Tooltip("Optional override: a fully bespoke world prefab (NetworkObject + PickupableItem). When set, " +
+		         "it is spawned instead of the generic pickup. Leave null for ordinary items (uses Visual).")]
 		public GameObject WorldPrefab;
 
-		[Tooltip("Local-only model parented to the player's HandAnchor when this slot is selected.")]
+		[Tooltip("Optional override: a fully bespoke in-hand prefab. When set, it is used instead of the generic " +
+		         "hand rig (e.g. the Scanner radar device). Leave null for ordinary items (uses Visual).")]
 		public GameObject HandPrefab;
 
 		[Tooltip("Maximum items per inventory slot. 1 = not stackable (each pickup creates a new slot). >1 = stackable up to this count; overflow spills into the next slot.")]
@@ -49,5 +45,35 @@ namespace Starter.Common.Inventory
 		[Tooltip("Weight per unit. Total inventory weight reduces movement speed above the player's WeightLimit.")]
 		[Min(0f)]
 		public float Weight = 0f;
+
+		[Tooltip("Scraps granted when ONE unit of this item is scavenged at a crafting bench. The item is destroyed in exchange for this much of the generic 'scraps' crafting currency.")]
+		[Min(0)]
+		public int ScrapValue = 1;
+
+		[Header("Capabilities")]
+		[Tooltip("Composable behavior modules. Add a WeaponCapability to make this item a weapon, a " +
+		         "PlaceableCapability to make it placeable, a ConsumableCapability to make it usable, etc. " +
+		         "Facets compose freely on one item.")]
+		[SerializeReference]
+		public List<ItemCapability> Capabilities = new();
+
+		/// <summary>First capability of type <typeparamref name="T"/> on this item, or null.</summary>
+		public T GetCapability<T>() where T : ItemCapability
+		{
+			if (Capabilities == null) return null;
+			for (int i = 0; i < Capabilities.Count; i++)
+			{
+				if (Capabilities[i] is T match) return match;
+			}
+			return null;
+		}
+
+		public bool TryGetCapability<T>(out T capability) where T : ItemCapability
+		{
+			capability = GetCapability<T>();
+			return capability != null;
+		}
+
+		public bool HasCapability<T>() where T : ItemCapability => GetCapability<T>() != null;
 	}
 }

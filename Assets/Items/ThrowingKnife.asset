@@ -14,11 +14,52 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.ItemDefinition
   Id: 13
   DisplayName: Throwing Knife
-  Icon: {fileID: 0}
+  Icon: {fileID: 21300000, guid: 662ae237300fee247a43823401881e39, type: 3}
   Description: "Stackable thrown blade. Sticks where it lands \u2014 recover and
     re-throw."
   Stats: []
-  WorldPrefab: {fileID: 2848020348106660934, guid: f1e55fbed99fabf42a6baaf74db10149, type: 3}
-  HandPrefab: {fileID: 4238122868407151013, guid: 94bd6dfc611f0444badb4b5c9736ca9b, type: 3}
+  Visual:
+    Mesh: {fileID: 4300000, guid: 9a41c083fc455594495e29589edfe5e3, type: 3}
+    Material: {fileID: 2100000, guid: 28646867ddcf90a4989276acd313ea43, type: 2}
+    WorldScale: {x: 1, y: 1, z: 1}
+    WorldBob: 0
+    WorldRotate: 0
+    PromptOffset: {x: 0, y: 0, z: 0}
+    HeldScale: {x: 1, y: 1, z: 1}
+    HeldLocalPosition: {x: 0, y: 0, z: 0}
+    HeldLocalEuler: {x: 0, y: 0, z: 0}
+    VisualOverride: {fileID: 0}
+  WorldPrefab: {fileID: 0}
+  HandPrefab: {fileID: 0}
   MaxStack: 8
   Weight: 0.2
+  ScrapValue: 1
+  Capabilities:
+  - rid: 8357564934323699991
+  references:
+    version: 2
+    RefIds:
+    - rid: 8357564934323699991
+      type: {class: WeaponCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
+      data:
+        Actions:
+        - {fileID: 11400000, guid: ac1521aa38d2c734684cba1c5b349cc3, type: 2}
+        Rig:
+          SwingArcEuler: {x: -80, y: 0, z: 0}
+          SwingDuration: 0.28
+          ChargedBackMultiplier: 0.8
+          ChargePoseLerpSpeed: 12
+          ChargedSwingArcScale: 1.35
+          ChargedSwingDurationScale: 1.2
+          RecoilBackKick: 0.06
+          RecoilPitchDegrees: -8
+          RecoilDuration: 0.12
+          WeaponSway: 0
+          SwayMaxDegrees: 1.25
+          SwayFrequency: 0.9
+          AimRecoil: 0
+          AimRecoilPitchPerShot: 3.5
+          AimRecoilHorizontalRandom: 1.5
+          AimRecoilLerpSpeed: 18
+          HasMuzzle: 0
+          MuzzleLocalPosition: {x: 0, y: 0, z: 0}

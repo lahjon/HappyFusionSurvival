@@ -31,21 +31,20 @@ namespace Starter.Shooter
 		[Networked]
 		private TickTimer _knockbackTimer { get; set; }
 
-		protected bool IsAlive => Health != null && Health.IsAlive;
+		// NPCs without a Health component are non-damageable and always considered alive
+		// (friendly town NPCs — shopkeeper, quest giver). Add a Health component for
+		// anything that can be killed (chickens, hostile mobs).
+		protected bool IsAlive => Health == null || Health.IsAlive;
 
 		public sealed override void FixedUpdateNetwork()
 		{
-			if (Health == null) return;
-
-			if (Health.IsAlive)
-			{
-				OnFixedUpdateAlive();
-			}
-			else
+			if (Health != null && Health.IsAlive == false)
 			{
 				OnFixedUpdateDead();
 				return;
 			}
+
+			OnFixedUpdateAlive();
 
 			Vector3 knockback = ComputeKnockbackVelocity();
 			if (knockback != Vector3.zero)

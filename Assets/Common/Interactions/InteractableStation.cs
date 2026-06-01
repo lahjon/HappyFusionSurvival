@@ -32,8 +32,8 @@ namespace Starter.Common.Interactions
 		[Tooltip("If true, the player can hold Interact to start carrying this station as a placeable.")]
 		public bool IsPickupable = false;
 
-		[Tooltip("Placeable granted to the player when pickup completes. Required when IsPickupable is on.")]
-		public PlaceableDefinition PickupItem;
+		[Tooltip("Item granted to the player when pickup completes. Must carry a PlaceableCapability. Required when IsPickupable is on.")]
+		public ItemDefinition PickupItem;
 
 		[Tooltip("Seconds the player must hold Interact to pick this up.")]
 		[Min(0.1f)] public float PickupHoldSeconds = 2f;
@@ -56,7 +56,7 @@ namespace Starter.Common.Interactions
 		// --- IPickupableStation ---
 
 		bool IPickupableStation.IsPickupable => IsPickupable && PickupItem != null;
-		PlaceableDefinition IPickupableStation.AsItem => PickupItem;
+		ItemDefinition IPickupableStation.AsItem => PickupItem;
 		float IPickupableStation.PickupHoldSeconds => PickupHoldSeconds;
 
 		/// <summary>Subclasses override to refuse pickup while a session is open, etc. Empty/null allows it.</summary>
