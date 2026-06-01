@@ -425,18 +425,15 @@ namespace Starter.Common.Interactions
 			// Fallback: if the scene doesn't already place an InteractionPromptVisuals,
 			// instantiate the shipped Resources prefab under the main canvas so prompts
 			// still render. Lets new scenes work without manual canvas setup.
-			Debug.Log($"[InteractionScanner] BuildPromptHUD: sceneVisuals={(visuals != null)} canvasRT={(_canvasRT != null ? _canvasRT.name : "null")}");
 			if (visuals == null && _canvasRT != null)
 			{
 				var prefab = Resources.Load<GameObject>("InteractionPromptHUD");
-				Debug.Log($"[InteractionScanner] Resources.Load InteractionPromptHUD => {(prefab != null ? "OK" : "NULL")}");
 				if (prefab != null)
 				{
 					var instance = Instantiate(prefab);
 					instance.name = prefab.name;
 					instance.transform.SetParent(_canvasRT, false);
 					visuals = instance.GetComponent<InteractionPromptVisuals>();
-					Debug.Log($"[InteractionScanner] Spawned prompt under canvas '{_canvasRT.name}', visuals={(visuals != null)}, Box={(visuals != null && visuals.Box != null)}, HoldFill={(visuals != null && visuals.HoldFill != null)}");
 				}
 			}
 
@@ -459,18 +456,9 @@ namespace Starter.Common.Interactions
 			_promptGO.SetActive(false);
 		}
 
-		private int _lateUpdateDiagFrame = -1;
 		private void LateUpdate()
 		{
-			if (_promptGO == null)
-			{
-				if (_lateUpdateDiagFrame != Time.frameCount / 60)
-				{
-					_lateUpdateDiagFrame = Time.frameCount / 60;
-					Debug.Log("[InteractionScanner] LateUpdate: _promptGO is null");
-				}
-				return;
-			}
+			if (!_initialized || _promptGO == null) return;
 
 			if (_promptCamera == null && Camera.main != null)
 				_promptCamera = Camera.main;
@@ -482,12 +470,6 @@ namespace Starter.Common.Interactions
 				if (_promptGO.activeSelf) _promptGO.SetActive(false);
 				if (_promptCenterLabel != null) _promptCenterLabel.enabled = false;
 				return;
-			}
-
-			if (_lateUpdateDiagFrame != Time.frameCount / 60)
-			{
-				_lateUpdateDiagFrame = Time.frameCount / 60;
-				Debug.Log($"[InteractionScanner] LateUpdate: target={target.name} active={_promptGO.activeSelf}");
 			}
 
 			var prompt = target.GetComponent<InteractionPrompt>();
@@ -514,10 +496,6 @@ namespace Starter.Common.Interactions
 			{
 				RectTransformUtility.ScreenPointToLocalPointInRectangle(_canvasRT, screenPos, null, out Vector2 localPos);
 				_promptRT.anchoredPosition = localPos;
-				if (_lateUpdateDiagFrame == Time.frameCount / 60)
-				{
-					Debug.Log($"[InteractionScanner] screenPos={screenPos} localPos={localPos} anchoredPos={_promptRT.anchoredPosition} parent='{_promptRT.parent?.name}' parentAnchor={(_promptRT.parent as RectTransform)?.rect}");
-				}
 			}
 
 			_promptBox.color = prompt != null ? prompt.ActiveColor : new Color(0.3f, 0.65f, 1f, 1f);
