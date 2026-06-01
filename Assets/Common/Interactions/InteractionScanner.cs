@@ -409,7 +409,7 @@ namespace Starter.Common.Interactions
 		private static RectTransform FindMainCanvasRT()
 		{
 			// Find the root Screen Space Overlay canvas — ignores any in-world or sub-canvases.
-			foreach (var c in FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+			foreach (var c in FindObjectsByType<Canvas>(FindObjectsInactive.Exclude))
 			{
 				if (c.renderMode == RenderMode.ScreenSpaceOverlay && c.transform.parent == null)
 					return (RectTransform)c.transform;
