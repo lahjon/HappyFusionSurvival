@@ -46,13 +46,21 @@ namespace Starter.Shooter
 		[Tooltip("Exponential fog density at deep night.")]
 		public float NightFogDensity = 0.02f;
 
+		[Header("Night Start SFX")]
+		[Tooltip("SFX played on all clients when night begins (e.g. a siren or announcement).")]
+		public AudioClip NightStartSFX;
+		[Tooltip("Seconds after nightfall before the SFX triggers.")]
+		public float NightStartSFXDelay = 0f;
+
 		[Header("BGM")]
 		[Tooltip("Music played during the day phase. Leave empty to silence music at dawn.")]
 		public AudioClip DayBGM;
 		[Tooltip("Music played during the night phase. Leave empty to silence music at nightfall.")]
 		public AudioClip NightBGM;
-		[Tooltip("Crossfade duration in seconds when switching between day and night BGM.")]
+		[Tooltip("Fade duration in seconds for each side of the music transition.")]
 		public float BGMFadeDuration = 2f;
+		[Tooltip("Seconds of silence between the fade-out and fade-in during a day/night music transition.")]
+		public float BGMSilenceDuration = 1.5f;
 
 		[Header("Ambient Palette")]
 		[Tooltip("Sky / equator / ground colors at full daytime. Defaults match the scene's existing spherical ambient.")]
@@ -73,6 +81,13 @@ namespace Starter.Shooter
 		/// <summary>Seconds elapsed since the manager spawned. Authority-only write; everything else derives from this.</summary>
 		[Networked]
 		public float SessionTime { get; private set; }
+
+		/// <summary>Incremented by state authority when the night-start SFX delay elapses. All clients react via OnChangedRender.</summary>
+		[Networked, OnChangedRender(nameof(OnNightSFXTriggered))]
+		private int NightSFXTrigger { get; set; }
+
+		[Networked] private TickTimer _nightSFXTimer { get; set; }
+		private bool _wasNightFN;
 
 		public float FullCycleLength => DayLength + NightLength;
 
@@ -219,6 +234,27 @@ namespace Starter.Shooter
 		{
 			if (HasStateAuthority == false) return;
 			SessionTime += Runner.DeltaTime;
+
+			bool night = IsNight;
+
+			if (night && !_wasNightFN)
+			{
+				// Nightfall just occurred — start the delay timer (0 delay fires next tick).
+				_nightSFXTimer = NightStartSFXDelay > 0f
+					? TickTimer.CreateFromSeconds(Runner, NightStartSFXDelay)
+					: TickTimer.CreateFromTicks(Runner, 1);
+			}
+
+			if (!night)
+				_nightSFXTimer = default; // reset if day somehow starts before timer fires
+
+			if (_nightSFXTimer.Expired(Runner))
+			{
+				NightSFXTrigger++;
+				_nightSFXTimer = default;
+			}
+
+			_wasNightFN = night;
 		}
 
 		/// <summary>State-authority-only: snap <see cref="SessionTime"/> forward to the start of the next day cycle.
@@ -355,12 +391,18 @@ namespace Starter.Shooter
 			_wasNight = night;
 		}
 
+		private void OnNightSFXTriggered()
+		{
+			if (NightStartSFX != null)
+				AudioManager.Instance?.PlaySFX2D(NightStartSFX);
+		}
+
 		private void PlayBGMForPhase(bool isNight, bool crossfade)
 		{
 			var clip = isNight ? NightBGM : DayBGM;
-			if (clip == null) { AudioManager.Instance?.StopMusic(); return; }
+			if (clip == null) { AudioManager.Instance?.StopMusic(BGMFadeDuration); return; }
 			if (crossfade)
-				AudioManager.Instance?.CrossfadeMusic(clip, loop: true, fadeDuration: BGMFadeDuration);
+				AudioManager.Instance?.TransitionMusic(clip, loop: true, fadeDuration: BGMFadeDuration, silenceDuration: BGMSilenceDuration);
 			else
 				AudioManager.Instance?.PlayMusic(clip, loop: true, fadeDuration: BGMFadeDuration);
 		}
