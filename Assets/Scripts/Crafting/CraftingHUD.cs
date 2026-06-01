@@ -93,7 +93,7 @@ namespace Starter.Shooter
 
 		private void TryBind()
 		{
-			var gm = FindFirstObjectByType<GameManager>();
+			var gm = FindAnyObjectByType<GameManager>();
 			if (gm == null || gm.LocalPlayer == null) return;
 
 			var session = gm.LocalPlayer.GetComponent<CraftingSession>();

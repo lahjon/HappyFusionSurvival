@@ -74,7 +74,7 @@ namespace Starter.Shooter
 
 		public override void Spawned()
 		{
-			_spawnPoints = FindObjectsOfType<SpawnPoint>();
+			_spawnPoints = FindObjectsByType<SpawnPoint>(FindObjectsInactive.Exclude);
 
 			if (HasStateAuthority)
 				NetworkedWorldSeed = WorldGen.Seed;
@@ -165,7 +165,7 @@ namespace Starter.Shooter
 		{
 			// Walk live beds rather than tracking a registry — the sequence runs at most twice
 			// per night, and the scene typically has a handful of beds at most.
-			var beds = FindObjectsByType<Bed>(FindObjectsSortMode.None);
+			var beds = FindObjectsByType<Bed>(FindObjectsInactive.Exclude);
 			for (int i = 0; i < beds.Length; i++)
 			{
 				if (beds[i] != null) beds[i].HostReleaseOccupant();

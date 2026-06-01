@@ -23,7 +23,7 @@ namespace Starter.Shooter
 
 		private void Awake()
 		{
-			if (GameManager == null) GameManager = FindFirstObjectByType<GameManager>();
+			if (GameManager == null) GameManager = FindAnyObjectByType<GameManager>();
 			SetAlpha(0f);
 		}
 

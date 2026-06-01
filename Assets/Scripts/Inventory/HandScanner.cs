@@ -234,7 +234,7 @@ namespace Starter.Shooter
 		private void RefreshPlayerCache()
 		{
 			_playerCache.Clear();
-			var all = FindObjectsByType<Player>(FindObjectsSortMode.None);
+			var all = FindObjectsByType<Player>(FindObjectsInactive.Exclude);
 			for (int i = 0; i < all.Length; i++)
 			{
 				var p = all[i];
