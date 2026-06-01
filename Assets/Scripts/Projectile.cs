@@ -29,6 +29,12 @@ namespace Starter.Shooter
 		[Header("Impact")]
 		[Tooltip("Optional VFX spawned at the hit point. Local-only — no networking required.")]
 		[SerializeField] private GameObject _impactPrefab;
+		[Tooltip("ON: on impact the pickup becomes a dynamic Rigidbody, deflects off the surface and falls to the ground (throwing-knife pattern). OFF: the pickup stays planted exactly where it landed (arrow pattern).")]
+		[SerializeField] private bool _dropOnImpact;
+		[Tooltip("Fraction of the incoming velocity kept as a deflection impulse when _dropOnImpact is on. 0 = drop straight down, ~0.3 = clinks off the surface before falling.")]
+		[SerializeField, Range(0f, 1f)] private float _dropDeflectFactor = 0.3f;
+		[Tooltip("Seconds the dropped pickup stays non-interactable after landing, so the thrower can't instantly re-grab it.")]
+		[SerializeField] private float _dropInteractionLock = 0.5f;
 
 		[Networked] public Vector3 NetPosition { get; set; }
 		[Networked] public Quaternion NetRotation { get; set; }
@@ -98,8 +104,10 @@ namespace Starter.Shooter
 					NetPosition = hit.Point;
 					Vector3 facing = vel.sqrMagnitude > 0.0001f ? vel.normalized : dir;
 					NetRotation = Quaternion.LookRotation(facing);
+					// Capture the incoming velocity for the deflection impulse before zeroing it.
+					Vector3 incoming = vel;
 					Velocity = Vector3.zero;
-					ResolveImpact(hit, facing);
+					ResolveImpact(hit, incoming);
 					return;
 				}
 			}
@@ -125,8 +133,11 @@ namespace Starter.Shooter
 			}
 		}
 
-		private void ResolveImpact(LagCompensatedHit hit, Vector3 facing)
+		private void ResolveImpact(LagCompensatedHit hit, Vector3 incomingVelocity)
 		{
+			Vector3 facing = incomingVelocity.sqrMagnitude > 0.0001f ? incomingVelocity.normalized : transform.forward;
+			Vector3 normal = hit.Normal != Vector3.zero ? hit.Normal : -facing;
+
 			// Damage path — only when the raycast hit an actual Fusion Hitbox with a Health component.
 			// PhysX-only hits (walls, props) skip this branch and just stick the pickup.
 			if (hit.Hitbox != null)
@@ -154,18 +165,31 @@ namespace Starter.Shooter
 					&& def.WorldPrefab.GetComponent<NetworkObject>() != null)
 				{
 					Quaternion stickRot = Quaternion.LookRotation(facing);
-					var spawned = Runner.Spawn(def.WorldPrefab, NetPosition, stickRot, Attacker);
+					// When dropping, lift the spawn point off the surface along the normal so the
+					// dynamic Rigidbody doesn't start interpenetrating the wall/floor it just hit.
+					Vector3 spawnPos = _dropOnImpact ? NetPosition + normal * 0.05f : NetPosition;
+					var spawned = Runner.Spawn(def.WorldPrefab, spawnPos, stickRot, Attacker);
 					if (spawned != null && spawned.TryGetComponent<PickupableItem>(out var pi))
 					{
 						pi.Initialize(ItemId, 1);
-						pi.Stick(NetPosition, stickRot);
+						if (_dropOnImpact)
+						{
+							// Reflect a fraction of the incoming velocity off the surface; gravity +
+							// the Rigidbody's random tumble (set in Throw) carry it to the ground.
+							Vector3 deflect = Vector3.Reflect(incomingVelocity, normal) * _dropDeflectFactor;
+							pi.Throw(deflect, _dropInteractionLock);
+						}
+						else
+						{
+							pi.Stick(spawnPos, stickRot);
+						}
 					}
 				}
 			}
 
 			if (_impactPrefab != null)
 			{
-				Instantiate(_impactPrefab, NetPosition, Quaternion.LookRotation(hit.Normal != Vector3.zero ? hit.Normal : -facing));
+				Instantiate(_impactPrefab, NetPosition, Quaternion.LookRotation(normal));
 			}
 
 			Runner.Despawn(Object);
