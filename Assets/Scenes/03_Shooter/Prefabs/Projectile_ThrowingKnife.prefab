@@ -69,6 +69,9 @@ MonoBehaviour:
   _spinAxis: {x: 1, y: 0, z: 0}
   _spinDegreesPerSecond: 1080
   _impactPrefab: {fileID: 0}
+  _dropOnImpact: 1
+  _dropDeflectFactor: 0.3
+  _dropInteractionLock: 0.5
   _NetPosition: {x: 0, y: 0, z: 0}
   _NetRotation: {x: 0, y: 0, z: 0, w: 0}
   _Velocity: {x: 0, y: 0, z: 0}
