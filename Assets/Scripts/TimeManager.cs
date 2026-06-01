@@ -4,6 +4,17 @@ using UnityEngine.Rendering;
 
 namespace Starter.Shooter
 {
+	[System.Serializable]
+	public class NightSFXEntry
+	{
+		[Tooltip("SFX played on all clients when the delay elapses after nightfall.")]
+		public AudioClip Clip;
+		[Tooltip("Seconds after nightfall before this SFX plays.")]
+		public float Delay = 0f;
+		[Range(0f, 1f), Tooltip("Playback volume for this SFX.")]
+		public float Volume = 1f;
+	}
+
 	/// <summary>
 	/// Scene-resident NetworkBehaviour that owns the day/night cycle clock.
 	/// State authority advances a single <see cref="SessionTime"/> float each tick; everything else
@@ -46,11 +57,9 @@ namespace Starter.Shooter
 		[Tooltip("Exponential fog density at deep night.")]
 		public float NightFogDensity = 0.02f;
 
-		[Header("Night Start SFX")]
-		[Tooltip("SFX played on all clients when night begins (e.g. a siren or announcement).")]
-		public AudioClip NightStartSFX;
-		[Tooltip("Seconds after nightfall before the SFX triggers.")]
-		public float NightStartSFXDelay = 0f;
+		[Header("Night SFX Sequence")]
+		[Tooltip("SFX played server-wide at specific times after nightfall. Each entry has its own clip and delay. Supports up to 32 entries.")]
+		public NightSFXEntry[] NightSFXEntries = System.Array.Empty<NightSFXEntry>();
 
 		[Header("BGM")]
 		[Tooltip("Music played during the day phase. Leave empty to silence music at dawn.")]
@@ -82,12 +91,14 @@ namespace Starter.Shooter
 		[Networked]
 		public float SessionTime { get; private set; }
 
-		/// <summary>Incremented by state authority when the night-start SFX delay elapses. All clients react via OnChangedRender.</summary>
-		[Networked, OnChangedRender(nameof(OnNightSFXTriggered))]
-		private int NightSFXTrigger { get; set; }
+		/// <summary>
+		/// Bitmask written by state authority: bit i is set when NightSFXEntries[i]'s delay has elapsed.
+		/// Reset to 0 at the start of each day. All clients react via OnChangedRender.
+		/// </summary>
+		[Networked, OnChangedRender(nameof(OnNightSFXMaskChanged))]
+		private int NightSFXTriggerMask { get; set; }
 
-		[Networked] private TickTimer _nightSFXTimer { get; set; }
-		private bool _wasNightFN;
+		private int _lastNightSFXMask;
 
 		public float FullCycleLength => DayLength + NightLength;
 
@@ -235,26 +246,22 @@ namespace Starter.Shooter
 			if (HasStateAuthority == false) return;
 			SessionTime += Runner.DeltaTime;
 
-			bool night = IsNight;
-
-			if (night && !_wasNightFN)
+			if (!IsNight)
 			{
-				// Nightfall just occurred — start the delay timer (0 delay fires next tick).
-				_nightSFXTimer = NightStartSFXDelay > 0f
-					? TickTimer.CreateFromSeconds(Runner, NightStartSFXDelay)
-					: TickTimer.CreateFromTicks(Runner, 1);
+				// Reset bitmask each day so entries can fire again next night.
+				if (NightSFXTriggerMask != 0) NightSFXTriggerMask = 0;
+				return;
 			}
 
-			if (!night)
-				_nightSFXTimer = default; // reset if day somehow starts before timer fires
-
-			if (_nightSFXTimer.Expired(Runner))
+			// Set a bit for each entry whose delay has elapsed since nightfall.
+			float nightElapsed = CycleSeconds - DayLength;
+			int mask = NightSFXTriggerMask;
+			for (int i = 0; i < NightSFXEntries.Length && i < 32; i++)
 			{
-				NightSFXTrigger++;
-				_nightSFXTimer = default;
+				if (nightElapsed >= NightSFXEntries[i].Delay)
+					mask |= (1 << i);
 			}
-
-			_wasNightFN = night;
+			if (mask != NightSFXTriggerMask) NightSFXTriggerMask = mask;
 		}
 
 		/// <summary>State-authority-only: snap <see cref="SessionTime"/> forward to the start of the next day cycle.
@@ -391,10 +398,15 @@ namespace Starter.Shooter
 			_wasNight = night;
 		}
 
-		private void OnNightSFXTriggered()
+		private void OnNightSFXMaskChanged()
 		{
-			if (NightStartSFX != null)
-				AudioManager.Instance?.PlaySFX2D(NightStartSFX);
+			int newMask  = NightSFXTriggerMask;
+			int newlySet = newMask & ~_lastNightSFXMask;
+			_lastNightSFXMask = newMask;
+
+			for (int i = 0; i < NightSFXEntries.Length && i < 32; i++)
+				if ((newlySet & (1 << i)) != 0 && NightSFXEntries[i].Clip != null)
+					AudioManager.Instance?.PlaySFX2D(NightSFXEntries[i].Clip, NightSFXEntries[i].Volume);
 		}
 
 		private void PlayBGMForPhase(bool isNight, bool crossfade)
