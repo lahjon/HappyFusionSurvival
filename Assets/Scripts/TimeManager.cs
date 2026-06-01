@@ -46,6 +46,14 @@ namespace Starter.Shooter
 		[Tooltip("Exponential fog density at deep night.")]
 		public float NightFogDensity = 0.02f;
 
+		[Header("BGM")]
+		[Tooltip("Music played during the day phase. Leave empty to silence music at dawn.")]
+		public AudioClip DayBGM;
+		[Tooltip("Music played during the night phase. Leave empty to silence music at nightfall.")]
+		public AudioClip NightBGM;
+		[Tooltip("Crossfade duration in seconds when switching between day and night BGM.")]
+		public float BGMFadeDuration = 2f;
+
 		[Header("Ambient Palette")]
 		[Tooltip("Sky / equator / ground colors at full daytime. Defaults match the scene's existing spherical ambient.")]
 		public Color DaySkyColor      = new Color(0.90f, 0.93f, 1.00f);
@@ -172,6 +180,9 @@ namespace Starter.Shooter
 				RenderSettings.fog     = true;
 				RenderSettings.fogMode = FogMode.Exponential;
 			}
+
+			// Play the correct BGM immediately — handles late joiners snapping to mid-session phase.
+			PlayBGMForPhase(IsNight, crossfade: false);
 		}
 
 		public override void Despawned(NetworkRunner runner, bool hasState)
@@ -332,14 +343,26 @@ namespace Starter.Shooter
 			if (night && _wasNight == false)
 			{
 				Debug.Log($"[TIME] === NIGHTFALL Day {day} ===");
+				PlayBGMForPhase(isNight: true, crossfade: true);
 			}
 			else if (night == false && day != _lastLoggedDay)
 			{
 				Debug.Log($"[TIME] === Day {day} START ===");
+				PlayBGMForPhase(isNight: false, crossfade: true);
 			}
 
 			_lastLoggedDay = day;
 			_wasNight = night;
+		}
+
+		private void PlayBGMForPhase(bool isNight, bool crossfade)
+		{
+			var clip = isNight ? NightBGM : DayBGM;
+			if (clip == null) { AudioManager.Instance?.StopMusic(); return; }
+			if (crossfade)
+				AudioManager.Instance?.CrossfadeMusic(clip, loop: true, fadeDuration: BGMFadeDuration);
+			else
+				AudioManager.Instance?.PlayMusic(clip, loop: true, fadeDuration: BGMFadeDuration);
 		}
 	}
 }
