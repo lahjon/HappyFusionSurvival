@@ -439,6 +439,67 @@ Animation:
   m_AnimatePhysics: 0
   m_UpdateMode: 0
   m_CullingType: 0
+--- !u!1001 &133192328
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 3160113905999270276, guid: 1b6b3afac38ff4c43b0f2fa9bbcf8956, type: 3}
+      propertyPath: SortKey
+      value: 441684149
+      objectReference: {fileID: 0}
+    - target: {fileID: 5796317820342495815, guid: 1b6b3afac38ff4c43b0f2fa9bbcf8956, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 21
+      objectReference: {fileID: 0}
+    - target: {fileID: 5796317820342495815, guid: 1b6b3afac38ff4c43b0f2fa9bbcf8956, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 1.0556965
+      objectReference: {fileID: 0}
+    - target: {fileID: 5796317820342495815, guid: 1b6b3afac38ff4c43b0f2fa9bbcf8956, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 16
+      objectReference: {fileID: 0}
+    - target: {fileID: 5796317820342495815, guid: 1b6b3afac38ff4c43b0f2fa9bbcf8956, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: -0.00000004371139
+      objectReference: {fileID: 0}
+    - target: {fileID: 5796317820342495815, guid: 1b6b3afac38ff4c43b0f2fa9bbcf8956, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5796317820342495815, guid: 1b6b3afac38ff4c43b0f2fa9bbcf8956, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5796317820342495815, guid: 1b6b3afac38ff4c43b0f2fa9bbcf8956, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5796317820342495815, guid: 1b6b3afac38ff4c43b0f2fa9bbcf8956, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5796317820342495815, guid: 1b6b3afac38ff4c43b0f2fa9bbcf8956, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5796317820342495815, guid: 1b6b3afac38ff4c43b0f2fa9bbcf8956, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7454677362409327841, guid: 1b6b3afac38ff4c43b0f2fa9bbcf8956, type: 3}
+      propertyPath: m_Name
+      value: Door
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 1b6b3afac38ff4c43b0f2fa9bbcf8956, type: 3}
 --- !u!1 &218785955
 GameObject:
   m_ObjectHideFlags: 0
@@ -1131,6 +1192,17 @@ MonoBehaviour:
   Sun: {fileID: 2114283754330233425}
   DaySunIntensity: 1
   NightSunIntensity: 0
+  DaySkyboxMaterial: {fileID: 0}
+  NightSkyboxMaterial: {fileID: 0}
+  DriveSkybox: 1
+  DriveFog: 1
+  DayFogColor: {r: 0.55, g: 0.65, b: 0.75, a: 1}
+  DayFogDensity: 0.001
+  NightFogColor: {r: 0.02, g: 0.02, b: 0.06, a: 1}
+  NightFogDensity: 0.02
+  DayBGM: {fileID: 0}
+  NightBGM: {fileID: 0}
+  BGMFadeDuration: 2
   DaySkyColor: {r: 0.9, g: 0.93, b: 1, a: 1}
   DayEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
   DayGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
@@ -2342,7 +2414,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 1479014088}
+  - {fileID: 1884966256}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -5421,60 +5493,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 7228036846917090506, guid: ceb7c14f3eafb2b4e8f7750b54951227, type: 3}
   m_PrefabInstance: {fileID: 5025632192150172239}
   m_PrefabAsset: {fileID: 0}
---- !u!21 &1479014088
-Material:
-  serializedVersion: 8
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: SunVisualMat
-  m_Shader: {fileID: 4800000, guid: 650dd9526735d5b46b79224bc6e94025, type: 3}
-  m_Parent: {fileID: 0}
-  m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
-  m_InvalidKeywords: []
-  m_LightmapFlags: 0
-  m_EnableInstancingVariants: 0
-  m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
-  m_LockedProperties: 
-  m_SavedProperties:
-    serializedVersion: 3
-    m_TexEnvs:
-    - _BaseMap:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _MainTex:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    m_Ints: []
-    m_Floats:
-    - _AddPrecomputedVelocity: 0
-    - _AlphaClip: 0
-    - _AlphaToMask: 0
-    - _Blend: 0
-    - _BlendOp: 0
-    - _Cull: 2
-    - _Cutoff: 0.5
-    - _DstBlend: 0
-    - _DstBlendAlpha: 0
-    - _QueueOffset: 0
-    - _SampleGI: 0
-    - _SrcBlend: 1
-    - _SrcBlendAlpha: 1
-    - _Surface: 0
-    - _XRMotionVectorsPass: 1
-    - _ZWrite: 1
-    m_Colors:
-    - _BaseColor: {r: 15, g: 14.25, b: 12, a: 15}
-    - _Color: {r: 0.5, g: 0.5, b: 0.5, a: 1}
-  m_BuildTextureStacks: []
-  m_AllowLocking: 1
 --- !u!1 &1519511503
 GameObject:
   m_ObjectHideFlags: 0
@@ -6517,6 +6535,60 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4224051708729452, guid: 03cb2a4568ff1a942aa83dc550cdfcf9, type: 3}
   m_PrefabInstance: {fileID: 1870352028}
   m_PrefabAsset: {fileID: 0}
+--- !u!21 &1884966256
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: SunVisualMat
+  m_Shader: {fileID: 4800000, guid: 650dd9526735d5b46b79224bc6e94025, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 0
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BaseMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AddPrecomputedVelocity: 0
+    - _AlphaClip: 0
+    - _AlphaToMask: 0
+    - _Blend: 0
+    - _BlendOp: 0
+    - _Cull: 2
+    - _Cutoff: 0.5
+    - _DstBlend: 0
+    - _DstBlendAlpha: 0
+    - _QueueOffset: 0
+    - _SampleGI: 0
+    - _SrcBlend: 1
+    - _SrcBlendAlpha: 1
+    - _Surface: 0
+    - _XRMotionVectorsPass: 1
+    - _ZWrite: 1
+    m_Colors:
+    - _BaseColor: {r: 15, g: 14.25, b: 12, a: 15}
+    - _Color: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
 --- !u!1 &1911907456
 GameObject:
   m_ObjectHideFlags: 0
@@ -8074,3 +8146,4 @@ SceneRoots:
   - {fileID: 766573041}
   - {fileID: 1339152438}
   - {fileID: 2603244503447008706}
+  - {fileID: 133192328}

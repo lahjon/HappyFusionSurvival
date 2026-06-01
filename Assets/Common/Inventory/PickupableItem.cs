@@ -55,6 +55,13 @@ namespace Starter.Common.Inventory
 		[Networked] public Quaternion NetRotation { get; set; }
 		[Networked] public TickTimer InteractionLockedUntil { get; set; }
 
+		// Set when this pickup is lodged in a damageable target (thrown-knife-in-a-body). While valid the
+		// pickup follows the victim with physics off and its colliders turned into triggers (still
+		// interactable, but can't block or be re-hit); cleared when the victim dies/despawns so it falls.
+		[Networked, OnChangedRender(nameof(OnAttachedChanged))] public NetworkId AttachedTo { get; set; }
+		[Networked] public Vector3 AttachLocalPos { get; set; }
+		[Networked] public Quaternion AttachLocalRot { get; set; }
+
 		public ItemDefinition Definition =>
 			ItemDatabase.Instance != null ? ItemDatabase.Instance.GetById(ItemId) : null;
 
@@ -136,6 +143,7 @@ namespace Starter.Common.Inventory
 					_visualOverrideInstance = Instantiate(v.VisualOverride, _visualRoot);
 				if (_visualRoot.TryGetComponent<MeshRenderer>(out var primRenderer))
 					primRenderer.enabled = false;
+				_visualRoot.localScale = v.WorldScale;
 				return;
 			}
 
@@ -163,15 +171,93 @@ namespace Starter.Common.Inventory
 
 		public override void FixedUpdateNetwork()
 		{
+			if (Object.HasStateAuthority == false) return;
+
+			// Lodged in a target: follow it (physics is off) until it dies/despawns, then fall.
+			if (AttachedTo.IsValid)
+			{
+				UpdateAttachment();
+				return;
+			}
+
 			// Snapshot the SA's authoritative transform every tick. Fusion interpolates
 			// the [Networked] Vector3 / Quaternion automatically when proxies read them
 			// in Render, so the visual stays smooth between ticks.
-			if (Object.HasStateAuthority && _rb != null)
+			if (_rb != null)
 			{
 				ApplyPlayerPush();
 				NetPosition = _rb.position;
 				NetRotation = _rb.rotation;
 			}
+		}
+
+		/// <summary>
+		/// SA-only. Lodge this pickup in a damageable target: it follows the victim with physics
+		/// disabled and its colliders turned into triggers, so it can't block movement or be re-hit but
+		/// is still grabbable. When the victim dies or despawns it detaches and falls (UpdateAttachment).
+		/// Used by Projectile when a thrown weapon hits a Health target.
+		/// </summary>
+		public void AttachToVictim(NetworkObject victim, Vector3 worldPos, Quaternion worldRot, float lockSeconds = 0.5f)
+		{
+			if (Object.HasStateAuthority == false || victim == null) return;
+			if (_rb == null) _rb = GetComponent<Rigidbody>();
+
+			var vt = victim.transform;
+			AttachLocalPos = vt.InverseTransformPoint(worldPos);
+			AttachLocalRot = Quaternion.Inverse(vt.rotation) * worldRot;
+			AttachedTo = victim.Id; // OnAttachedChanged turns colliders into triggers on every peer
+
+			if (_rb != null)
+			{
+				_rb.linearVelocity = Vector3.zero;
+				_rb.angularVelocity = Vector3.zero;
+				_rb.isKinematic = true;
+				if (_rb.IsSleeping() == false) _rb.Sleep();
+			}
+
+			NetPosition = worldPos;
+			NetRotation = worldRot;
+			InteractionLockedUntil = TickTimer.CreateFromSeconds(Runner, lockSeconds);
+		}
+
+		// SA-only. Follow the victim while it's alive; detach + fall once it's dead or gone.
+		private void UpdateAttachment()
+		{
+			if (Runner.TryFindObject(AttachedTo, out var victim) && victim != null)
+			{
+				var health = victim.GetComponentInChildren<Health>();
+				if (health == null || health.IsAlive)
+				{
+					var vt = victim.transform;
+					NetPosition = vt.TransformPoint(AttachLocalPos);
+					NetRotation = vt.rotation * AttachLocalRot;
+					return;
+				}
+			}
+			Detach();
+		}
+
+		// SA-only. Release from the victim: physics back on with a small tumble so it falls off the body.
+		private void Detach()
+		{
+			AttachedTo = default; // OnAttachedChanged restores solid colliders on every peer
+			if (_rb != null)
+			{
+				_rb.isKinematic = false;
+				_rb.linearVelocity = Vector3.zero;
+				_rb.angularVelocity = new Vector3(Random.Range(-2f, 2f), Random.Range(-2f, 2f), Random.Range(-2f, 2f));
+				_rb.WakeUp();
+			}
+		}
+
+		// Runs on every peer when AttachedTo changes: a lodged pickup's colliders become triggers (no
+		// physics collision, can't be re-hit, but the interaction scan's OverlapSphere still finds them);
+		// a detached pickup gets solid colliders back so it lands on the ground.
+		private void OnAttachedChanged()
+		{
+			bool attached = AttachedTo.IsValid;
+			foreach (var c in GetComponentsInChildren<Collider>(true))
+				c.isTrigger = attached;
 		}
 
 		// SimpleKCC is a kinematic capsule, so PhysX never imparts contact velocity to the

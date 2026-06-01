@@ -24,4 +24,6 @@ MonoBehaviour:
         keys: []
         values: []
   bookmarks: []
-  bookmarkedScenePaths: []
+  bookmarkedScenePaths:
+  - Assets/03_Shooter/03_Shooter.unity
+  - Assets/Scenes/Town.unity

@@ -108,6 +108,8 @@ namespace Starter.Shooter
 		public GameObject AttackerRoot;
 		/// <summary>True iff the caller is the state authority for the attacker. Predicting peers (IA) see false. Actions that spawn NetworkObjects (e.g. projectiles) gate the Runner.Spawn call on this.</summary>
 		public bool IsStateAuthority;
+		/// <summary>0..1 charge amount at release (chargeSeconds / Charge.ThresholdSeconds, clamped). 0 for an uncharged/instant fire. ProjectileAction scales launch speed by this; melee still uses the binary <c>charged</c> flag for its damage multiplier.</summary>
+		public float ChargeNormalized;
 	}
 
 	/// <summary>

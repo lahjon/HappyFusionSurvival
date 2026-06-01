@@ -19,8 +19,8 @@ MonoBehaviour:
   AttackClip: {fileID: 0}
   AttackVolume: 0.6
   Charge:
-    Enabled: 0
-    ThresholdSeconds: 2
+    Enabled: 1
+    ThresholdSeconds: 1.2
     DamageMultiplier: 2
     KnockbackMultiplier: 2
   ProjectilePrefab: {fileID: 6454465201060607585, guid: 2f3116a2c98fdbc4692d7fed59737189, type: 3}

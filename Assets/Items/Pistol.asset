@@ -18,16 +18,16 @@ MonoBehaviour:
   Description: Standard-issue sidearm.
   Stats: []
   Visual:
-    Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-    Material: {fileID: 2100000, guid: ced1eca65610eed48a913798800bd61e, type: 2}
-    WorldScale: {x: 0.3, y: 0.3, z: 0.3}
+    Mesh: {fileID: -5721217614269247348, guid: 8e1530ae5a2286341a35e7d289b1847a, type: 3}
+    Material: {fileID: -3454980128204284210, guid: 8e1530ae5a2286341a35e7d289b1847a, type: 3}
+    WorldScale: {x: 1, y: 1, z: 1}
     WorldBob: 0
     WorldRotate: 0
     PromptOffset: {x: 0, y: 0, z: 0}
     HeldScale: {x: 1, y: 1, z: 1}
     HeldLocalPosition: {x: 0, y: 0, z: 0}
     HeldLocalEuler: {x: 0, y: 0, z: 0}
-    VisualOverride: {fileID: 0}
+    VisualOverride: {fileID: 919132149155446097, guid: 8e1530ae5a2286341a35e7d289b1847a, type: 3}
   WorldPrefab: {fileID: 0}
   HandPrefab: {fileID: 0}
   MaxStack: 1

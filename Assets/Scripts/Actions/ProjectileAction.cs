@@ -90,7 +90,10 @@ namespace Starter.Shooter
 			if (ctx.IsStateAuthority == false) return result;
 
 			ResolveCharged(charged, out int damage, out float knockback);
-			float speed = ProjectileSpeed * (charged && Charge.Enabled ? ChargedSpeedMultiplier : 1f);
+			// Analog charge: launch speed ramps from base (tap) to base * ChargedSpeedMultiplier (held to
+			// the charge threshold), proportional to how long the throw was charged.
+			float chargeT = Charge.Enabled ? Mathf.Clamp01(ctx.ChargeNormalized) : 0f;
+			float speed = ProjectileSpeed * Mathf.Lerp(1f, ChargedSpeedMultiplier, chargeT);
 
 			Vector3 forward = ctx.FireTransform.forward;
 			Vector3 spawnPos = ctx.FireTransform.position + forward * SpawnForwardOffset;

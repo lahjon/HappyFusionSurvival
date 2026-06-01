@@ -123,7 +123,8 @@ namespace Starter.Shooter
 					float speed = vel.magnitude;
 					Vector3 facing = speed > 0.0001f ? vel / speed : dir;
 					Vector3 normal = hit.Normal != Vector3.zero ? hit.Normal : -facing;
-					bool isHealthHit = hit.Hitbox != null && hit.Hitbox.Root.GetComponent<Health>() != null;
+					Health victimHealth = ResolveHealth(hit);
+						bool isHealthHit = victimHealth != null;
 
 					// Surface ricochet: while bounces remain and it's still moving fast enough, reflect
 					// and keep flying. A Health hit never bounces — it resolves immediately.
@@ -143,7 +144,7 @@ namespace Starter.Shooter
 					NetPosition = hit.Point;
 					NetRotation = Quaternion.LookRotation(facing);
 					Velocity = Vector3.zero;
-					ResolveImpact(hit, vel, isHealthHit && speed >= _minDamageSpeed);
+					ResolveImpact(hit, vel, isHealthHit && speed >= _minDamageSpeed, victimHealth);
 					return;
 				}
 			}
@@ -169,24 +170,37 @@ namespace Starter.Shooter
 			}
 		}
 
-		private void ResolveImpact(LagCompensatedHit hit, Vector3 incomingVelocity, bool applyDamage)
+		// Health from the precise Fusion hitbox if one was hit, else from the PhysX collider's parent
+		// (the body capsule). Lets a thrown weapon damage on either kind of hit.
+		private static Health ResolveHealth(LagCompensatedHit hit)
+		{
+			if (hit.Hitbox != null)
+			{
+				var h = hit.Hitbox.Root.GetComponent<Health>();
+				if (h != null) return h;
+			}
+			return hit.Collider != null ? hit.Collider.GetComponentInParent<Health>() : null;
+		}
+
+		private void ResolveImpact(LagCompensatedHit hit, Vector3 incomingVelocity, bool applyDamage, Health victimHealth)
 		{
 			Vector3 facing = incomingVelocity.sqrMagnitude > 0.0001f ? incomingVelocity.normalized : transform.forward;
 			Vector3 normal = hit.Normal != Vector3.zero ? hit.Normal : -facing;
 
-			// Damage path — only when allowed (moving fast enough) and the raycast hit a Fusion Hitbox
-			// with a Health component. PhysX-only hits (walls, props) skip this and just stick the pickup.
-			if (applyDamage && hit.Hitbox != null)
+			// Damage path — only when allowed (moving fast enough). Resolves Health from the precise
+			// Fusion Hitbox if one was hit, else the PhysX collider's parent (the body capsule), so a
+			// thrown weapon damages on either kind of hit. Walls/props have no Health → just stick.
+			if (applyDamage && victimHealth != null)
 			{
-				var health = hit.Hitbox.Root.GetComponent<Health>();
-				int finalDamage = Damage;
-				var region = BodyHitbox.From(hit.Hitbox);
-				if (region != null) finalDamage = region.Apply(Damage);
-				if (health != null && health.TakeHit(finalDamage, Attacker))
+				var health = victimHealth;
+				if (health != null)
 				{
-					if (KnockbackDistance > 0f)
+					int finalDamage = Damage;
+					var region = hit.Hitbox != null ? BodyHitbox.From(hit.Hitbox) : null;
+					if (region != null) finalDamage = region.Apply(Damage);
+					if (health.TakeHit(finalDamage, Attacker) && KnockbackDistance > 0f)
 					{
-						var knockable = hit.Hitbox.Root.GetComponent<IKnockbackable>();
+						var knockable = health.GetComponent<IKnockbackable>();
 						knockable?.ApplyKnockback(NetPosition, KnockbackDistance);
 					}
 				}
@@ -203,23 +217,36 @@ namespace Starter.Shooter
 				if (worldPrefab != null && worldPrefab.GetComponent<NetworkObject>() != null)
 				{
 					Quaternion stickRot = Quaternion.LookRotation(facing);
-					// When dropping, lift the spawn point off the surface along the normal so the
-					// dynamic Rigidbody doesn't start interpenetrating the wall/floor it just hit.
-					Vector3 spawnPos = _dropOnImpact ? NetPosition + normal * 0.05f : NetPosition;
-					var spawned = Runner.Spawn(worldPrefab, spawnPos, stickRot, Attacker);
-					if (spawned != null && spawned.TryGetComponent<PickupableItem>(out var pi))
+
+					if (victimHealth != null)
 					{
-						pi.Initialize(ItemId, 1);
-						if (_dropOnImpact)
+						// Hit a damageable target: lodge the pickup in it — it follows the body with
+						// physics off (still grabbable) and falls off once the target dies or despawns.
+						var spawnedHit = Runner.Spawn(worldPrefab, NetPosition, stickRot, Attacker);
+						if (spawnedHit != null && spawnedHit.TryGetComponent<PickupableItem>(out var piHit))
 						{
-							// Reflect a fraction of the incoming velocity off the surface; gravity +
-							// the Rigidbody's random tumble (set in Throw) carry it to the ground.
-							Vector3 deflect = Vector3.Reflect(incomingVelocity, normal) * _dropDeflectFactor;
-							pi.Throw(deflect, _dropInteractionLock);
+							piHit.Initialize(ItemId, 1);
+							piHit.AttachToVictim(victimHealth.Object, NetPosition, stickRot, _dropInteractionLock);
 						}
-						else
+					}
+					else
+					{
+						// Hit a surface: stick where it landed (arrow) or deflect + drop (knife). When
+						// dropping, lift off the surface along the normal so the Rigidbody doesn't interpenetrate.
+						Vector3 spawnPos = _dropOnImpact ? NetPosition + normal * 0.05f : NetPosition;
+						var spawned = Runner.Spawn(worldPrefab, spawnPos, stickRot, Attacker);
+						if (spawned != null && spawned.TryGetComponent<PickupableItem>(out var pi))
 						{
-							pi.Stick(spawnPos, stickRot);
+							pi.Initialize(ItemId, 1);
+							if (_dropOnImpact)
+							{
+								Vector3 deflect = Vector3.Reflect(incomingVelocity, normal) * _dropDeflectFactor;
+								pi.Throw(deflect, _dropInteractionLock);
+							}
+							else
+							{
+								pi.Stick(spawnPos, stickRot);
+							}
 						}
 					}
 				}

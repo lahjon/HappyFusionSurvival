@@ -1042,7 +1042,10 @@ namespace Starter.Shooter
 				if (ActionInvoker.ReleaseCharge(out float chargeSeconds))
 				{
 					bool charged = chargeSeconds >= action.Charge.ThresholdSeconds;
-					Fire(action, charged);
+					float norm = action.Charge.ThresholdSeconds > 0f
+						? Mathf.Clamp01(chargeSeconds / action.Charge.ThresholdSeconds)
+						: 1f;
+					Fire(action, charged, norm);
 				}
 			}
 		}
@@ -1628,7 +1631,7 @@ namespace Starter.Shooter
 			return remaining.HasValue && remaining.Value > 0f;
 		}
 
-		private void Fire(CombatAction action, bool charged)
+		private void Fire(CombatAction action, bool charged, float chargeNormalized = 0f)
 		{
 			if (action == null || ActionInvoker == null) return;
 
@@ -1644,6 +1647,7 @@ namespace Starter.Shooter
 				FireTransform = CameraHandle,
 				AttackerRoot = gameObject,
 				IsStateAuthority = HasStateAuthority,
+				ChargeNormalized = chargeNormalized,
 			};
 
 			var hit = ActionInvoker.TryFire(action, in ctx, charged);
