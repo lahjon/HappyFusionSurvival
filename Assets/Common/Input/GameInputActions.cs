@@ -57,9 +57,9 @@ namespace Starter.Common.Input
 			Move = PlayerMap.FindAction("Move", true);
 			Look = PlayerMap.FindAction("Look", true);
 			Fire = PlayerMap.FindAction("Attack", true);
-			// Secondary attack / aim. Reuses the Player map's existing RMB-bound "RightClick" action
-			// (distinct from the Inventory map's RightClick below).
-			AltAttack = PlayerMap.FindAction("RightClick", true);
+			// Secondary attack / aim — RMB (gamepad left trigger). Player-map "AltAttack",
+			// distinct from the Inventory/UI maps' "RightClick".
+			AltAttack = PlayerMap.FindAction("AltAttack", true);
 			Jump = PlayerMap.FindAction("Jump", true);
 			Sprint = PlayerMap.FindAction("Sprint", true);
 			Crouch = PlayerMap.FindAction("Crouch", true);
