@@ -55,6 +55,7 @@ namespace Starter.Common.Inventory
 
 		private Rigidbody _rb;
 		private Collider _col;
+		private bool _isSpawned;
 		private static readonly Collider[] s_pushBuffer = new Collider[8];
 
 		/// <summary>Authority-only. Call right after Runner.Spawn for programmatic pickups.</summary>
@@ -66,6 +67,7 @@ namespace Starter.Common.Inventory
 
 		public override void Spawned()
 		{
+			_isSpawned = true;
 			_rb = GetComponent<Rigidbody>();
 			_col = GetComponentInChildren<Collider>();
 
@@ -98,6 +100,13 @@ namespace Starter.Common.Inventory
 				_rb.isKinematic = true;
 				_rb.interpolation = RigidbodyInterpolation.None;
 			}
+		}
+
+		public override void Despawned(NetworkRunner runner, bool hasState)
+		{
+			// Fusion pools NetworkObjects — clear the flag so a reused instance can't be
+			// treated as spawned before its next Spawned() call.
+			_isSpawned = false;
 		}
 
 		public override void FixedUpdateNetwork()
@@ -233,7 +242,10 @@ namespace Starter.Common.Inventory
 		{
 			get
 			{
-				if (Object == null || !Object.IsValid) return false;
+				// _isSpawned guards the [Networked] access below: the local InteractionScanner can
+				// pick up this collider via OverlapSphere the frame it's instantiated, before Fusion
+				// has run Spawned() — reading a networked property in that window throws.
+				if (!_isSpawned || Object == null || !Object.IsValid) return false;
 				if (Runner != null && InteractionLockedUntil.ExpiredOrNotRunning(Runner) == false) return false;
 				return true;
 			}

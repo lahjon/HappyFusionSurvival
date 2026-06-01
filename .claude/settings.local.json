@@ -60,7 +60,8 @@
       "mcp__UnityMCP__execute_code",
       "Bash(sort -t: -k2 -n)",
       "Bash(Remove-Item -Path \"C:\\\\Game projects\\\\HappyFusionSurvival\\\\Assets\\\\Editor\" -Recurse -Force)",
-      "Bash(Remove-Item -Path \"C:\\\\Game projects\\\\HappyFusionSurvival\\\\Assets\\\\Editor.meta\" -Force)"
+      "Bash(Remove-Item -Path \"C:\\\\Game projects\\\\HappyFusionSurvival\\\\Assets\\\\Editor.meta\" -Force)",
+      "Bash(awk '/^  NetworkedBehaviours:/{f=1} f{print} /^  ForceRemoteRenderTimeframe/{if\\(f\\)exit}' \"Assets/Scenes/03_Shooter/Prefabs/Player.prefab\")"
     ]
   }
 }
