@@ -28,6 +28,32 @@ namespace Starter.Shooter
 		[Tooltip("Directional light intensity at deep night. 0 = no direct sun contribution (ambient still lights the world).")]
 		public float NightSunIntensity = 0f;
 
+		[Header("Skybox")]
+		[Tooltip("Skybox material used during daytime. If null, uses whatever is set in Lighting → Environment at startup.")]
+		public Material DaySkyboxMaterial;
+		[Tooltip("Skybox material used during nighttime. If null, skybox is not changed.")]
+		public Material NightSkyboxMaterial;
+		[Tooltip("Uncheck to leave the skybox alone (e.g. if you're driving it from a separate system).")]
+		public bool DriveSkybox = true;
+
+		[Header("Fog")]
+		[Tooltip("Uncheck to leave fog settings alone.")]
+		public bool DriveFog = true;
+		public Color DayFogColor   = new Color(0.55f, 0.65f, 0.75f);
+		[Tooltip("Exponential fog density during the day. Keep very low for subtle atmosphere.")]
+		public float DayFogDensity = 0.001f;
+		public Color NightFogColor   = new Color(0.02f, 0.02f, 0.06f);
+		[Tooltip("Exponential fog density at deep night.")]
+		public float NightFogDensity = 0.02f;
+
+		[Header("BGM")]
+		[Tooltip("Music played during the day phase. Leave empty to silence music at dawn.")]
+		public AudioClip DayBGM;
+		[Tooltip("Music played during the night phase. Leave empty to silence music at nightfall.")]
+		public AudioClip NightBGM;
+		[Tooltip("Crossfade duration in seconds when switching between day and night BGM.")]
+		public float BGMFadeDuration = 2f;
+
 		[Header("Ambient Palette")]
 		[Tooltip("Sky / equator / ground colors at full daytime. Defaults match the scene's existing spherical ambient.")]
 		public Color DaySkyColor      = new Color(0.90f, 0.93f, 1.00f);
@@ -81,6 +107,19 @@ namespace Starter.Shooter
 		private AmbientMode _originalAmbientMode;
 		private bool _ambientModeOverridden;
 
+		// Skybox
+		private Material _daySkyboxMaterial;
+		private Material _runtimeSkybox;
+		private bool _useBlendedSkybox;
+		private float _lastSkyboxBlend = -1f;
+		private float _dynamicGITimer;
+
+		// Fog
+		private bool  _fogWasEnabled;
+		private Color _originalFogColor;
+		private float _originalFogDensity;
+		private FogMode _originalFogMode;
+
 		public override void Spawned()
 		{
 			Instance = this;
@@ -97,6 +136,53 @@ namespace Starter.Shooter
 				RenderSettings.ambientMode = AmbientMode.Trilight;
 				_ambientModeOverridden = true;
 			}
+
+			// If a day skybox is explicitly assigned, apply it now; otherwise fall back to whatever
+			// the scene already has set in Lighting → Environment.
+			if (DriveSkybox && DaySkyboxMaterial != null)
+				RenderSettings.skybox = DaySkyboxMaterial;
+			_daySkyboxMaterial = RenderSettings.skybox;
+
+			// Build a runtime skybox that can blend between day and night without dirtying assets.
+			if (DriveSkybox && _daySkyboxMaterial != null && NightSkyboxMaterial != null)
+			{
+				// Skybox/Blended takes two cubemaps + a _Blend float — perfect for cubemap skyboxes.
+				// For procedural/other shaders fall back to Material.Lerp on a cloned material.
+				var blendShader = Shader.Find("Skybox/CubemapBlend");
+				if (blendShader != null
+					&& _daySkyboxMaterial.shader.name == "Skybox/Cubemap"
+					&& NightSkyboxMaterial.shader.name  == "Skybox/Cubemap")
+				{
+					_runtimeSkybox = new Material(blendShader) { name = "Skybox (blended runtime)" };
+					_runtimeSkybox.SetTexture("_Tex",      _daySkyboxMaterial.GetTexture("_Tex"));
+					_runtimeSkybox.SetTexture("_Tex2",     NightSkyboxMaterial.GetTexture("_Tex"));
+					_runtimeSkybox.SetColor("_Tint",       _daySkyboxMaterial.GetColor("_Tint"));
+					_runtimeSkybox.SetFloat("_Exposure",   _daySkyboxMaterial.GetFloat("_Exposure"));
+					_runtimeSkybox.SetFloat("_Rotation",   _daySkyboxMaterial.GetFloat("_Rotation"));
+					_runtimeSkybox.SetFloat("_Blend", 0f);
+					_useBlendedSkybox = true;
+				}
+				else
+				{
+					_runtimeSkybox = new Material(_daySkyboxMaterial) { name = _daySkyboxMaterial.name + " (runtime)" };
+					_useBlendedSkybox = false;
+				}
+				RenderSettings.skybox = _runtimeSkybox;
+			}
+
+			// Cache fog state and enable exponential fog under our control.
+			_fogWasEnabled    = RenderSettings.fog;
+			_originalFogColor   = RenderSettings.fogColor;
+			_originalFogDensity = RenderSettings.fogDensity;
+			_originalFogMode    = RenderSettings.fogMode;
+			if (DriveFog)
+			{
+				RenderSettings.fog     = true;
+				RenderSettings.fogMode = FogMode.Exponential;
+			}
+
+			// Play the correct BGM immediately — handles late joiners snapping to mid-session phase.
+			PlayBGMForPhase(IsNight, crossfade: false);
 		}
 
 		public override void Despawned(NetworkRunner runner, bool hasState)
@@ -107,6 +193,25 @@ namespace Starter.Shooter
 			{
 				RenderSettings.ambientMode = _originalAmbientMode;
 				_ambientModeOverridden = false;
+			}
+
+			if (DriveSkybox)
+			{
+				RenderSettings.skybox = _daySkyboxMaterial;
+				if (_runtimeSkybox != null)
+				{
+					UnityEngine.Object.Destroy(_runtimeSkybox);
+					_runtimeSkybox = null;
+				}
+				DynamicGI.UpdateEnvironment();
+			}
+
+			if (DriveFog)
+			{
+				RenderSettings.fog        = _fogWasEnabled;
+				RenderSettings.fogColor   = _originalFogColor;
+				RenderSettings.fogDensity = _originalFogDensity;
+				RenderSettings.fogMode    = _originalFogMode;
 			}
 		}
 
@@ -183,6 +288,34 @@ namespace Starter.Shooter
 			RenderSettings.ambientEquatorColor = Color.Lerp(NightEquatorColor, DayEquatorColor, brightness);
 			RenderSettings.ambientGroundColor  = Color.Lerp(NightGroundColor,  DayGroundColor,  brightness);
 
+			// Lerp skybox properties between day and night on a runtime material clone.
+			// DynamicGI.UpdateEnvironment is throttled — calling it every frame is too expensive.
+			if (DriveSkybox && _runtimeSkybox != null && NightSkyboxMaterial != null)
+			{
+				float blend = 1f - brightness;
+				if (Mathf.Abs(blend - _lastSkyboxBlend) > 0.001f)
+				{
+					if (_useBlendedSkybox)
+						_runtimeSkybox.SetFloat("_Blend", blend);
+					else
+						_runtimeSkybox.Lerp(_daySkyboxMaterial, NightSkyboxMaterial, blend);
+					_lastSkyboxBlend = blend;
+					_dynamicGITimer -= Time.deltaTime;
+					if (_dynamicGITimer <= 0f)
+					{
+						DynamicGI.UpdateEnvironment();
+						_dynamicGITimer = 1.5f;
+					}
+				}
+			}
+
+			// Lerp fog color and density alongside the brightness curve.
+			if (DriveFog)
+			{
+				RenderSettings.fogColor   = Color.Lerp(NightFogColor,   DayFogColor,   brightness);
+				RenderSettings.fogDensity = Mathf.Lerp(NightFogDensity, DayFogDensity, brightness);
+			}
+
 			if (Sun != null)
 			{
 				// Drive intensity from the sun's actual elevation rather than the piecewise brightness
@@ -210,14 +343,26 @@ namespace Starter.Shooter
 			if (night && _wasNight == false)
 			{
 				Debug.Log($"[TIME] === NIGHTFALL Day {day} ===");
+				PlayBGMForPhase(isNight: true, crossfade: true);
 			}
 			else if (night == false && day != _lastLoggedDay)
 			{
 				Debug.Log($"[TIME] === Day {day} START ===");
+				PlayBGMForPhase(isNight: false, crossfade: true);
 			}
 
 			_lastLoggedDay = day;
 			_wasNight = night;
+		}
+
+		private void PlayBGMForPhase(bool isNight, bool crossfade)
+		{
+			var clip = isNight ? NightBGM : DayBGM;
+			if (clip == null) { AudioManager.Instance?.StopMusic(); return; }
+			if (crossfade)
+				AudioManager.Instance?.CrossfadeMusic(clip, loop: true, fadeDuration: BGMFadeDuration);
+			else
+				AudioManager.Instance?.PlayMusic(clip, loop: true, fadeDuration: BGMFadeDuration);
 		}
 	}
 }
