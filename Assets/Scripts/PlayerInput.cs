@@ -14,6 +14,7 @@ namespace Starter.Shooter
 		ClimbDrop,
 		Crouch,
 		Brake,
+		SecondaryFire,
 	}
 
 	/// <summary>
@@ -221,6 +222,7 @@ namespace Starter.Shooter
 
 				bool crouchHeld = _actions.Crouch.IsPressed();
 				_input.Buttons.Set(EInputButton.Fire, !isClimbing && _actions.Fire.IsPressed());
+				_input.Buttons.Set(EInputButton.SecondaryFire, !isClimbing && _actions.AltAttack.IsPressed());
 				_input.Buttons.Set(EInputButton.Jump, _actions.Jump.IsPressed());
 				_input.Buttons.Set(EInputButton.Sprint, !isClimbing && _actions.Sprint.IsPressed());
 				// Same physical key drives both. While anchored on a wall it means "let go",
@@ -255,10 +257,16 @@ namespace Starter.Shooter
 		{
 			var weapon = GetRangedWeapon();
 
+			// While aiming (ADS), steady the sway and flatten the recoil per the weapon's AimTuning.
+			bool aiming = _player != null && _player.IsAiming;
+			var aim = aiming && _inventory != null ? _inventory.ActiveWeapon?.Aim : null;
+			float swayMul = aim != null ? aim.SwayMultiplier : 1f;
+			float recoilMul = aim != null ? aim.RecoilMultiplier : 1f;
+
 			// Recoil edge-trigger: each press queues a fresh kick toward _recoilPending.
 			if (weapon != null && weapon.AimRecoil > 0f && _actions.Fire.WasPressedThisFrame())
 			{
-				float r = weapon.AimRecoil;
+				float r = weapon.AimRecoil * recoilMul;
 				// LookRotation.x = pitch; more negative = look up. So pitch impulse is negative.
 				float pitchImpulse = -weapon.AimRecoilPitchPerShot * r;
 				float yawImpulse = Random.Range(-weapon.AimRecoilHorizontalRandom, weapon.AimRecoilHorizontalRandom) * r;
@@ -276,7 +284,7 @@ namespace Starter.Shooter
 			if (weapon != null && weapon.WeaponSway > 0f)
 			{
 				float t = Time.time * Mathf.Max(0.0001f, weapon.SwayFrequency);
-				float amp = weapon.WeaponSway * weapon.SwayMaxDegrees;
+				float amp = weapon.WeaponSway * weapon.SwayMaxDegrees * swayMul;
 				newSway.x = (Mathf.PerlinNoise(t, 0f) - 0.5f) * 2f * amp;
 				newSway.y = (Mathf.PerlinNoise(0f, t) - 0.5f) * 2f * amp;
 			}

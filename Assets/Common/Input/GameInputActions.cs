@@ -20,6 +20,7 @@ namespace Starter.Common.Input
 		public InputAction Move { get; private set; }
 		public InputAction Look { get; private set; }
 		public InputAction Fire { get; private set; }
+		public InputAction AltAttack { get; private set; }
 		public InputAction Jump { get; private set; }
 		public InputAction Sprint { get; private set; }
 		public InputAction Crouch { get; private set; }
@@ -56,6 +57,9 @@ namespace Starter.Common.Input
 			Move = PlayerMap.FindAction("Move", true);
 			Look = PlayerMap.FindAction("Look", true);
 			Fire = PlayerMap.FindAction("Attack", true);
+			// Secondary attack / aim. Reuses the Player map's existing RMB-bound "RightClick" action
+			// (distinct from the Inventory map's RightClick below).
+			AltAttack = PlayerMap.FindAction("RightClick", true);
 			Jump = PlayerMap.FindAction("Jump", true);
 			Sprint = PlayerMap.FindAction("Sprint", true);
 			Crouch = PlayerMap.FindAction("Crouch", true);

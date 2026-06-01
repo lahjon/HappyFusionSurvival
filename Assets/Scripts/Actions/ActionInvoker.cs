@@ -13,6 +13,10 @@ namespace Starter.Shooter
 	{
 		[Networked]
 		public TickTimer Cooldown { get; set; }
+		// Independent cooldown for the secondary (RMB) action so a throw doesn't share the
+		// primary-fire timer. Only used by TryFire(secondary: true).
+		[Networked]
+		public TickTimer SecondaryCooldown { get; set; }
 		// 0 = not charging. Tick number when the current charge started.
 		[Networked]
 		public int ChargeStartTick { get; set; }
@@ -20,6 +24,7 @@ namespace Starter.Shooter
 		public NetworkBool LastFireWasCharged { get; set; }
 
 		public bool CanFire => Cooldown.ExpiredOrNotRunning(Runner);
+		public bool CanFireSecondary => SecondaryCooldown.ExpiredOrNotRunning(Runner);
 		public bool IsCharging => ChargeStartTick > 0;
 
 		public float ChargeSeconds
@@ -74,11 +79,11 @@ namespace Starter.Shooter
 		/// charged. Runs on every predicting peer (input authority + state authority);
 		/// state authority's result is what gets reconciled to proxies.
 		/// </summary>
-		public ActionHit TryFire(CombatAction action, in ActorContext ctx, bool charged)
+		public ActionHit TryFire(CombatAction action, in ActorContext ctx, bool charged, bool secondary = false)
 		{
 			var result = default(ActionHit);
 			if (action == null) return result;
-			if (CanFire == false) return result;
+			if ((secondary ? CanFireSecondary : CanFire) == false) return result;
 			// Pre-fire gate (e.g. ammo check on ProjectileAction). Runs on every predicting peer
 			// — IA reads networked Slots, so the check resolves identically on SA and IA without
 			// an extra RPC and lets a dry-fire abort cleanly (no cooldown, no recoil, no audio).
@@ -89,7 +94,9 @@ namespace Starter.Shooter
 
 			if (action.Cooldown > 0f)
 			{
-				Cooldown = TickTimer.CreateFromSeconds(Runner, action.Cooldown);
+				var timer = TickTimer.CreateFromSeconds(Runner, action.Cooldown);
+				if (secondary) SecondaryCooldown = timer;
+				else Cooldown = timer;
 			}
 
 			LastFireWasCharged = charged;

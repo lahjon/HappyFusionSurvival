@@ -14,14 +14,54 @@ namespace Starter.Shooter
 	/// Player.GetActiveAction reads Actions[0]; ActionInvoker.TryFire executes it on the per-actor
 	/// runtime. The CombatActions themselves are shared ScriptableObjects, unchanged.
 	/// </summary>
+	/// <summary>
+	/// What the secondary attack button (RMB) does for a weapon. <see cref="Attack"/> fires
+	/// <see cref="WeaponCapability.SecondaryAction"/> on press (e.g. throw); <see cref="Aim"/> is a held
+	/// ADS stance that zooms the FOV, steadies sway/recoil, and tightens hitscan spread while held.
+	/// </summary>
+	public enum ESecondaryMode : byte
+	{
+		None   = 0,
+		Attack = 1,
+		Aim    = 2,
+	}
+
 	[Serializable]
 	public sealed class WeaponCapability : ItemCapability
 	{
 		[Tooltip("Ordered list of actions this item can perform. Most weapons have one; the first is used by default.")]
 		public List<CombatAction> Actions = new List<CombatAction>();
 
+		[Header("Secondary (RMB)")]
+		[Tooltip("What right-mouse does with this weapon. Attack fires SecondaryAction on press; Aim is a held ADS stance.")]
+		public ESecondaryMode SecondaryMode = ESecondaryMode.None;
+		[Tooltip("Action fired by RMB when SecondaryMode == Attack (e.g. a throw ProjectileAction). Uses its own cooldown, independent of the primary fire.")]
+		public CombatAction SecondaryAction;
+		[Tooltip("ADS tuning used when SecondaryMode == Aim.")]
+		public AimTuning Aim = new();
+
 		[Tooltip("Visual-rig tuning the generic hand rig (HeldWeapon) reads at equip — swing/recoil/sway feel and muzzle.")]
 		public HeldRigTuning Rig = new();
+	}
+
+	/// <summary>
+	/// Per-weapon tuning for the held aim (ADS) stance — used when <see cref="WeaponCapability.SecondaryMode"/>
+	/// is <see cref="ESecondaryMode.Aim"/>. FOV zoom is local-only cosmetic; the sway/recoil multipliers ride
+	/// the existing networked LookRotation pipeline so all peers see the steadied aim.
+	/// </summary>
+	[Serializable]
+	public sealed class AimTuning
+	{
+		[Tooltip("Degrees subtracted from the camera's base FOV while aiming (zoom in).")]
+		public float FOVReduction = 18f;
+		[Tooltip("How quickly the FOV eases toward the aimed value when RMB is pressed/released.")]
+		public float FOVLerpSpeed = 10f;
+		[Range(0f, 1f)]
+		[Tooltip("Weapon-sway scale while aiming. 0 = perfectly steady, 1 = same as hip.")]
+		public float SwayMultiplier = 0.25f;
+		[Range(0f, 1f)]
+		[Tooltip("Aim-recoil scale while aiming. Lower = flatter recoil when shooting from ADS.")]
+		public float RecoilMultiplier = 0.5f;
 	}
 
 	/// <summary>

@@ -110,6 +110,8 @@ namespace Starter.Shooter
 		public bool IsStateAuthority;
 		/// <summary>0..1 charge amount at release (chargeSeconds / Charge.ThresholdSeconds, clamped). 0 for an uncharged/instant fire. ProjectileAction scales launch speed by this; melee still uses the binary <c>charged</c> flag for its damage multiplier.</summary>
 		public float ChargeNormalized;
+		/// <summary>True iff the attacker is holding the aim stance (ADS) this fire. HitscanAction tightens its spread cone when set. Always false for AI / non-aiming weapons.</summary>
+		public bool IsAiming;
 	}
 
 	/// <summary>
