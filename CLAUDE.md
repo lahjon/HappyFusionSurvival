@@ -4,89 +4,81 @@ Guidance for Claude Code working in this repo.
 
 ## Project
 
-Unity 6 (`6000.4.8f1`, URP) multiplayer FPS on the **Photon Fusion 2 Starter Kit**. **Round-based PvPvE inspired by The Purge × Stardew Valley** — cheerful co-op town life by day, last-team-standing PvP by night. Active scene: `03_Shooter`.
+Unity 6 (`6000.4.8f1`, URP) multiplayer FPS on the **Photon Fusion 2 Starter Kit**. **Round-based PvPvE, The Purge × Stardew Valley** — co-op town by day, last-team-standing PvP by night. Active scene: `03_Shooter`.
 
-> The repo folder is still named `HappyFusionSurvival` for git history reasons. The project is **not** a survival game anymore — survival vocabulary (hunger, day-7 escape, scavenging-to-survive) is legacy and being removed. See `prompt.md` for the active migration plan.
+> Repo folder name `HappyFusionSurvival` is legacy git history. **Not** a survival game — hunger / day-7 escape / scavenge-to-survive vocabulary is being removed. See `prompt.md` for the migration plan.
 
 ### Match shape
 
-- **Up to 18 players** per match (divides cleanly: 18 solo / 9 duo / 6 trio). Team size chosen at the lobby: **solo (1) / duo (2) / trio (3)** — one team size per match (no mixed sizes).
-- **Day phase (~15 min) — "Town."** PvP off. Bright, happy-go-lucky pastel tone. Players run NPC quests, gather/buy/sell at vendors, craft loadouts at workbenches, fetch resources, prep for the night.
-- **Night phase (~15 min, ends early on last-team-standing) — "The Purge."** PvP on. Same town, happy-horror flip: saturated colours, ominous lighting, vendors gone, doors shut. Match ends when only one team is alive, or timer expires (tiebreaker by team kills/score).
-- **Friendly fire:** off within a team. **Currency:** earned and spent within the match only (no carry-over between matches).
+- **Up to 18 players.** Team size picked at lobby: solo (1) / duo (2) / trio (3), one size per match.
+- **Day (~15 min) "Town":** PvP off, bright pastel. Quests, vendors, crafting, gathering, prep.
+- **Night (~15 min, ends early on last-team-standing) "The Purge":** PvP on, same town flipped to happy-horror. Vendors gone, doors shut. Ends when one team remains, or timer expires (tiebreaker: team kills/score).
+- Friendly fire off within a team. Currency is per-match only (no carry-over).
 
-Build new gameplay around this two-phase structure. Anything that changes between phases (vendor availability, damage rules, ambient music, lighting, AI behaviour) must read the phase from the networked match controller — never from local `Time.time`.
+Anything that changes between phases (vendors, damage rules, music, lighting, AI) reads phase from the networked match controller — never local `Time.time`.
 
-### What stays vs. what's out
+### Stays vs. out
 
-- **Stays:** 8-slot hotbar inventory, crafting benches, vehicles, climbing/mantling, ragdoll, combat actions, stamina (movement mechanic).
-- **Out (being removed):** hunger, food-as-survival-resource, any "day N of 7" escape framing, PvE night enemies (night is pure PvP). Existing hunger code in `Player.cs`/`UIShooter.cs`/`FoodConsumable.cs`/`Food.asset` is legacy — leave it alone unless explicitly working the pivot.
+- **Stays:** 8-slot hotbar, crafting benches, vehicles, climbing/mantling, ragdoll, combat actions, stamina.
+- **Out:** hunger, food-as-survival, "day N of 7" framing, PvE night enemies (night is pure PvP). Legacy hunger code in `Player.cs`/`UIShooter.cs`/`FoodConsumable.cs`/`Food.asset` — leave alone unless explicitly doing the pivot.
 
-**Networked-first.** Default to Fusion 2 patterns (`NetworkBehaviour`, `[Networked]`, RPCs, `INetworkInput`, `TickTimer`) for anything touching gameplay state, player actions, or spawned objects. Plain `MonoBehaviour` only for local-only visuals/UI/input — call it out when you do.
+### Core principles
 
-**State replication is part of every feature.** Before writing a new gameplay system, state in your plan: (a) does this state need to be consistent across peers? (b) who is the authority? (c) which Fusion primitive carries it? If local-only, say so explicitly. Retrofitting replication onto a `MonoBehaviour` later is a rewrite.
-
-**Phase-aware gameplay.** New systems that behave differently in day vs. night must read the phase from a single networked `MatchManager` (planned — see `prompt.md`), not from per-system timers. Damage-to-players, vendor visibility, and music/lighting all gate on the same source of truth.
-
-**Reuse before adding.** Before writing a new feature or helper, search the codebase for an existing system that already does the same or similar work and share/extend it instead of duplicating. The shared primitives here are deliberate (interaction system, `ActionInvoker`/`CombatAction`, `ItemCapability` facets, SimpleKCC `Player.cs`, inventory ops) — a new mechanic should usually plug into one of them, not reimplement it. If you do add parallel code, say in your plan why the existing system couldn't be reused.
-
-**Console / debug commands use Quantum Console.** All console and debug commands go through QFSW Quantum Console (`Assets/Plugins/QFSW/`) — annotate static methods with `[Command("name", "description")]` (see `Assets/Scripts/Debug/DebugCommands.cs`). Don't build ad-hoc debug-key handlers, custom IMGUI consoles, or one-off `Debug.Log`-driven cheat hooks. Commands that touch networked state must route into the simulation via RPCs so they replicate on host and client alike (canonical pattern in `DebugCommands.cs`).
+- **Networked-first.** Default to Fusion 2 (`NetworkBehaviour`, `[Networked]`, RPCs, `INetworkInput`, `TickTimer`) for any gameplay state, player action, or spawned object. Plain `MonoBehaviour` only for local visuals/UI/input — and call it out.
+- **Plan replication up front.** For each new gameplay system state: (a) consistent across peers? (b) who's authority? (c) which Fusion primitive? Say so explicitly if local-only. Retrofitting later is a rewrite.
+- **Phase-aware.** Day-vs-night behavior reads phase from the single networked `MatchManager` (planned, see `prompt.md`), not per-system timers.
+- **Reuse before adding.** Search for an existing system before writing new. Shared primitives are deliberate (interaction system, `ActionInvoker`/`CombatAction`, `ItemCapability` facets, SimpleKCC `Player.cs`, inventory ops) — plug in, don't reimplement. If you add parallel code, justify why reuse failed.
+- **Debug commands use Quantum Console** (`Assets/Plugins/QFSW/`). Annotate static methods `[Command("name","description")]` (see `Assets/Scripts/Debug/DebugCommands.cs`). No ad-hoc debug keys, IMGUI consoles, or `Debug.Log` cheats. Commands touching networked state route via RPCs (pattern in `DebugCommands.cs`).
 
 ## Build / run
 
 No CLI build. Open in Unity 6000.4.8f1.
 
-- **Build settings:** `00_MainMenu` (index 0) + `03_Shooter`. Entry scene is the menu.
-- **Multi-client testing:** Fusion Multiplay/ParrelSync. `UIGameMenu.ForceSinglePlayer` flips `GameMode.Single` ↔ `GameMode.AutoHostOrClient`.
+- **Build settings:** `00_MainMenu` (index 0, entry) + `03_Shooter`.
+- **Multi-client:** Fusion Multiplay/ParrelSync. `UIGameMenu.ForceSinglePlayer` flips `GameMode.Single` ↔ `GameMode.AutoHostOrClient`.
 - **Tests:** none configured. Don't claim tests pass; verify via the Editor.
-- `run-loop.ps1` pipes `prompt.md` into the Claude CLI for overnight generation — not a build/test script.
+- `run-loop.ps1` pipes `prompt.md` into the Claude CLI for overnight generation — not a build script.
 
 ## Architecture
 
 ### Starter Kit pattern
 
-Each mode is self-contained: `NN_Mode/` with its own scene, namespace `Starter.<Mode>`, and three core scripts:
-
+Each mode is self-contained: `NN_Mode/`, namespace `Starter.<Mode>`, three core scripts:
 ```
-Player.cs         — NetworkBehaviour, SimpleKCC movement + Render/FixedUpdateNetwork
-PlayerInput.cs    — NetworkBehaviour, accumulates input in Update(), pushes via OnInput
-GameManager.cs    — NetworkBehaviour + IPlayerJoined/IPlayerLeft, spawns Player prefabs
+Player.cs       — NetworkBehaviour, SimpleKCC movement + Render/FixedUpdateNetwork
+PlayerInput.cs  — NetworkBehaviour, accumulates input in Update(), pushes via OnInput
+GameManager.cs  — NetworkBehaviour + IPlayerJoined/IPlayerLeft, spawns Player prefabs
 ```
 
 ### `Assets/Common/` (shared)
 
 - `Runner.prefab` — `NetworkRunner` + `NetworkEvents` + `NetworkSceneManagerDefault`. Instantiated by `UIGameMenu.StartGame()`.
-- `UIGameMenu.cs` — connect/disconnect, nickname (`PlayerPrefs["PlayerName"]`), cursor lock, scene reload on shutdown. **`GameModeIdentifier` is critical** — set as `SessionProperty` so modes don't share rooms.
-- `UINameplate.cs` (`Starter` namespace — needs `using Starter;`).
-- `Input/` — `GameInputActions` (local `InputActionAsset` wrapper, lives on player root) and `InputContextController` (toggles Player/Inventory action maps + cursor). **Don't use legacy `Input.*`** — read actions via `GetComponent<GameInputActions>()`.
-- `Interactions/` — see below.
-- `Inventory/` — definitions, ops, loot containers, pickup, placement. An `ItemDefinition` is a single ScriptableObject that composes behavior from a `[SerializeReference] List<ItemCapability>` — add a `WeaponCapability`, `PlaceableCapability`, or `ConsumableCapability` (→ `HealingCapability`/`FoodCapability`/`RecipeUnlockCapability`) to give the item that facet. Facets compose freely (a weapon can also be a consumable); query with `def.GetCapability<T>()` / `TryGetCapability` / `HasCapability`. **Items are zero-prefab:** an item's look lives in `ItemDefinition.Visual` (`ItemVisual`: mesh/material/scale for world + in-hand) and a weapon's rig feel in `WeaponCapability.Rig` (`HeldRigTuning`: swing/recoil/sway/muzzle). Two shared prefabs render them — `Pickup_Generic` (its `PickupableItem` builds the Visual child from the item's `ItemVisual` at spawn, keyed off the networked `ItemId`) and `Hand_Generic` (its `HeldWeapon` rig calls `Configure(visual, weapon)` at equip). So a new ordinary item = **one asset, no prefabs**. The `WorldPrefab`/`HandPrefab` fields are optional bespoke overrides for real-art or special items (Wrench, Crate furniture, Scanner radar device, Money, fists) and an `ItemVisual.VisualOverride` swaps in a model prefab instead of a primitive. Item ids are a stable network key (`short`); validate/auto-assign them with the `Tools/Inventory/Validate Item Database` menu.
+- `UIGameMenu.cs` — connect/disconnect, nickname (`PlayerPrefs["PlayerName"]`), cursor lock, scene reload on shutdown. **`GameModeIdentifier`** set as `SessionProperty` so modes don't share rooms.
+- `UINameplate.cs` (`Starter` namespace).
+- `Input/` — `GameInputActions` (local `InputActionAsset` wrapper on player root) + `InputContextController` (toggles Player/Inventory maps + cursor). **No legacy `Input.*`** — read via `GetComponent<GameInputActions>()`.
+- `Inventory/` — An `ItemDefinition` is one ScriptableObject composing behavior from `[SerializeReference] List<ItemCapability>` — add `WeaponCapability` / `PlaceableCapability` / `ConsumableCapability` (→ `HealingCapability`/`FoodCapability`/`RecipeUnlockCapability`). Facets compose freely; query via `GetCapability<T>()`/`TryGetCapability`/`HasCapability`. **Items are zero-prefab:** look lives in `ItemDefinition.Visual` (`ItemVisual`: mesh/material/scale), weapon feel in `WeaponCapability.Rig` (`HeldRigTuning`). Two shared prefabs render them — `Pickup_Generic` (`PickupableItem` builds Visual from `ItemVisual` at spawn, keyed off networked `ItemId`) and `Hand_Generic` (`HeldWeapon` calls `Configure(visual, weapon)` at equip). New ordinary item = **one asset, no prefabs**. `WorldPrefab`/`HandPrefab` are optional bespoke overrides (Wrench, Crate, Scanner, Money, fists); `ItemVisual.VisualOverride` swaps a model prefab for a primitive. Item ids are a stable `short` network key — validate/auto-assign via `Tools/Inventory/Validate Item Database`.
 - `Crafting/` — `RecipeDefinition` SOs, `RecipeDatabase`, `IRecipeBook`.
 
 ### `Assets/03_Shooter/` (active gameplay)
 
-- **Player systems** on `Player.cs`: SimpleKCC movement, stamina (drains on sprint/jump/climb), climbing/mantling with wall-leap, ragdoll on heavy knockback, head-bob, sprint FOV, camera collision sweep. (Hunger fields are still present in code but marked legacy — see top of file.)
-- **Combat** via `Actions/` ScriptableObjects (`CombatAction` base → `HitscanAction`, `OverlapAction`, `ProjectileAction`). Resolved by per-actor `ActionInvoker` (cooldown + charge tick are `[Networked]`). A held item's actions come from its `WeaponCapability` (empty-hand/fists from `Inventory._unarmedItem`); `Inventory.ActiveAction` is the single source the fire path reads. Same primitive serves players, training dummies, fists.
-- **Inventory** — 8-slot networked hotbar (`Inventory.cs`, `NetworkArray<InventorySlot>`). Weight over `WeightLimit` slows movement. Large items only exist while equipped. `PlacementController` (local-only) drives ghost-preview for items carrying a `PlaceableCapability`.
-- **Crafting** — `CraftingBench` (IInteractable) hands off to local `CraftingSession` UI; recipes filtered per-bench.
-- **Vehicles** — `Vehicle` + `Seat` + per-player `VehicleSession`. Driver gets input authority transferred via `Object.AssignInputAuthority()`; arcade-style tank turning, `NetworkTransform`-replicated, host-only dynamic Rigidbody (clients kinematic).
-- **AI / world** — `Chicken` + `ChickenSpawner`, `TrainingDummy` (uses ActionInvoker to swing back), `LootContainer`. Day-phase ambient only — there are no PvE enemies during the Purge.
+- **Player** (`Player.cs`): SimpleKCC movement, stamina (sprint/jump/climb drain), climbing/mantling + wall-leap, ragdoll on heavy knockback, head-bob, sprint FOV, camera collision sweep. (Hunger fields present but legacy.)
+- **Combat** — `Actions/` SOs (`CombatAction` → `HitscanAction`/`OverlapAction`/`ProjectileAction`), resolved by per-actor `ActionInvoker` (cooldown + charge tick `[Networked]`). Held item's actions come from its `WeaponCapability` (fists from `Inventory._unarmedItem`); `Inventory.ActiveAction` is the single source the fire path reads. Same primitive for players, dummies, fists.
+- **Inventory** — 8-slot networked hotbar (`Inventory.cs`, `NetworkArray<InventorySlot>`). Weight over `WeightLimit` slows movement. Large items exist only while equipped. `PlacementController` (local) drives ghost-preview for `PlaceableCapability` items.
+- **Crafting** — `CraftingBench` (IInteractable) → local `CraftingSession` UI; recipes filtered per-bench.
+- **Vehicles** — `Vehicle` + `Seat` + per-player `VehicleSession`. Driver gets input authority via `Object.AssignInputAuthority()`; arcade tank turning, `NetworkTransform`-replicated, host-only dynamic Rigidbody (clients kinematic).
+- **AI / world** — `Chicken`+`ChickenSpawner`, `TrainingDummy` (ActionInvoker to swing back), `LootContainer`. Day-phase ambient only; no PvE during the Purge.
 
-### Match flow (planned)
+### Match flow (planned, not yet built)
 
-Not yet implemented — track here so new systems plug into the right contract:
-
-- `MatchManager` (`NetworkBehaviour`, singleton on a scene object): `[Networked] MatchPhase Phase`, `[Networked] TickTimer PhaseTimer`, `[Networked] int RoundIndex`. State authority advances `Lobby → Day → DuskWarning (~30s) → Night → MatchOver`.
-- `TeamManager` (`NetworkBehaviour`): per-`PlayerRef` team id assigned at lobby based on chosen team size; drives friendly-fire checks and win-condition scan.
-- Damage gate: `Health.ApplyDamage` consults `MatchManager.Phase` and `TeamManager.SameTeam(attacker, victim)`. Day phase + same team → blocked.
-- Vendors / quest givers / shops are `IInteractable` `NetworkBehaviour`s that self-disable (`CanInteract = false`, despawn prompt) when `Phase == Night`.
-- Win condition: state authority watches teams-with-living-members; reaching 1 (or 0) flips `Phase = MatchOver` and shows result. Night timer expiry is the tiebreaker.
+- `MatchManager` (`NetworkBehaviour`, scene singleton): `[Networked] MatchPhase Phase`, `[Networked] TickTimer PhaseTimer`, `[Networked] int RoundIndex`. State auth advances `Lobby → Day → DuskWarning (~30s) → Night → MatchOver`.
+- `TeamManager` (`NetworkBehaviour`): per-`PlayerRef` team id from lobby team size; drives friendly-fire + win-condition scan.
+- Damage gate: `Health.ApplyDamage` consults `MatchManager.Phase` + `TeamManager.SameTeam(attacker, victim)`. Day + same team → blocked.
+- Vendors/quest givers/shops (`IInteractable` `NetworkBehaviour`) self-disable (`CanInteract = false`) when `Phase == Night`.
+- Win: state auth watches teams-with-living-members; reaching 1 (or 0) → `Phase = MatchOver`. Night timer expiry is tiebreaker.
 
 ### Menu / UI systems convention
 
-Every menu-driving component (shop, quest board, dialogue, crafting, etc.) **must expose a public `OpenMenu()` method** — zero arguments, callable from a UnityEvent, trigger collider, animator event, or any external script without needing a direct typed reference to the session.
-
-The pattern used by `Shopkeeper` and `QuestGiver`:
+Every menu-driving component (shop, quest board, dialogue, crafting) **must expose public `OpenMenu()`** — zero args, callable from UnityEvent / trigger / animator event without a typed session reference. Pattern (`Shopkeeper`, `QuestGiver`):
 ```csharp
 public void OpenMenu()
 {
@@ -97,65 +89,60 @@ public void OpenMenu()
     session?.TryOpen(this);
 }
 ```
-- Resolves the local player's session via Fusion when networked; falls back to `FindFirstObjectByType` for offline/editor use.
-- The matching session component (`ShopSession`, `QuestSession`, etc.) lives on the Player prefab and is initialized by `PlayerInput.cs` on spawn.
-- `RequestClose()` / `CloseMenu()` should follow the same pattern so external triggers can close menus too.
+Resolves local player's session via Fusion, falls back to `FindFirstObjectByType` offline. Session component (`ShopSession`, `QuestSession`) lives on the Player prefab, initialized by `PlayerInput.cs` on spawn. `RequestClose()`/`CloseMenu()` follow the same pattern.
 
 ### Interaction system (shared, mandatory)
 
-Anything the player can "use" (chests, pickups, doors, benches, vehicles, NPCs) **must** plug into `Assets/Common/Interactions/`.
+Anything usable (chests, pickups, doors, benches, vehicles, NPCs) **must** plug into `Assets/Common/Interactions/`.
 
-- `IInteractable` — `InteractRange`, `CanInteract`, `InteractionPoint`, `LockedReason`, `OnInteract(InteractionScanner)`. Implement on the `NetworkBehaviour`.
-- `InteractionScanner` (local, on player) — picks best in-range, in-view-cone candidate per frame; routes Interact action to its `OnInteract`. Reads `IInteractionGate` siblings (e.g. `LootSession`) to suppress scanning while a UI panel is open.
-- `InteractionPrompt` (local, on every interactable's prefab) — camera-facing world-space indicator. Standardized size/colors — don't tweak per-prefab.
-- Authority pattern: `OnInteract` routes into a per-player networked session via `scanner.GetComponent<TSession>()`. Canonical example: `LootContainer.OnInteract` → `LootSession.TryOpen`.
-- Re-validate range on the host in any RPC the interaction kicks off (convention: `InteractRange * 1.25f`) — never trust the client scan alone.
+- `IInteractable` — `InteractRange`, `CanInteract`, `InteractionPoint`, `LockedReason`, `OnInteract(InteractionScanner)`. On the `NetworkBehaviour`.
+- `InteractionScanner` (local, player) — picks best in-range, in-cone candidate; routes Interact to `OnInteract`. Reads `IInteractionGate` siblings (e.g. `LootSession`) to suppress scanning while a panel is open.
+- `InteractionPrompt` (local, every interactable prefab) — camera-facing indicator, standardized size/colors, don't tweak per-prefab.
+- Authority: `OnInteract` routes into a per-player networked session via `scanner.GetComponent<TSession>()` (e.g. `LootContainer.OnInteract` → `LootSession.TryOpen`).
+- Re-validate range on host in any RPC (convention `InteractRange * 1.25f`) — never trust client scan alone.
 
 ### Menu / Escape system (shared, mandatory)
 
-Every openable local UI (pause menu, loot/crafting/quest/shop/computer sessions, sleep, match lobby/result, and any new one) **must** register on the global menu stack in `Assets/Common/Menu/`. This is the single owner of the Escape key — no script reads `Keyboard.escapeKey` on its own.
+Every openable local UI (pause, loot/crafting/quest/shop/computer, sleep, lobby/result, new ones) **must** register on the global menu stack in `Assets/Common/Menu/` — the single owner of Escape. No script reads `Keyboard.escapeKey` itself.
 
-- `MenuManager` (local singleton, auto-bootstrapped `AfterSceneLoad`, `DontDestroyOnLoad` — no scene/prefab wiring) holds a `List<IMenuScreen>` stack. `Open(screen)` / `Close(screen)` push/pop; `IsAnyOpen` / `Top` query it.
-- **Escape resolution (the only handler):** ① if `QuantumConsole.Instance.IsActive`, `Deactivate()` it first (console floats above the stack, opens by its own key); ② else the top screen handles it — closes if `IMenuScreen.DismissOnEscape`, otherwise swallows it; ③ else raise `OpenPauseRequested` → the pause menu opens. **Enter is never read** — it must not open any menu.
-- `IMenuScreen`: `MenuName`, `DismissOnEscape` (`false` = modal: Escape swallowed, screen dismisses via its own logic — e.g. sleep wakes on Interact, lobby/result close on phase change), `CloseFromMenu()` (idempotent self-close).
-- A screen calls `MenuManager.Instance?.Open(this)` where it opens and `Close(this)` where it closes (and in `OnDestroy`/`OnDisable` if still open). Sessions still set their `IsAny*` flags — those gate gameplay (camera ownership, `Player.LateUpdate`), separate from the menu stack.
-- `UIGameMenu` is the **root screen**: it only opens via `OpenPauseRequested` and owns the gameplay cursor-lock baseline, gated on `MenuManager.IsAnyOpen` so open sessions keep cursor control.
+- `MenuManager` (local singleton, auto-bootstrap `AfterSceneLoad`, `DontDestroyOnLoad`, no wiring) holds a `List<IMenuScreen>` stack. `Open`/`Close` push/pop; `IsAnyOpen`/`Top` query.
+- **Escape (only handler):** ① if `QuantumConsole.Instance.IsActive`, `Deactivate()` it; ② else top screen handles — closes if `DismissOnEscape`, else swallows; ③ else raise `OpenPauseRequested`. **Enter is never read.**
+- `IMenuScreen`: `MenuName`, `DismissOnEscape` (`false` = modal: Escape swallowed, dismisses via own logic), `CloseFromMenu()` (idempotent).
+- Screen calls `MenuManager.Instance?.Open(this)`/`Close(this)` (and in `OnDestroy`/`OnDisable` if still open). Sessions still set `IsAny*` flags — those gate gameplay (camera, `Player.LateUpdate`), separate from the stack.
+- `UIGameMenu` is the **root screen**: opens only via `OpenPauseRequested`, owns gameplay cursor-lock baseline gated on `MenuManager.IsAnyOpen`.
 
 ### Movement
 
-All modes use **SimpleKCC** (`Fusion.Addons.SimpleKCC`). Don't write controllers from scratch — extend the mode's `Player.cs`. Canonical patterns in `03_Shooter/Player.cs`:
-- Hitscan + lag compensation (`Runner.LagCompensation.Raycast`)
-- Predicted look rotation (`KCC.Settings.ForcePredictedLookRotation = true`)
-- Layer swap to `FirstPersonOverlay` for weapon-camera anti-clip
+All modes use **SimpleKCC** (`Fusion.Addons.SimpleKCC`). Extend the mode's `Player.cs`, don't write controllers from scratch. Canonical patterns in `03_Shooter/Player.cs`: hitscan + lag comp (`Runner.LagCompensation.Raycast`); predicted look (`KCC.Settings.ForcePredictedLookRotation = true`); layer swap to `FirstPersonOverlay` for weapon anti-clip.
 
 ## Fusion 2 conventions
 
-- Only **state authority** mutates `[Networked]` / `NetworkArray` / `NetworkDictionary`. Input flows via `INetworkInput` + `GetInput()` in `FixedUpdateNetwork()`.
-- Local input (`InputAction.WasPressedThisFrame()`) is read in `Update()` only; bridge to state authority via RPCs or input-struct buttons.
-- `TickTimer`, not `Time.time`, for cooldowns/durations.
-- `OnChangedRender` over polling `[Networked]` values (see `Player.Nickname`, `_isJumping`, `_fireCount`).
-- `Object.AssignInputAuthority()` / `RemoveInputAuthority()` for vehicle-style possession.
-- Unity 6 API: `Rigidbody.linearVelocity`/`linearDamping` (not `velocity`/`drag`); `FindAnyObjectByType<T>()` / `FindObjectsByType<T>(FindObjectsSortMode.None)` (`FindFirstObjectByType` is deprecated — relies on instance-id ordering).
+- Only **state authority** mutates `[Networked]`/`NetworkArray`/`NetworkDictionary`. Input flows via `INetworkInput` + `GetInput()` in `FixedUpdateNetwork()`.
+- Local input (`WasPressedThisFrame()`) read in `Update()` only; bridge to state auth via RPCs or input-struct buttons.
+- `TickTimer` not `Time.time` for cooldowns/durations.
+- `OnChangedRender` over polling `[Networked]` (see `Player.Nickname`, `_isJumping`, `_fireCount`).
+- `Object.AssignInputAuthority()`/`RemoveInputAuthority()` for vehicle-style possession.
+- Unity 6 API: `Rigidbody.linearVelocity`/`linearDamping`; `FindAnyObjectByType<T>()`/`FindObjectsByType<T>(FindObjectsSortMode.None)` (`FindFirstObjectByType` deprecated).
 
 ### Picking the primitive
 
-- Per-player gameplay value (health, stamina, ammo): `[Networked]` on player NB, mutate in `FixedUpdateNetwork` on state auth.
+- Per-player value (health, stamina, ammo): `[Networked]` on player NB, mutate in `FixedUpdateNetwork` on state auth.
 - Per-player cooldown/duration: `[Networked] TickTimer`.
-- Per-player input intent: field in the `INetworkInput` struct + `NetworkButtons` flag.
-- One-shot cross-authority effect (damage, request): `[Rpc]` with explicit `RpcSources` / `RpcTargets`.
-- One-shot visual all peers must see synced (muzzle flash): `[Networked]` counter + `OnChangedRender` — tolerates lost ticks better than RPC-to-All.
-- Shared world object (loot, chicken, vehicle): `NetworkObject` spawned via `Runner.Spawn`/`Despawn`. Never `Instantiate`/`Destroy` directly.
-- Synced variable-length list: `NetworkArray<T>` (`[Capacity(N)]`) or `NetworkDictionary<K,V>`. Only state auth writes.
-- Cosmetic local view (camera shake, bob, footstep): plain `MonoBehaviour`, `Time.deltaTime`.
-- Local UX state (cursor, menu open, scroll position): plain `MonoBehaviour`.
+- Per-player input intent: field in `INetworkInput` struct + `NetworkButtons` flag.
+- One-shot cross-authority effect (damage, request): `[Rpc]` with explicit `RpcSources`/`RpcTargets`.
+- One-shot synced visual (muzzle flash): `[Networked]` counter + `OnChangedRender` (tolerates lost ticks better than RPC-to-All).
+- Shared world object (loot, chicken, vehicle): `NetworkObject` via `Runner.Spawn`/`Despawn`. Never `Instantiate`/`Destroy`.
+- Synced list: `NetworkArray<T>` (`[Capacity(N)]`) or `NetworkDictionary<K,V>`, state-auth writes only.
+- Cosmetic local view (shake, bob, footstep): plain `MonoBehaviour`, `Time.deltaTime`.
+- Local UX state (cursor, menu open, scroll): plain `MonoBehaviour`.
 
-If UI reflects networked state (stamina bar, hotbar, ammo), the data field is `[Networked]` on the gameplay component; the UI is a `MonoBehaviour` that reads it each frame. Don't put `[Networked]` on UI scripts.
+UI reflecting networked state (stamina bar, hotbar, ammo): data field is `[Networked]` on the gameplay component; UI is a `MonoBehaviour` reading it each frame. Never `[Networked]` on UI scripts.
 
 ## Unity Editor via MCP
 
-Project uses `com.coplaydev.unity-mcp`. Use MCP (and the `unity-mcp-skill`) when a task requires Editor state — GameObjects, scenes, prefabs, Editor tests, live console. Prefer Read/Edit/Grep for pure script work.
+Project uses `com.coplaydev.unity-mcp`. Use MCP (and `unity-mcp-skill`) when a task needs Editor state — GameObjects, scenes, prefabs, Editor tests, live console. Prefer Read/Edit/Grep for pure script work.
 
-**Ask before mutating Editor state.** Read-only calls (hierarchy, components, asset lists, console tail) are fine. Anything that creates/deletes/modifies GameObjects/components/prefabs/scenes/settings, enters Play mode, or triggers imports needs explicit approval. Describe the change and wait. One approval = one change.
+**Ask before mutating Editor state.** Read-only calls (hierarchy, components, asset lists, console tail) are fine. Creating/deleting/modifying GameObjects/components/prefabs/scenes/settings, entering Play mode, or triggering imports needs explicit approval — describe the change and wait. One approval = one change.
 
 - UnityMCP can hang during compilation/domain reload — wait, don't retry.
 - Editor log: `C:/Users/fredr/AppData/Local/Unity/Editor/Editor.log`.

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Action_Sniper
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ProjectileAction
   Damage: 8
-  Cooldown: 1.2
+  Cooldown: 2
   KnockbackDistance: 1
   Style: 0
   AttackClip: {fileID: 8300000, guid: 4bf4f7f783a5af94fbc3dce27a76d5f9, type: 3}

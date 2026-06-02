@@ -50,6 +50,7 @@ MonoBehaviour:
           FOVLerpSpeed: 12
           SwayMultiplier: 0.15
           RecoilMultiplier: 0.4
+          BreathHoldSwayMultiplier: 0.2
         AmmoItem: {fileID: 11400000, guid: 52a2a8b5972b3554db5159e35dac5bee, type: 2}
         MagazineSize: 5
         ReloadSeconds: 3

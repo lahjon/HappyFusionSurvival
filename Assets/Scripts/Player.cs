@@ -1043,6 +1043,8 @@ namespace Starter.Shooter
 			if (IsCrouching && KCC.IsGrounded) speed = CrouchSpeed;
 			else if (isSprinting || airSprinting) speed = SprintSpeed;
 			else speed = WalkSpeed;
+			// Holding Sprint while scoped is the breath-hold (steady aim) — creep at half speed.
+			if (IsAiming && wantsSprint) speed *= 0.5f;
 			if (_inventory != null) speed *= _inventory.SpeedMultiplier;
 			var desiredMoveVelocity = knockbackActive ? Vector3.zero : moveDirection * speed;
 
@@ -1964,15 +1966,25 @@ namespace Starter.Shooter
 
 		/// <summary>Weapons can only fire during Night, and only once the player has armed by reaching their
 		/// team's zone (see <see cref="ZoneManager"/>). During Day / Lobby / Dusk / MatchOver no action fires at
-		/// all, which prevents the Night opening from becoming an instant cluster-kill. Scenes with no
-		/// <see cref="MatchManager"/> (isolated test scenes) are not gated.</summary>
+		/// all, which prevents the Night opening from becoming an instant cluster-kill.
+		///
+		/// When the scene has no <see cref="MatchManager"/> yet (the current <c>03_Shooter</c> scene — match flow
+		/// is still planned) we fall back to the visual day/night clock (<see cref="TimeManager"/>): weapons fire
+		/// only at night. A scene with neither manager (isolated test scenes) stays ungated.</summary>
 		private bool CanFireWeaponNow()
 		{
 			var match = MatchManager.Instance;
-			if (match == null) return true;
-			if (match.IsPvpForced) return true; // `arm` debug override — fire regardless of phase / zone-arming
-			if (match.Phase != MatchPhase.Night) return false;
-			return PvpArmed;
+			if (match != null)
+			{
+				if (match.IsPvpForced) return true; // `arm` debug override — fire regardless of phase / zone-arming
+				if (match.Phase != MatchPhase.Night) return false;
+				return PvpArmed;
+			}
+
+			// No MatchManager: gate on the day/night cycle instead so LMB/weapon fire is dead during daytime.
+			var time = TimeManager.Instance;
+			if (time != null) return time.IsNight;
+			return true;
 		}
 
 		private void AssignAnimationIDs()
