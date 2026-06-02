@@ -75,6 +75,19 @@ namespace Starter.Shooter
 			if (session != null) session.TryOpen(this);
 		}
 
+		/// <summary>
+		/// Opens this shop for the local player. Safe to wire to a UnityEvent or
+		/// trigger collider — no arguments required.
+		/// </summary>
+		public void OpenMenu()
+		{
+			var playerObj = Runner != null ? Runner.GetPlayerObject(Runner.LocalPlayer) : null;
+			var session   = playerObj != null
+				? playerObj.GetComponent<ShopSession>()
+				: FindFirstObjectByType<ShopSession>();
+			session?.TryOpen(this);
+		}
+
 		/// <summary>Number of authored offer slots (capped at <see cref="MaxOffers"/>). UI iterates [0, OfferCount).</summary>
 		public int OfferCount => Offers == null ? 0 : Mathf.Min(Offers.Length, MaxOffers);
 

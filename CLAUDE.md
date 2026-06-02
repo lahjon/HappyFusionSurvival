@@ -78,6 +78,25 @@ Not yet implemented — track here so new systems plug into the right contract:
 - Vendors / quest givers / shops are `IInteractable` `NetworkBehaviour`s that self-disable (`CanInteract = false`, despawn prompt) when `Phase == Night`.
 - Win condition: state authority watches teams-with-living-members; reaching 1 (or 0) flips `Phase = MatchOver` and shows result. Night timer expiry is the tiebreaker.
 
+### Menu / UI systems convention
+
+Every menu-driving component (shop, quest board, dialogue, crafting, etc.) **must expose a public `OpenMenu()` method** — zero arguments, callable from a UnityEvent, trigger collider, animator event, or any external script without needing a direct typed reference to the session.
+
+The pattern used by `Shopkeeper` and `QuestGiver`:
+```csharp
+public void OpenMenu()
+{
+    var playerObj = Runner != null ? Runner.GetPlayerObject(Runner.LocalPlayer) : null;
+    var session   = playerObj != null
+        ? playerObj.GetComponent<TSession>()
+        : FindFirstObjectByType<TSession>();
+    session?.TryOpen(this);
+}
+```
+- Resolves the local player's session via Fusion when networked; falls back to `FindFirstObjectByType` for offline/editor use.
+- The matching session component (`ShopSession`, `QuestSession`, etc.) lives on the Player prefab and is initialized by `PlayerInput.cs` on spawn.
+- `RequestClose()` / `CloseMenu()` should follow the same pattern so external triggers can close menus too.
+
 ### Interaction system (shared, mandatory)
 
 Anything the player can "use" (chests, pickups, doors, benches, vehicles, NPCs) **must** plug into `Assets/Common/Interactions/`.
