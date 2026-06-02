@@ -417,6 +417,6 @@ namespace Starter.Shooter
 				AudioManager.Instance?.TransitionMusic(clip, loop: true, fadeDuration: BGMFadeDuration, silenceDuration: BGMSilenceDuration);
 			else
 				AudioManager.Instance?.PlayMusic(clip, loop: true, fadeDuration: BGMFadeDuration);
-		}
+		} 
 	}
 }
