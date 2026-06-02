@@ -5,48 +5,99 @@ using UnityEngine.AI;
 namespace Starter.Shooter
 {
 	/// <summary>
-	/// Data-driven networked NPC. Reads an <see cref="NpcDefinition"/> for its passive
-	/// routine (Idle / Wander / Patrol) plus an optional Hostile chase+attack layer, and
-	/// stays inside an <see cref="NpcMovementArea"/>. Generalizes <see cref="EvilChicken"/>.
+	/// Networked NPC. All tuning lives directly on this component — no external
+	/// NpcDefinition required. NpcSpawner still passes one to Initialize() for
+	/// phase/prefab management, but NpcAgent copies the values out and drops the ref.
 	///
-	/// All AI runs on the state authority; <see cref="NavMeshAgent"/> is disabled on
-	/// proxies and motion replicates through the inherited NetworkTransform. Runtime
-	/// bookkeeping (state, patrol index, timers) is authority-local — proxies never
-	/// simulate, so none of it is [Networked].
+	/// All AI runs on the state authority; NavMeshAgent is disabled on proxies and
+	/// motion replicates through the inherited NetworkTransform.
 	/// </summary>
 	[RequireComponent(typeof(NavMeshAgent))]
 	public sealed class NpcAgent : NPC
 	{
 		private enum RuntimeState : byte { Passive, Chase, ReturnHome }
 
-		[Header("Config")]
-		[Tooltip("NPC type config. Set in the prefab, or injected by NpcSpawner at spawn time.")]
-		public NpcDefinition Definition;
+		// ── Behavior ──────────────────────────────────────────────────────────
+		[Header("Behavior")]
+		[Tooltip("Passive routine: stand still, roam randomly, or follow waypoints.")]
+		public NpcBehavior Behavior = NpcBehavior.Wander;
 
+		// ── Movement ──────────────────────────────────────────────────────────
+		[Header("Movement")]
+		[Tooltip("NavMeshAgent speed during passive routine and return-home.")]
+		[Min(0f)] public float MoveSpeed = 1.5f;
+		[Tooltip("Distance from destination that counts as arrived (meters).")]
+		[Min(0.01f)] public float ArrivalTolerance = 0.3f;
+
+		// ── Idle ──────────────────────────────────────────────────────────────
+		[Header("Idle")]
+		[Tooltip("Slowly rotate in place while idling instead of standing still.")]
+		public bool LookAround = false;
+		[Tooltip("Degrees per second when LookAround is on.")]
+		[Min(0f)] public float LookAroundSpeed = 30f;
+
+		// ── Wander ────────────────────────────────────────────────────────────
+		[Header("Wander")]
+		[Tooltip("Roam radius around spawn when no NpcMovementArea is assigned.")]
+		[Min(0f)] public float WanderRadius = 4f;
+		[Tooltip("Minimum seconds paused between wander destinations.")]
+		[Min(0f)] public float WanderIdleMin = 1f;
+		[Tooltip("Maximum seconds paused between wander destinations.")]
+		[Min(0f)] public float WanderIdleMax = 3f;
+
+		// ── Patrol ────────────────────────────────────────────────────────────
+		[Header("Patrol")]
+		public PatrolMode PatrolMode = PatrolMode.Loop;
+		[Tooltip("Seconds paused at each waypoint.")]
+		[Min(0f)] public float WaypointWaitSeconds = 1f;
+
+		// ── Hostile ───────────────────────────────────────────────────────────
+		[Header("Hostile (optional)")]
+		[Tooltip("When true, aggros and chases the nearest living player in range.")]
+		public bool Hostile = false;
+		[Tooltip("Attack used while a target is within range.")]
+		public CombatAction Attack;
+		[Tooltip("Detection radius for players.")]
+		[Min(0f)] public float AggroRadius = 10f;
+		[Tooltip("NavMeshAgent speed while chasing.")]
+		[Min(0f)] public float ChaseSpeed = 4.5f;
+		[Tooltip("Seconds target must stay out of range before the NPC gives up.")]
+		[Min(0f)] public float ResetGraceSeconds = 3f;
+		[Tooltip("Ticks between chase repaths. Lower = more responsive.")]
+		[Min(1)] public int ChaseRepathTicks = 5;
+		[Tooltip("Abandon chase when target leaves the movement area.")]
+		public bool LeashChaseToArea = true;
+
+		// ── Scene refs ────────────────────────────────────────────────────────
 		[Header("Scene references (authority-only; usually set by NpcSpawner)")]
-		[Tooltip("Box the NPC is allowed to roam within. Required for Wander; also leashes the chase.")]
+		[Tooltip("Box the NPC roams within. Required for Wander; also leashes chase.")]
 		public NpcMovementArea Area;
 		[Tooltip("Patrol waypoints. Required for Patrol behavior.")]
 		public NpcPatrolPath Path;
 
 		/// <summary>
-		/// Player this NPC is currently attending (talking to / serving). While set, the NPC
-		/// stops moving and faces that player. Authority-written via <see cref="RPC_SetAttended"/>;
-		/// replicates so every peer sees the NPC turn to its customer.
+		/// Player this NPC is currently attending. While set the NPC stops and faces
+		/// that player. Authority-written via RPC; replicates to all peers.
 		/// </summary>
 		[Networked] public PlayerRef AttendedPlayer { get; set; }
 
 		private NavMeshAgent _agent;
 		private ActionInvoker _invoker;
+		private Animator _animator;
 		private Vector3 _home;
 		private RuntimeState _state;
 
-		// Per-instance RNG so each NPC wanders independently (deterministic, seeded from the
-		// network id). Shared UnityEngine.Random made identically-configured NPCs move in lockstep.
+		private Vector3 _prevRenderPos;
+		private static readonly int _hashSpeed       = Animator.StringToHash("Speed");
+		private static readonly int _hashMotionSpeed = Animator.StringToHash("MotionSpeed");
+		private static readonly int _hashGrounded    = Animator.StringToHash("Grounded");
+		private static readonly int _hashFreeFall    = Animator.StringToHash("FreeFall");
+
+		// Per-instance RNG — seeded from network id so each NPC wanders independently.
 		private System.Random _rng;
 
 		// Passive bookkeeping (authority-local).
-		private TickTimer _idleTimer;          // wander idle / patrol wait
+		private TickTimer _idleTimer;
 		private int _patrolIndex;
 		private int _patrolDir = 1;
 		private bool _waitingAtWaypoint;
@@ -56,68 +107,78 @@ namespace Starter.Shooter
 		private int _lastChaseRepathTick;
 
 		// Interaction bookkeeping (authority-local).
-		private const float FaceLerpDuration = 0.3f;   // time to smoothly turn toward a new customer
+		private const float FaceLerpDuration = 0.3f;
 		private bool _wasAttending;
 		private Quaternion _faceStartRot;
 		private TickTimer _faceTimer;
-		private TickTimer _resumeTimer;                // post-interaction pause before resuming behavior
+		private TickTimer _resumeTimer;
 
 		private static readonly Collider[] _overlapBuffer = new Collider[16];
 
 		private void Awake()
 		{
-			_agent = GetComponent<NavMeshAgent>();
-			_invoker = GetComponent<ActionInvoker>();
+			_agent    = GetComponent<NavMeshAgent>();
+			_invoker  = GetComponent<ActionInvoker>();
+			_animator = GetComponent<Animator>();
 		}
 
 		/// <summary>
-		/// Injects config + scene refs. Called by <see cref="NpcSpawner"/> on the authority
-		/// inside Runner.Spawn's onBeforeSpawned callback, so the fields are set before
-		/// <see cref="Spawned"/> runs.
+		/// Called by NpcSpawner before Spawned(). Copies tuning values out of the
+		/// definition so the spawner workflow still works without NpcAgent holding a ref.
 		/// </summary>
 		public void Initialize(NpcDefinition definition, NpcMovementArea area, NpcPatrolPath path)
 		{
-			Definition = definition;
+			if (definition != null)
+			{
+				Behavior           = definition.Behavior;
+				MoveSpeed          = definition.MoveSpeed;
+				ArrivalTolerance   = definition.ArrivalTolerance;
+				LookAround         = definition.LookAround;
+				LookAroundSpeed    = definition.LookAroundSpeed;
+				WanderRadius       = definition.WanderRadius;
+				WanderIdleMin      = definition.WanderIdleMin;
+				WanderIdleMax      = definition.WanderIdleMax;
+				PatrolMode         = definition.PatrolMode;
+				WaypointWaitSeconds= definition.WaypointWaitSeconds;
+				Hostile            = definition.Hostile;
+				Attack             = definition.Attack;
+				AggroRadius        = definition.AggroRadius;
+				ChaseSpeed         = definition.ChaseSpeed;
+				ResetGraceSeconds  = definition.ResetGraceSeconds;
+				ChaseRepathTicks   = definition.ChaseRepathTicks;
+				LeashChaseToArea   = definition.LeashChaseToArea;
+			}
 			Area = area;
 			Path = path;
 		}
 
 		public override void Spawned()
 		{
-			_home = transform.position;
+			_home          = transform.position;
+			_prevRenderPos = transform.position;
 
 			if (HasStateAuthority == false)
 			{
-				// Proxies must not drive movement — NetworkTransform replicates it.
 				_agent.enabled = false;
 				return;
 			}
 
-			// Seed per-instance so two identical NPCs don't pick the same wander points / idle times.
 			_rng = new System.Random(unchecked((int)(Object.Id.Raw * 2654435761u + 1013904223u)));
 
-			ApplyDefinition();
+			_agent.speed            = MoveSpeed;
+			_agent.stoppingDistance = ArrivalTolerance;
 
-			_state = RuntimeState.Passive;
+			_state             = RuntimeState.Passive;
 			_waitingAtWaypoint = false;
-			_idleTimer = TickTimer.CreateFromSeconds(Runner, 0f);
-			if (Definition != null && Definition.Behavior == NpcBehavior.Patrol && Path != null)
+			_idleTimer         = TickTimer.CreateFromSeconds(Runner, 0f);
+			if (Behavior == NpcBehavior.Patrol && Path != null)
 				_patrolIndex = Path.ClosestIndex(transform.position);
-		}
-
-		private void ApplyDefinition()
-		{
-			if (Definition == null || _agent == null) return;
-			_agent.speed = Definition.MoveSpeed;
-			_agent.stoppingDistance = Definition.ArrivalTolerance;
 		}
 
 		protected override void OnFixedUpdateAlive()
 		{
 			if (HasStateAuthority == false) return;
-			if (Definition == null) return;
 
-			// Attending a customer takes priority over everything: stop and smoothly face them.
 			if (AttendedPlayer != PlayerRef.None)
 			{
 				var customer = Runner.GetPlayerObject(AttendedPlayer);
@@ -125,24 +186,21 @@ namespace Starter.Shooter
 				{
 					if (_wasAttending == false)
 					{
-						// Just started — capture the turn-from rotation for the 0.3s lerp.
 						_wasAttending = true;
 						_faceStartRot = transform.rotation;
-						_faceTimer = TickTimer.CreateFromSeconds(Runner, FaceLerpDuration);
+						_faceTimer    = TickTimer.CreateFromSeconds(Runner, FaceLerpDuration);
 					}
 					if (_agent.enabled && _agent.isOnNavMesh && _agent.hasPath) _agent.ResetPath();
 					FaceCustomerLerped(customer.transform.position);
 					return;
 				}
-				// Customer disconnected — drop attention and resume.
 				AttendedPlayer = PlayerRef.None;
 			}
 
-			// Interaction just ended — pause 2–5s before wandering off again.
 			if (_wasAttending)
 			{
 				_wasAttending = false;
-				_resumeTimer = TickTimer.CreateFromSeconds(Runner, RandRange(2f, 5f));
+				_resumeTimer  = TickTimer.CreateFromSeconds(Runner, RandRange(2f, 5f));
 			}
 			if (_resumeTimer.ExpiredOrNotRunning(Runner) == false)
 			{
@@ -152,7 +210,7 @@ namespace Starter.Shooter
 
 			if (_agent.enabled == false || _agent.isOnNavMesh == false) return;
 
-			Player target = (Definition.Hostile && Definition.Attack != null) ? FindClosestPlayerInAggro() : null;
+			Player target = (Hostile && Attack != null) ? FindClosestPlayerInAggro() : null;
 
 			switch (_state)
 			{
@@ -168,13 +226,13 @@ namespace Starter.Shooter
 			if (_agent.enabled && _agent.isOnNavMesh) _agent.ResetPath();
 		}
 
-		// ─── Passive: Idle / Wander / Patrol ─────────────────────────────────
+		// ─── Passive ──────────────────────────────────────────────────────────
 
 		private void TickPassive(Player target)
 		{
 			if (target != null) { EnterChase(); return; }
 
-			switch (Definition.Behavior)
+			switch (Behavior)
 			{
 				case NpcBehavior.Idle:   TickIdle();   break;
 				case NpcBehavior.Wander: TickWander(); break;
@@ -185,46 +243,36 @@ namespace Starter.Shooter
 		private void TickIdle()
 		{
 			if (_agent.hasPath) _agent.ResetPath();
-			if (Definition.LookAround)
-				transform.Rotate(0f, Definition.LookAroundSpeed * Runner.DeltaTime, 0f);
+			if (LookAround)
+				transform.Rotate(0f, LookAroundSpeed * Runner.DeltaTime, 0f);
 		}
 
 		private void TickWander()
 		{
 			if (_agent.hasPath)
 			{
-				// Walking toward the current destination — when we get there, pause for a bit.
 				if (HasArrived())
 				{
 					_agent.ResetPath();
-					_idleTimer = TickTimer.CreateFromSeconds(
-						Runner, RandRange(Definition.WanderIdleMin, Definition.WanderIdleMax));
+					_idleTimer = TickTimer.CreateFromSeconds(Runner, RandRange(WanderIdleMin, WanderIdleMax));
 				}
 				return;
 			}
 
-			// Idle (no path): once the pause elapses, pick the next destination and move on.
-			// Guard the pick behind the timer so we don't re-arm it every tick (which would
-			// freeze the NPC forever — HasArrived() is trivially true while pathless).
 			if (_idleTimer.ExpiredOrNotRunning(Runner))
 			{
 				if (TryPickWanderDestination(out Vector3 dest))
 					_agent.SetDestination(dest);
 				else
-					_idleTimer = TickTimer.CreateFromSeconds(Runner, 0.5f); // no navmesh sample — retry soon
+					_idleTimer = TickTimer.CreateFromSeconds(Runner, 0.5f);
 			}
 		}
 
-		/// <summary>
-		/// Picks a wander destination: inside the <see cref="Area"/> if one is assigned, otherwise
-		/// within <see cref="NpcDefinition.WanderRadius"/> of the spawn point. Uses the per-instance
-		/// RNG so each NPC roams independently.
-		/// </summary>
 		private bool TryPickWanderDestination(out Vector3 result)
 		{
 			if (Area != null) return Area.TryRandomPoint(_rng, out result);
 
-			float r = Mathf.Max(0.5f, Definition.WanderRadius);
+			float r   = Mathf.Max(0.5f, WanderRadius);
 			float ang = (float)_rng.NextDouble() * Mathf.PI * 2f;
 			float rad = Mathf.Sqrt((float)_rng.NextDouble()) * r;
 			Vector3 candidate = _home + new Vector3(Mathf.Cos(ang) * rad, 0f, Mathf.Sin(ang) * rad);
@@ -248,21 +296,19 @@ namespace Starter.Shooter
 				if (_idleTimer.ExpiredOrNotRunning(Runner))
 				{
 					_waitingAtWaypoint = false;
-					_patrolIndex = Path.NextIndex(_patrolIndex, Definition.PatrolMode, ref _patrolDir);
+					_patrolIndex       = Path.NextIndex(_patrolIndex, PatrolMode, ref _patrolDir);
 					GoToCurrentWaypoint();
 				}
 				return;
 			}
 
 			if (_agent.hasPath == false)
-			{
 				GoToCurrentWaypoint();
-			}
 			else if (HasArrived())
 			{
 				_agent.ResetPath();
 				_waitingAtWaypoint = true;
-				_idleTimer = TickTimer.CreateFromSeconds(Runner, Definition.WaypointWaitSeconds);
+				_idleTimer         = TickTimer.CreateFromSeconds(Runner, WaypointWaitSeconds);
 			}
 		}
 
@@ -271,34 +317,32 @@ namespace Starter.Shooter
 			if (Path.TryGetPoint(_patrolIndex, out Vector3 pos)) _agent.SetDestination(pos);
 		}
 
-		// ─── Hostile: Chase / ReturnHome ─────────────────────────────────────
+		// ─── Hostile ──────────────────────────────────────────────────────────
 
 		private void TickChase(Player target)
 		{
 			bool lost = target == null
-				|| (Definition.LeashChaseToArea && Area != null && Area.Contains(target.transform.position) == false);
+				|| (LeashChaseToArea && Area != null && Area.Contains(target.transform.position) == false);
 
 			if (lost)
 			{
 				if (_outOfRangeTimer.IsRunning == false)
-					_outOfRangeTimer = TickTimer.CreateFromSeconds(Runner, Definition.ResetGraceSeconds);
+					_outOfRangeTimer = TickTimer.CreateFromSeconds(Runner, ResetGraceSeconds);
 				else if (_outOfRangeTimer.Expired(Runner))
 					EnterReturnHome();
 				return;
 			}
 
-			// Target in range — cancel the give-up countdown.
 			_outOfRangeTimer = default;
 			FaceTarget(target.transform.position);
 
-			// Repath periodically; the agent's stoppingDistance halts it at the target.
-			if ((int)Runner.Tick - _lastChaseRepathTick >= Definition.ChaseRepathTicks)
+			if ((int)Runner.Tick - _lastChaseRepathTick >= ChaseRepathTicks)
 			{
 				_agent.SetDestination(target.transform.position);
 				_lastChaseRepathTick = (int)Runner.Tick;
 			}
 
-			float range = Definition.Attack != null ? Definition.Attack.EffectiveRange : 0f;
+			float range   = Attack != null ? Attack.EffectiveRange : 0f;
 			float distSqr = (target.transform.position - transform.position).sqrMagnitude;
 			if (range > 0f && distSqr <= range * range) TryAttack();
 		}
@@ -309,43 +353,41 @@ namespace Starter.Shooter
 			if (HasArrived()) EnterPassive();
 		}
 
-		// ─── Transitions ─────────────────────────────────────────────────────
+		// ─── Transitions ──────────────────────────────────────────────────────
 
 		private void EnterPassive()
 		{
-			_state = RuntimeState.Passive;
-			_agent.speed = Definition.MoveSpeed;
+			_state             = RuntimeState.Passive;
+			_agent.speed       = MoveSpeed;
 			if (_agent.isOnNavMesh) _agent.ResetPath();
 			_waitingAtWaypoint = false;
-			_idleTimer = TickTimer.CreateFromSeconds(Runner, 0f);
-			if (Definition.Behavior == NpcBehavior.Patrol && Path != null)
+			_idleTimer         = TickTimer.CreateFromSeconds(Runner, 0f);
+			if (Behavior == NpcBehavior.Patrol && Path != null)
 				_patrolIndex = Path.ClosestIndex(transform.position);
 		}
 
 		private void EnterChase()
 		{
-			_state = RuntimeState.Chase;
-			_agent.speed = Definition.ChaseSpeed;
-			_outOfRangeTimer = default;
-			// Force an immediate repath. Subtracting ChaseRepathTicks (instead of int.MinValue)
-			// avoids overflowing the (int)Runner.Tick - _lastChaseRepathTick comparison.
-			_lastChaseRepathTick = (int)Runner.Tick - Definition.ChaseRepathTicks;
+			_state               = RuntimeState.Chase;
+			_agent.speed         = ChaseSpeed;
+			_outOfRangeTimer     = default;
+			_lastChaseRepathTick = (int)Runner.Tick - ChaseRepathTicks;
 		}
 
 		private void EnterReturnHome()
 		{
-			_state = RuntimeState.ReturnHome;
-			_agent.speed = Definition.MoveSpeed;
+			_state           = RuntimeState.ReturnHome;
+			_agent.speed     = MoveSpeed;
 			_outOfRangeTimer = default;
 			if (_agent.isOnNavMesh) _agent.SetDestination(_home);
 		}
 
-		// ─── Helpers (shared shape with EvilChicken) ─────────────────────────
+		// ─── Helpers ──────────────────────────────────────────────────────────
 
 		private bool HasArrived()
 		{
 			if (_agent.pathPending) return false;
-			return _agent.remainingDistance <= Mathf.Max(Definition.ArrivalTolerance, _agent.stoppingDistance);
+			return _agent.remainingDistance <= Mathf.Max(ArrivalTolerance, _agent.stoppingDistance);
 		}
 
 		private void FaceTarget(Vector3 targetPos)
@@ -356,10 +398,6 @@ namespace Starter.Shooter
 			transform.rotation = Quaternion.LookRotation(toTarget.normalized);
 		}
 
-		/// <summary>
-		/// Turns to face the customer over <see cref="FaceLerpDuration"/> (lerp from the rotation
-		/// captured when attention started), then tracks them directly once the lerp completes.
-		/// </summary>
 		private void FaceCustomerLerped(Vector3 targetPos)
 		{
 			Vector3 toTarget = targetPos - transform.position;
@@ -367,18 +405,18 @@ namespace Starter.Shooter
 			if (toTarget.sqrMagnitude < 0.0001f) return;
 
 			Quaternion targetRot = Quaternion.LookRotation(toTarget.normalized);
-			float remaining = _faceTimer.RemainingTime(Runner) ?? 0f;
-			float t = Mathf.Clamp01(1f - remaining / FaceLerpDuration);
-			transform.rotation = Quaternion.Slerp(_faceStartRot, targetRot, t);
+			float remaining      = _faceTimer.RemainingTime(Runner) ?? 0f;
+			float t              = Mathf.Clamp01(1f - remaining / FaceLerpDuration);
+			transform.rotation   = Quaternion.Slerp(_faceStartRot, targetRot, t);
 		}
 
 		private Player FindClosestPlayerInAggro()
 		{
 			int count = Physics.OverlapSphereNonAlloc(
-				transform.position, Definition.AggroRadius, _overlapBuffer, CombatAction.HitMask, QueryTriggerInteraction.Ignore);
+				transform.position, AggroRadius, _overlapBuffer, CombatAction.HitMask, QueryTriggerInteraction.Ignore);
 
-			Player closest = null;
-			float closestSqr = float.MaxValue;
+			Player closest    = null;
+			float closestSqr  = float.MaxValue;
 			for (int i = 0; i < count; i++)
 			{
 				var player = _overlapBuffer[i].GetComponentInParent<Player>();
@@ -393,36 +431,29 @@ namespace Starter.Shooter
 
 		private void TryAttack()
 		{
-			if (Definition.Attack == null || _invoker == null) return;
+			if (Attack == null || _invoker == null) return;
 			if (_invoker.CanFire == false) return;
 
 			var ctx = new ActorContext
 			{
-				Runner = Runner,
-				IgnoreAuthority = default,
-				AttackerPosition = transform.position,
-				FireTransform = transform,
-				AttackerRoot = gameObject,
-				IsStateAuthority = HasStateAuthority,
+				Runner            = Runner,
+				IgnoreAuthority   = default,
+				AttackerPosition  = transform.position,
+				FireTransform     = transform,
+				AttackerRoot      = gameObject,
+				IsStateAuthority  = HasStateAuthority,
 			};
 
-			_invoker.TryFire(Definition.Attack, in ctx, false);
+			_invoker.TryFire(Attack, in ctx, false);
 		}
 
-		// ─── Interaction ─────────────────────────────────────────────────────
-		// NpcAgent intentionally does NOT implement IInteractable — interaction is a
-		// separate component on the same GameObject (Shopkeeper, QuestGiver, or a future
-		// NpcDialogue : InteractableStation). The interaction component calls the Local*
-		// helpers below when a player opens/closes its session, so movement pauses and the
-		// NPC turns to face the customer (see AttendedPlayer + OnFixedUpdateAlive).
+		// ─── Interaction ──────────────────────────────────────────────────────
 
-		/// <summary>Local player started interacting — ask the authority to make this NPC attend us.</summary>
 		public void LocalBeginAttending()
 		{
 			if (Object != null) RPC_SetAttended(true);
 		}
 
-		/// <summary>Local player stopped interacting — release attention if we were the customer.</summary>
 		public void LocalEndAttending()
 		{
 			if (Object != null) RPC_SetAttended(false);
@@ -438,17 +469,46 @@ namespace Starter.Shooter
 				AttendedPlayer = PlayerRef.None;
 		}
 
+		// ─── Render ───────────────────────────────────────────────────────────
+
+		public override void Render()
+		{
+			if (_animator == null) return;
+
+			float dt    = Time.deltaTime;
+			float speed = 0f;
+			if (dt > 0f)
+			{
+				Vector3 delta = transform.position - _prevRenderPos;
+				delta.y       = 0f;
+				speed         = delta.magnitude / dt;
+			}
+			_prevRenderPos = transform.position;
+
+			_animator.SetFloat(_hashSpeed,       speed);
+			_animator.SetFloat(_hashMotionSpeed, 1f);
+			_animator.SetBool (_hashGrounded,    true);
+			_animator.SetBool (_hashFreeFall,    false);
+		}
+
+		// ─── Gizmos ───────────────────────────────────────────────────────────
+
 		private void OnDrawGizmosSelected()
 		{
-			if (Definition == null || Definition.Hostile == false) return;
+			if (!Hostile) return;
 
 			Gizmos.color = Color.red;
-			Gizmos.DrawWireSphere(transform.position, Definition.AggroRadius);
-			if (Definition.Attack != null && Definition.Attack.EffectiveRange > 0f)
+			Gizmos.DrawWireSphere(transform.position, AggroRadius);
+			if (Attack != null && Attack.EffectiveRange > 0f)
 			{
 				Gizmos.color = Color.magenta;
-				Gizmos.DrawWireSphere(transform.position, Definition.Attack.EffectiveRange);
+				Gizmos.DrawWireSphere(transform.position, Attack.EffectiveRange);
 			}
+		}
+
+		public void TriggerAnimation(string triggerName)
+		{
+			_animator.SetTrigger(triggerName);
 		}
 	}
 }
