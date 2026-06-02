@@ -303,6 +303,13 @@ namespace Starter.Shooter
 		private Vector3 _hitNormal { get; set; }
 		[Networked]
 		private int _fireCount { get; set; }
+		// Secondary (RMB) attack feedback counter — mirrors _fireCount for the throw swing.
+		[Networked]
+		private int _secondaryFireCount { get; set; }
+		/// <summary>True while the player holds the aim (ADS) stance with an Aim-mode weapon. Drives
+		/// FOV zoom (local), sway/recoil steadying (PlayerInput), and hitscan spread tightening.</summary>
+		[Networked]
+		public NetworkBool IsAiming { get; private set; }
 		[Networked]
 		private Vector3 _knockbackDirection { get; set; }
 		[Networked]
@@ -379,6 +386,7 @@ namespace Starter.Shooter
 		private int _animIDShoot;
 
 		private int _visibleFireCount;
+		private int _visibleSecondaryFireCount;
 		private Inventory _inventory;
 		// Cached renderers under ScalingRoot — populated on Spawned for the local input authority only.
 		// Toggled off while seated so the driver doesn't see their own torso/legs floating in the cab.
@@ -517,8 +525,9 @@ namespace Starter.Shooter
 			// we need to trigger the change manually
 			OnNicknameChanged();
 
-			// Reset visible fire count
+			// Reset visible fire counts
 			_visibleFireCount = _fireCount;
+			_visibleSecondaryFireCount = _secondaryFireCount;
 
 			if (HasInputAuthority)
 			{
@@ -812,12 +821,17 @@ namespace Starter.Shooter
 
 			if (_baseFOV < 0f) _baseFOV = cam.fieldOfView;
 
+			// Aiming (ADS) zooms in and suppresses the sprint boost, per the held weapon's AimTuning.
+			var aim = IsAiming && _inventory != null ? _inventory.ActiveWeapon?.Aim : null;
+
 			float horizontalSpeed = new Vector2(KCC.RealVelocity.x, KCC.RealVelocity.z).magnitude;
 			float sprintT = Mathf.InverseLerp(WalkSpeed, SprintSpeed, horizontalSpeed);
-			bool canBoost = Health.IsAlive && RagdollState == ERagdollState.Normal;
-			float targetFOV = _baseFOV + (canBoost ? SprintFOVBoost * sprintT : 0f);
+			bool canBoost = Health.IsAlive && RagdollState == ERagdollState.Normal && aim == null;
 
-			cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, targetFOV, FOVLerpSpeed * Time.deltaTime);
+			float targetFOV = _baseFOV + (canBoost ? SprintFOVBoost * sprintT : 0f) - (aim != null ? aim.FOVReduction : 0f);
+			float lerpSpeed = aim != null ? aim.FOVLerpSpeed : FOVLerpSpeed;
+
+			cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, targetFOV, lerpSpeed * Time.deltaTime);
 		}
 
 		private Vector3 ComputeHeadBob()
@@ -987,6 +1001,7 @@ namespace Starter.Shooter
 			CameraPivot.localRotation = Quaternion.Euler(pitchRotation);
 
 			ProcessFireInput(input, previousButtons);
+			ProcessSecondaryInput(input, previousButtons);
 
 			return drained;
 		}
@@ -1048,6 +1063,69 @@ namespace Starter.Shooter
 					Fire(action, charged, norm);
 				}
 			}
+		}
+
+		// Secondary (RMB) handling, driven by the held weapon's SecondaryMode:
+		//   Attack — fire SecondaryAction on press (e.g. throw), on its own cooldown.
+		//   Aim    — hold to enter the ADS stance (IsAiming): FOV zoom + steadier sway/recoil + tighter spread.
+		// Runs on input + state authority like ProcessFireInput; the [Networked] IsAiming write is predicted on IA.
+		private void ProcessSecondaryInput(GameplayInput input, NetworkButtons previousButtons)
+		{
+			// Hands full with a placeable, or a consumable selected: no secondary action — and never
+			// leave the player stuck in the aim stance.
+			bool suppressed = _inventory == null
+				|| _inventory.CarriedPlaceableId != 0
+				|| (_inventory.SelectedDefinition != null && _inventory.SelectedDefinition.HasCapability<ConsumableCapability>());
+
+			var weapon = suppressed ? null : _inventory.ActiveWeapon;
+			var mode = weapon != null ? weapon.SecondaryMode : ESecondaryMode.None;
+
+			// Recompute the aim stance every tick so switching to a non-aim weapon, climbing, or any
+			// input lock drops it immediately.
+			bool wantAim = mode == ESecondaryMode.Aim
+				&& input.Buttons.IsSet(EInputButton.SecondaryFire)
+				&& IsInputLocked == false
+				&& IsClimbing == false;
+			if (IsAiming != wantAim) IsAiming = wantAim;
+
+			if (mode == ESecondaryMode.Attack && weapon.SecondaryAction != null)
+			{
+				if (input.Buttons.WasPressed(previousButtons, EInputButton.SecondaryFire))
+					FireSecondary(weapon.SecondaryAction);
+			}
+		}
+
+		// Mirror of Fire for the secondary action — runs it through the invoker's independent
+		// SecondaryCooldown and drives the throw-swing feedback via _secondaryFireCount.
+		private void FireSecondary(CombatAction action)
+		{
+			if (action == null || ActionInvoker == null) return;
+
+			_hitPosition = Vector3.zero;
+			_hitNormal = Vector3.zero;
+
+			var ctx = new ActorContext
+			{
+				Runner = Runner,
+				IgnoreAuthority = Object.InputAuthority,
+				AttackerPosition = transform.position,
+				FireTransform = CameraHandle,
+				AttackerRoot = gameObject,
+				IsStateAuthority = HasStateAuthority,
+				ChargeNormalized = 0f,
+				IsAiming = IsAiming,
+			};
+
+			var hit = ActionInvoker.TryFire(action, in ctx, false, secondary: true);
+			if (hit.DidFire == false) return;
+
+			if (hit.DidHit)
+			{
+				_hitPosition = hit.Point;
+				_hitNormal = hit.Normal;
+			}
+
+			_secondaryFireCount++;
 		}
 
 		// BOTW-style climb anchor: cast forward (yaw-only, ignoring pitch so looking up at the wall doesn't reject the grab)
@@ -1648,6 +1726,7 @@ namespace Starter.Shooter
 				AttackerRoot = gameObject,
 				IsStateAuthority = HasStateAuthority,
 				ChargeNormalized = chargeNormalized,
+				IsAiming = IsAiming,
 			};
 
 			var hit = ActionInvoker.TryFire(action, in ctx, charged);
@@ -1705,6 +1784,16 @@ namespace Starter.Shooter
 			}
 
 			_visibleFireCount = _fireCount;
+
+			// Secondary (throw) feedback: best-effort swing on the held visual while it still exists.
+			// The thrown projectile carries the authoritative cross-peer cue, so a consumed/unequipped
+			// weapon simply skips the local swing.
+			if (_visibleSecondaryFireCount < _secondaryFireCount)
+			{
+				GetHeldVisual()?.PlayMeleeFeedback(false);
+				Animator.SetTrigger(_animIDShoot);
+			}
+			_visibleSecondaryFireCount = _secondaryFireCount;
 		}
 
 		// Feedback sink: the spawned hand prefab's visual rig (weapon swing/recoil, fist punch).

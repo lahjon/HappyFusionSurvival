@@ -43,6 +43,13 @@ MonoBehaviour:
       data:
         Actions:
         - {fileID: 11400000, guid: 25e431ef6ffea8240b0921c70ddff187, type: 2}
+        SecondaryMode: 2
+        SecondaryAction: {fileID: 0}
+        Aim:
+          FOVReduction: 18
+          FOVLerpSpeed: 10
+          SwayMultiplier: 0.25
+          RecoilMultiplier: 0.5
         Rig:
           SwingArcEuler: {x: -80, y: 0, z: 0}
           SwingDuration: 0.28

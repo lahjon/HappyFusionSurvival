@@ -120,12 +120,23 @@ namespace Starter.Shooter
 		/// or the unarmed (fists) action when the hand is empty. Null if the held item isn't a weapon.
 		/// Single source of truth for both Player (fire/feedback) and PlayerInput (sway/aim-recoil).
 		/// </summary>
-		public CombatAction ActiveAction
+		/// <summary>The weapon facet of the held item, or the unarmed (fists) weapon when the hand is
+		/// empty. Null if the held item isn't a weapon. Source for ActiveAction plus the secondary
+		/// (RMB) mode/action and aim tuning read by Player/PlayerInput.</summary>
+		public WeaponCapability ActiveWeapon
 		{
 			get
 			{
 				var def = SelectedDefinition;
-				var weapon = def != null ? def.GetCapability<WeaponCapability>() : UnarmedWeapon;
+				return def != null ? def.GetCapability<WeaponCapability>() : UnarmedWeapon;
+			}
+		}
+
+		public CombatAction ActiveAction
+		{
+			get
+			{
+				var weapon = ActiveWeapon;
 				if (weapon == null || weapon.Actions == null || weapon.Actions.Count == 0) return null;
 				return weapon.Actions[0];
 			}

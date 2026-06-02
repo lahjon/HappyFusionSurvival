@@ -26,3 +26,5 @@ MonoBehaviour:
     KnockbackMultiplier: 2
   Range: 200
   HitOptions: 9
+  HipSpreadDegrees: 4
+  AimSpreadMultiplier: 0.2
