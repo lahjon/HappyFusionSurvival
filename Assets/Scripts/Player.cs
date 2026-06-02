@@ -62,6 +62,8 @@ namespace Starter.Shooter
 		public float JumpStaminaCost = 15f;
 		[Tooltip("Stamina must reach this value before sprinting can start again after being fully depleted.")]
 		public float MinStaminaToStartSprint = 5f;
+		[Tooltip("Stamina drained per second while steadying a scoped weapon (holding Sprint while aiming). High by design — a held breath is short. When it empties, the scope jolts (see AimTuning.BreathDepletionRecoilScale).")]
+		public float BreathHoldStaminaDrainPerSecond = 45f;
 
 		[Header("Money")]
 		[Tooltip("Money granted to the player on spawn. Seeded once on state authority in Spawned(); not re-applied on respawn (Money survives death).")]
@@ -1027,8 +1029,9 @@ namespace Starter.Shooter
 			bool wantsSprint = input.Buttons.IsSet(EInputButton.Sprint);
 			bool isMoving = input.MoveDirection.sqrMagnitude > 0.01f;
 			// Allow continuing a sprint as long as stamina > 0; require MinStaminaToStartSprint to (re)start.
+			// While scoped (ADS), Sprint is repurposed as the breath-hold (steady aim) — so it never sprints.
 			float startThreshold = _wasSprinting ? 0f : MinStaminaToStartSprint;
-			bool isSprinting = !IsCrouching && !knockbackActive && wantsSprint && isMoving && Stamina > startThreshold;
+			bool isSprinting = !IsCrouching && !knockbackActive && wantsSprint && isMoving && IsAiming == false && Stamina > startThreshold;
 
 			// Sprint-jump momentum carry: latched at takeoff (see jump block below), cleared on landing.
 			// While airborne and latched, treat the player as sprinting for speed purposes even if they
@@ -1051,6 +1054,20 @@ namespace Starter.Shooter
 				drained = true;
 			}
 			_wasSprinting = isSprinting;
+
+			// Sniper breath-hold: holding Sprint while scoped steadies the sway (applied locally in
+			// PlayerInput) and burns stamina fast here in the sim. Regen is pinned off for as long as
+			// the button is held, so once it empties it stays empty until the player releases — the
+			// view-side depletion recoil then fires exactly once.
+			if (IsAiming && wantsSprint)
+			{
+				_staminaRegenTimer = TickTimer.CreateFromSeconds(Runner, StaminaRegenDelay);
+				if (Stamina > 0f)
+				{
+					Stamina = Mathf.Max(0f, Stamina - BreathHoldStaminaDrainPerSecond * Runner.DeltaTime);
+					drained = true;
+				}
+			}
 
 			float jumpImpulse = 0f;
 
@@ -1103,6 +1120,10 @@ namespace Starter.Shooter
 
 			ProcessFireInput(input, previousButtons);
 			ProcessSecondaryInput(input, previousButtons);
+
+			// Tick the magazine auto-reload cycle (no-op for non-magazine weapons). Runs on SA + IA;
+			// mutations gate on state authority internally, the reload timer/flag replicate for the HUD.
+			_inventory?.UpdateAmmoCycle();
 
 			return drained;
 		}
@@ -1825,6 +1846,14 @@ namespace Starter.Shooter
 			if (action == null || ActionInvoker == null) return;
 			if (CanFireWeaponNow() == false) return; // authoritative safety net behind the input gate
 
+			// Magazine gate (hitscan guns): a dry or reloading magazine produces a click, no shot.
+			// Checked on every predicting peer — Slots.Loaded / IsReloading are networked so IA and SA
+			// agree without an RPC, mirroring ProjectileAction's ammo gate.
+			var weapon = _inventory != null ? _inventory.ActiveWeapon : null;
+			bool magazineFed = weapon != null && weapon.UsesMagazine;
+			if (magazineFed && (_inventory.IsReloading || _inventory.ActiveLoaded <= 0))
+				return;
+
 			// Clear hit position in case nothing will be hit
 			_hitPosition = Vector3.zero;
 			_hitNormal = Vector3.zero;
@@ -1843,6 +1872,10 @@ namespace Starter.Shooter
 
 			var hit = ActionInvoker.TryFire(action, in ctx, charged);
 			if (hit.DidFire == false) return;
+
+			// Consume one magazine round only on a shot that actually fired (so a cooldown-rejected
+			// press doesn't waste ammo). Predicted on IA via the networked Slots write.
+			if (magazineFed) _inventory.TryConsumeChamberedRound();
 
 			if (hit.DidHit)
 			{

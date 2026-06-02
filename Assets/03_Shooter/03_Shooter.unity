@@ -612,6 +612,60 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 56.954, z: 0}
+--- !u!21 &222546677
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: SunVisualMat
+  m_Shader: {fileID: 4800000, guid: 650dd9526735d5b46b79224bc6e94025, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 0
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BaseMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AddPrecomputedVelocity: 0
+    - _AlphaClip: 0
+    - _AlphaToMask: 0
+    - _Blend: 0
+    - _BlendOp: 0
+    - _Cull: 2
+    - _Cutoff: 0.5
+    - _DstBlend: 0
+    - _DstBlendAlpha: 0
+    - _QueueOffset: 0
+    - _SampleGI: 0
+    - _SrcBlend: 1
+    - _SrcBlendAlpha: 1
+    - _Surface: 0
+    - _XRMotionVectorsPass: 1
+    - _ZWrite: 1
+    m_Colors:
+    - _BaseColor: {r: 15, g: 14.25, b: 12, a: 15}
+    - _Color: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
 --- !u!1 &267317010
 GameObject:
   m_ObjectHideFlags: 0
@@ -1764,6 +1818,9 @@ MonoBehaviour:
   AudioSource: {fileID: 1259515377}
   HitReceivedClip: {fileID: 8300000, guid: ef7a92aa16b64ab4bb59e7af66aed3d9, type: 3}
   DeathClip: {fileID: 8300000, guid: 960fba484aacf9645a8c6f23b9672dac, type: 3}
+  AmmoReadoutOffset: {x: 150, y: -70}
+  AmmoReadoutColor: {r: 1, g: 1, b: 1, a: 1}
+  AmmoReloadingColor: {r: 1, g: 0.72, b: 0.12, a: 1}
   ArmingPromptText: REACH YOUR ZONE TO ARM
   ArmingPromptColor: {r: 1, g: 0.72, b: 0.12, a: 1}
   ArmingPromptOffset: {x: 0, y: -120}
@@ -2344,7 +2401,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 1931782943}
+  - {fileID: 222546677}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -6012,60 +6069,6 @@ Transform:
   - {fileID: 376377740}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!21 &1931782943
-Material:
-  serializedVersion: 8
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: SunVisualMat
-  m_Shader: {fileID: 4800000, guid: 650dd9526735d5b46b79224bc6e94025, type: 3}
-  m_Parent: {fileID: 0}
-  m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
-  m_InvalidKeywords: []
-  m_LightmapFlags: 0
-  m_EnableInstancingVariants: 0
-  m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
-  m_LockedProperties: 
-  m_SavedProperties:
-    serializedVersion: 3
-    m_TexEnvs:
-    - _BaseMap:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _MainTex:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    m_Ints: []
-    m_Floats:
-    - _AddPrecomputedVelocity: 0
-    - _AlphaClip: 0
-    - _AlphaToMask: 0
-    - _Blend: 0
-    - _BlendOp: 0
-    - _Cull: 2
-    - _Cutoff: 0.5
-    - _DstBlend: 0
-    - _DstBlendAlpha: 0
-    - _QueueOffset: 0
-    - _SampleGI: 0
-    - _SrcBlend: 1
-    - _SrcBlendAlpha: 1
-    - _Surface: 0
-    - _XRMotionVectorsPass: 1
-    - _ZWrite: 1
-    m_Colors:
-    - _BaseColor: {r: 15, g: 14.25, b: 12, a: 15}
-    - _Color: {r: 0.5, g: 0.5, b: 0.5, a: 1}
-  m_BuildTextureStacks: []
-  m_AllowLocking: 1
 --- !u!1001 &1948995913
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -6848,6 +6851,14 @@ PrefabInstance:
     - target: {fileID: 4680196328242161484, guid: d6b1bdc135fdc2d4a9ed24849887c735, type: 3}
       propertyPath: m_Name
       value: TrainingDummy
+      objectReference: {fileID: 0}
+    - target: {fileID: 8342933420299169086, guid: d6b1bdc135fdc2d4a9ed24849887c735, type: 3}
+      propertyPath: Attacks
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8342933420299169086, guid: d6b1bdc135fdc2d4a9ed24849887c735, type: 3}
+      propertyPath: _actions.Array.size
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8985071391873729838, guid: d6b1bdc135fdc2d4a9ed24849887c735, type: 3}
       propertyPath: m_LocalPosition.x

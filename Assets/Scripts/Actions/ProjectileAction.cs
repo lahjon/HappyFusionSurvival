@@ -59,6 +59,9 @@ namespace Starter.Shooter
 			if (ctx.AttackerRoot == null) return true;
 			var inv = ctx.AttackerRoot.GetComponent<Inventory>();
 			if (inv == null) return true;
+			// Magazine-fed weapons (e.g. the sniper) gate firing through the magazine cycle in
+			// Player.Fire, not this action's inventory ammo — let those always pass here.
+			if (inv.ActiveUsesMagazine) return true;
 			return FindAmmoSlot(inv) >= 0;
 		}
 
@@ -71,11 +74,16 @@ namespace Starter.Shooter
 			// Predicted ammo decrement. Inventory.Slots is [Networked] — calling RemoveAt on both
 			// IA and SA writes a predicted value on IA that reconciles to SA's authoritative write,
 			// so the HUD ticks down the moment the throw is initiated rather than after 1 RTT.
+			//
+			// Magazine-fed weapons (sniper, etc.) are the exception: their ammo is consumed by the
+			// Player magazine cycle (Player.Fire → Inventory.TryConsumeChamberedRound), so this action
+			// must NOT also decrement inventory. It also leaves itemIdFired = 0 so the spawned bullet
+			// plants no retrievable pickup on impact — fired rounds aren't picked back up like arrows.
 			short itemIdFired = 0;
 			if (ctx.AttackerRoot != null)
 			{
 				var inv = ctx.AttackerRoot.GetComponent<Inventory>();
-				if (inv != null)
+				if (inv != null && inv.ActiveUsesMagazine == false)
 				{
 					int slot = FindAmmoSlot(inv);
 					if (slot < 0) return result;

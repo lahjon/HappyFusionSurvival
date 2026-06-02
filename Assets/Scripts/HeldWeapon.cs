@@ -39,6 +39,7 @@ namespace Starter.Shooter
 		[System.NonSerialized] public float AimRecoilPitchPerShot = 3.5f;
 		[System.NonSerialized] public float AimRecoilHorizontalRandom = 1.5f;
 		[System.NonSerialized] public float AimRecoilLerpSpeed = 18f;
+		[System.NonSerialized] public float AimRecoilRecoverySpeed = 6f;
 
 		private ParticleSystem _muzzleParticle;
 
@@ -145,6 +146,7 @@ namespace Starter.Shooter
 				AimRecoilPitchPerShot = r.AimRecoilPitchPerShot;
 				AimRecoilHorizontalRandom = r.AimRecoilHorizontalRandom;
 				AimRecoilLerpSpeed = r.AimRecoilLerpSpeed;
+				AimRecoilRecoverySpeed = r.AimRecoilRecoverySpeed;
 			}
 
 			// Hide the muzzle anchor entirely for weapons without a muzzle. Hand_Generic is built from

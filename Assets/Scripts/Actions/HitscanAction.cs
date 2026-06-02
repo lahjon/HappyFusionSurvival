@@ -56,7 +56,7 @@ namespace Starter.Shooter
 				int finalDamage = damage;
 				var region = BodyHitbox.From(hit.Hitbox);
 				if (region != null) finalDamage = region.Apply(damage);
-				if (health != null && health.TakeHit(finalDamage, ctx.IgnoreAuthority))
+				if (health != null && health.TakeHit(finalDamage, ctx.IgnoreAuthority, result.Point, result.Normal))
 				{
 					result.DidHit = true;
 					result.Target = health;
