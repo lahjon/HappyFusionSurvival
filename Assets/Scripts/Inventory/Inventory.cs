@@ -569,36 +569,11 @@ namespace Starter.Shooter
 
 			var s = Slots[slot];
 			if (s.IsEmpty) return;
-			if (ItemDatabase.Instance == null) return;
-
-			var def = ItemDatabase.Instance.GetById(s.ItemId);
-			var worldPrefab = ResolveWorldPrefab(def);
-			if (worldPrefab == null) return;
-			if (worldPrefab.GetComponent<NetworkObject>() == null)
-			{
-				Debug.LogWarning($"[Inventory] Item '{def?.DisplayName}' world prefab '{worldPrefab.name}' has no NetworkObject component — drop ignored.");
-				return;
-			}
 
 			short amount = (dropCount <= 0 || dropCount >= s.Count) ? s.Count : dropCount;
 
-			// Spawn at the player's hand (where the held item visually lives) so the drop
-			// appears to fall out of the hand. Fall back to a chest-height offset on the
-			// player root if HandAnchor isn't wired up.
-			Vector3 pos = HandAnchor != null
-				? HandAnchor.position + transform.forward * DropForwardOffset
-				: transform.position + transform.forward * DropForwardOffset + Vector3.up * DropUpOffset;
-
-			var spawned = Runner.Spawn(worldPrefab, pos, Quaternion.identity);
-			if (spawned != null && spawned.TryGetComponent<PickupableItem>(out var pi))
-			{
-				pi.Initialize(s.ItemId, amount);
-				Vector3 inherited = _player != null && _player.KCC != null
-					? _player.KCC.RealVelocity * PlayerVelocityContribution
-					: Vector3.zero;
-				var velocity = transform.forward * ThrowForwardSpeed + Vector3.up * ThrowUpSpeed + inherited;
-				pi.Throw(velocity, ThrowInteractionLock);
-			}
+			// Spawn the loose pickup first; if no world prefab resolves, bail without touching the slot.
+			if (SpawnLooseInFront(s.ItemId, amount) == null) return;
 
 			if (amount >= s.Count)
 			{
@@ -609,6 +584,79 @@ namespace Starter.Shooter
 				s.Count -= amount;
 				Slots.Set(slot, s);
 			}
+		}
+
+		/// <summary>
+		/// State-authority: spawn <paramref name="amount"/> of <paramref name="itemId"/> as a single loose
+		/// world pickup in front of the player, thrown out of the hand exactly like a manual drop. Returns the
+		/// spawned <see cref="PickupableItem"/>, or null if the item has no resolvable (NetworkObject) world
+		/// prefab. Shared by <see cref="DropAt"/> and the debug item-give path.
+		/// </summary>
+		private PickupableItem SpawnLooseInFront(short itemId, short amount)
+		{
+			if (HasStateAuthority == false || ItemDatabase.Instance == null) return null;
+
+			var def = ItemDatabase.Instance.GetById(itemId);
+			var worldPrefab = ResolveWorldPrefab(def);
+			if (worldPrefab == null) return null;
+			if (worldPrefab.GetComponent<NetworkObject>() == null)
+			{
+				Debug.LogWarning($"[Inventory] Item '{def?.DisplayName}' world prefab '{worldPrefab.name}' has no NetworkObject component — drop ignored.");
+				return null;
+			}
+
+			// Spawn at the player's hand (where the held item visually lives) so the drop
+			// appears to fall out of the hand. Fall back to a chest-height offset on the
+			// player root if HandAnchor isn't wired up.
+			Vector3 pos = HandAnchor != null
+				? HandAnchor.position + transform.forward * DropForwardOffset
+				: transform.position + transform.forward * DropForwardOffset + Vector3.up * DropUpOffset;
+
+			var spawned = Runner.Spawn(worldPrefab, pos, Quaternion.identity);
+			if (spawned == null || spawned.TryGetComponent<PickupableItem>(out var pi) == false) return null;
+
+			pi.Initialize(itemId, amount);
+			Vector3 inherited = _player != null && _player.KCC != null
+				? _player.KCC.RealVelocity * PlayerVelocityContribution
+				: Vector3.zero;
+			var velocity = transform.forward * ThrowForwardSpeed + Vector3.up * ThrowUpSpeed + inherited;
+			pi.Throw(velocity, ThrowInteractionLock);
+			return pi;
+		}
+
+		/// <summary>
+		/// State-authority debug entry: give <paramref name="count"/> of <paramref name="itemId"/> to this
+		/// player. Stackable/hotbar items fill the inventory first (<see cref="TryAdd"/>); anything that doesn't
+		/// fit — and every placeable, which is never stored in the hotbar — is spawned as a loose pickup in front
+		/// of the player. Routed through <see cref="RPC_DebugGiveItem"/> so the add replicates off-host.
+		/// </summary>
+		public void AuthorityGiveItem(short itemId, short count)
+		{
+			if (HasStateAuthority == false) return;
+			if (itemId == 0 || count <= 0 || ItemDatabase.Instance == null) return;
+
+			var def = ItemDatabase.Instance.GetById(itemId);
+			if (def == null) return;
+
+			// Placeables can't live in the hotbar — drop the whole lot loose. Everything else tries the
+			// inventory first and only spills the remainder into the world.
+			short leftover = def.HasCapability<PlaceableCapability>() ? count : TryAdd(itemId, count);
+
+			// Spill leftover into loose pickups, one stack (MaxStack) at a time. The safety counter guards
+			// against a misconfigured MaxStack (<=1 is handled by Mathf.Max) looping forever.
+			int safety = SlotCount + count;
+			while (leftover > 0 && safety-- > 0)
+			{
+				short chunk = (short)Mathf.Min((int)leftover, Mathf.Max(1, def.MaxStack));
+				if (SpawnLooseInFront(itemId, chunk) == null) break;
+				leftover -= chunk;
+			}
+		}
+
+		[Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
+		public void RPC_DebugGiveItem(short itemId, short count)
+		{
+			AuthorityGiveItem(itemId, count);
 		}
 
 		public void SelectSlot(int idx)

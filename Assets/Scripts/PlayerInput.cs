@@ -1,5 +1,6 @@
 using UnityEngine;
 using Fusion;
+using QFSW.QC;
 using Starter.Common.Input;
 using Starter.Common.Interactions;
 using Starter.Common.Inventory;
@@ -52,6 +53,8 @@ namespace Starter.Shooter
 		private GameInputActions _actions;
 		private Player _player;
 		private Inventory _inventory;
+		private InputContextController _inputContext;
+		private QuantumConsole _console;
 
 		// Aim recoil/sway state — local to input authority. The effect is baked into
 		// _input.LookRotation each frame, which is networked, so proxies see the same
@@ -72,6 +75,20 @@ namespace Starter.Shooter
 			if (_actions != null)
 			{
 				_actions.EnableForLocalPlayer();
+			}
+
+			// While the Quantum Console is open it owns all input — disable the gameplay/UI action
+			// maps so nothing leaks through while typing. Escape-to-close stays alive via MenuManager.
+			_inputContext = GetComponent<InputContextController>();
+			_console = ResolveConsole();
+			if (_console != null)
+			{
+				_console.OnActivate += OnConsoleActivated;
+				_console.OnDeactivate += OnConsoleDeactivated;
+
+				// Sync up in case the console was already open when we spawned in.
+				if (_console.IsActive)
+					_inputContext?.SetConsoleSuppressed(true);
 			}
 
 			var lootSession = GetComponent<LootSession>();
@@ -129,6 +146,13 @@ namespace Starter.Shooter
 
 		public override void Despawned(NetworkRunner runner, bool hasState)
 		{
+			if (_console != null)
+			{
+				_console.OnActivate -= OnConsoleActivated;
+				_console.OnDeactivate -= OnConsoleDeactivated;
+				_console = null;
+			}
+
 			if (runner == null)
 				return;
 
@@ -137,6 +161,17 @@ namespace Starter.Shooter
 			{
 				networkEvents.OnInput.RemoveListener(OnInput);
 			}
+		}
+
+		private void OnConsoleActivated() => _inputContext?.SetConsoleSuppressed(true);
+		private void OnConsoleDeactivated() => _inputContext?.SetConsoleSuppressed(false);
+
+		// QuantumConsole.Instance is only set when its singleton option is enabled; fall back to a scene lookup.
+		private static QuantumConsole ResolveConsole()
+		{
+			return QuantumConsole.Instance != null
+				? QuantumConsole.Instance
+				: FindAnyObjectByType<QuantumConsole>(FindObjectsInactive.Include);
 		}
 
 		// BeforeUpdate is called during Unity's Update loop before any OnInput/FixedUpdateNetwork/Render functions are executed.

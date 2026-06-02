@@ -59,7 +59,6 @@ namespace Starter.Shooter
 
 		private void Awake()
 		{
-			Debug.Log($"[SPAWNDBG] GameManager.Awake on '{name}' (NetworkObject present={(GetComponent<NetworkObject>() != null)})");
 			// Bind on every client (authority + remotes) so item lookups work without Resources.
 			if (ItemDatabase != null)
 				ItemDatabase.Bind();

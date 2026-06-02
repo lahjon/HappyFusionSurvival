@@ -1,4 +1,5 @@
 using QFSW.QC;
+using Starter.Common.Inventory;
 using UnityEngine;
 
 namespace Starter.Shooter
@@ -11,6 +12,7 @@ namespace Starter.Shooter
 	/// <item><c>add_scraps &lt;int&gt;</c> — grant crafting scraps to the local player (state-authority replicated).</item>
 	/// <item><c>set_time &lt;int&gt;</c> — set <see cref="Time.timeScale"/> (local game speed; not networked).</item>
 	/// <item><c>set_daytime</c> / <c>set_nighttime</c> — force the match phase AND visual day/night cycle.</item>
+	/// <item><c>trigger_victory</c> — (Night only) instant-win for the local player's team; everyone else loses.</item>
 	/// </list>
 	/// </summary>
 	public static class DebugCommands
@@ -35,6 +37,40 @@ namespace Starter.Shooter
 
 			player.RPC_DebugAddScraps(amount);
 			return $"add_scraps: requested +{amount} for local player.";
+		}
+
+		[Command("add_item", "Gives the named item to the local player — fills the hotbar first, drops any overflow in front. Name auto-completes from the item database.")]
+		private static string AddItem([ItemName] string itemName, int count = 1)
+		{
+			if (string.IsNullOrWhiteSpace(itemName)) return "add_item: provide an item name (start typing for autocomplete).";
+			if (count <= 0) return $"add_item: count must be positive (got {count}).";
+			if (ItemDatabase.Instance == null) return "add_item: no ItemDatabase bound (not in a match?).";
+
+			var player = FindLocalPlayer();
+			if (player == null) return "add_item: no local player found (not in a match?).";
+
+			var inventory = player.GetComponent<Inventory>();
+			if (inventory == null) return "add_item: local player has no Inventory component.";
+
+			var def = FindItem(itemName);
+			if (def == null) return $"add_item: no item named '{itemName}' in the database.";
+
+			short amount = (short)Mathf.Clamp(count, 1, 999);
+			inventory.RPC_DebugGiveItem(def.Id, amount);
+			return $"add_item: requested {amount}× '{def.DisplayName}' (id {def.Id}) for the local player.";
+		}
+
+		/// <summary>Resolve a typed name to an item: DisplayName first (what autocomplete offers), then asset name; case-insensitive.</summary>
+		private static ItemDefinition FindItem(string name)
+		{
+			var all = ItemDatabase.Instance.All;
+			for (int i = 0; i < all.Count; i++)
+				if (all[i] != null && string.Equals(all[i].DisplayName, name, System.StringComparison.OrdinalIgnoreCase))
+					return all[i];
+			for (int i = 0; i < all.Count; i++)
+				if (all[i] != null && string.Equals(all[i].name, name, System.StringComparison.OrdinalIgnoreCase))
+					return all[i];
+			return null;
 		}
 
 		[Command("add_bot", "Spawns N AI bot players on enemy teams so a solo player has someone to fight. Default 1. Routed to the host.")]
@@ -131,16 +167,54 @@ namespace Starter.Shooter
 				: $"lightgrid_debug: overlay {status} (green = powered, red = dark).";
 		}
 
-		[Command("arm", "Force-enables PvP for <seconds> regardless of phase (override no-combat-during-Day). Default 60s; 0 = disarm. Replicated.")]
-		private static string Arm(int seconds = 60)
+		[Command("arm", "Force-enables PvP regardless of phase so you can playtest combat during Day/Lobby. Stays on until disarmed. 'arm' = on, 'arm false' = off. Replicated.")]
+		private static string Arm(bool on = true)
 		{
 			var match = MatchManager.Instance;
 			if (match == null) return "arm: no MatchManager found (not in a match?).";
 
-			match.RPC_DebugArm(seconds);
-			return seconds > 0
-				? $"arm: PvP force-enabled for {seconds}s (ignores the Day/Lobby phase gate; friendly fire still off)."
+			match.RPC_DebugArm(on);
+			return on
+				? "arm: PvP force-enabled — ignores the Day/Lobby phase gate and stays on until 'arm false' (friendly fire still off)."
 				: "arm: disarmed — PvP gate back to normal phase rules.";
+		}
+
+		[Command("trigger_victory", "Ends the round NOW with the local player's team as the winner (everyone else loses). Night only. Replicated.")]
+		private static string TriggerVictory()
+		{
+			var match = MatchManager.Instance;
+			if (match == null) return "trigger_victory: no MatchManager found (not in a match?).";
+			if (match.Phase != MatchPhase.Night) return $"trigger_victory: only works at Night (current phase: {match.Phase}).";
+
+			var player = FindLocalPlayer();
+			if (player == null) return "trigger_victory: no local player found (not in a match?).";
+
+			var teams = TeamManager.Instance;
+			if (teams == null) return "trigger_victory: no TeamManager found.";
+			if (teams.TeamOf(player.Owner) < 0) return "trigger_victory: local player isn't on a team (spectator?).";
+
+			match.RPC_DebugTriggerVictory(player.Owner);
+			return "trigger_victory: requested instant win for the local player's team.";
+		}
+
+		[Command("armstatus", "Dumps the live PvP fire-gate state for the local player (debug-arm / phase / weapon cooldown). Run it between shots to see which gate is blocking fire. Local read-only.")]
+		private static string ArmStatus()
+		{
+			var player = FindLocalPlayer();
+			if (player == null) return "armstatus: no local player found (not in a match?).";
+
+			var match = MatchManager.Instance;
+			string matchPart = match == null
+				? "match=<none>"
+				: $"phase={match.Phase} pvpForced={match.IsPvpForced} pvpArmed={(bool)player.PvpArmed}";
+
+			var inv = player.GetComponent<Inventory>();
+			var action = inv != null ? inv.ActiveAction : null;
+			string firePart = player.ActionInvoker == null
+				? "invoker=<none>"
+				: $"action={(action != null ? action.name : "<null>")} canFire={player.ActionInvoker.CanFire} charging={player.ActionInvoker.IsCharging}";
+
+			return $"armstatus: {matchPart} | {firePart}";
 		}
 
 		[Command("set_daytime", "Forces DAY — MatchManager Day phase + TimeManager visual day. Replicated.")]

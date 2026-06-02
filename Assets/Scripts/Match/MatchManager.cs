@@ -53,13 +53,14 @@ namespace Starter.Shooter
 		/// <summary>Set when a winner is found. -1 = no winner yet (or draw). Read by UI on MatchOver.</summary>
 		[Networked] public int WinningTeamId { get; private set; } = -1;
 
-		/// <summary>Debug override (the <c>arm</c> console command): while this timer is running, PvP damage is
-		/// allowed regardless of <see cref="Phase"/> — letting you test combat during the Day/Lobby. Networked so
-		/// every predicting peer agrees with the host's gate in <c>Health.PvpDamageBlocked</c>.</summary>
-		[Networked] public TickTimer DebugArmTimer { get; private set; }
+		/// <summary>Debug override (the <c>arm</c> console command): while true, PvP damage and weapon fire are
+		/// allowed regardless of <see cref="Phase"/> — letting you playtest combat during the Day/Lobby. Stays on
+		/// until explicitly disarmed (no timer). Networked so every peer agrees with the host's gate in
+		/// <c>Health.PvpDamageBlocked</c> / <c>Player.CanFireWeaponNow</c>.</summary>
+		[Networked] public NetworkBool DebugArmForced { get; private set; }
 
 		/// <summary>True while the <c>arm</c> debug override is active (PvP forced on regardless of phase).</summary>
-		public bool IsPvpForced => DebugArmTimer.ExpiredOrNotRunning(Runner) == false;
+		public bool IsPvpForced => DebugArmForced;
 
 		// =========================================================================
 		// Lifecycle
@@ -187,14 +188,49 @@ namespace Starter.Shooter
 			EnterPhase(phase);
 		}
 
-		/// <summary>Debug-only: force-enable PvP for <paramref name="seconds"/> regardless of phase (override the
-		/// no-combat-during-Day gate). <paramref name="seconds"/> &lt;= 0 disarms immediately. Routes to the state
-		/// authority so the networked <see cref="DebugArmTimer"/> replicates to every peer's damage gate.</summary>
+		/// <summary>Debug-only: force-enable PvP regardless of phase (override the no-combat-during-Day gate) so you
+		/// can playtest combat in the Day/Lobby. Stays on until disarmed (<paramref name="on"/> = false) — no timer.
+		/// Routes to the state authority so the networked <see cref="DebugArmForced"/> replicates to every peer's
+		/// damage / fire gate.</summary>
 		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
-		public void RPC_DebugArm(int seconds)
+		public void RPC_DebugArm(bool on)
 		{
 			if (HasStateAuthority == false) return;
-			DebugArmTimer = seconds > 0 ? TickTimer.CreateFromSeconds(Runner, seconds) : default;
+			DebugArmForced = on;
+		}
+
+		/// <summary>Debug-only: end the round NOW in favour of <paramref name="winner"/>'s team — that team wins,
+		/// every other team loses. Kills every living player not on the winning team first (so the eliminations are
+		/// real, not just a declared result), then runs the normal win path. Only valid during <see cref="MatchPhase.Night"/>
+		/// (no-op otherwise, or if the player has no team). Routes to the state authority and clears any
+		/// <c>set_nighttime</c> hold so the MatchOver → Lobby flow resumes.</summary>
+		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+		public void RPC_DebugTriggerVictory(PlayerRef winner)
+		{
+			if (HasStateAuthority == false) return;
+			if (Phase != MatchPhase.Night) return;
+
+			int teamId = TeamManager != null ? TeamManager.TeamOf(winner) : -1;
+			if (teamId < 0) return;
+
+			// Wipe every living enemy (anyone not on the winning team) outright. AuthorityKill bypasses the
+			// downed hook so they die rather than bleed out, making the win condition resolve cleanly.
+			var gm = FindAnyObjectByType<GameManager>();
+			if (gm != null)
+			{
+				var players = gm.Players;
+				for (int i = 0; i < players.Count; i++)
+				{
+					var p = players[i];
+					if (p == null || p.Object == null || p.Health == null) continue;
+					if (p.Health.IsAlive == false) continue;
+					if (TeamManager != null && TeamManager.TeamOf(p.Owner) == teamId) continue;
+					p.Health.AuthorityKill();
+				}
+			}
+
+			_debugHoldPhase = false; // resume the normal MatchOver → Lobby flow after the forced win.
+			EndNightForWinner(teamId);
 		}
 
 		// =========================================================================

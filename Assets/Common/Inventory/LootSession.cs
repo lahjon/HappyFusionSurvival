@@ -3,6 +3,7 @@ using Fusion;
 using Starter.Common.Input;
 using Starter.Common.Interactions;
 using Starter.Common.Inventory.UI;
+using Starter.Common.Menu;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -13,12 +14,18 @@ namespace Starter.Common.Inventory
 	/// next to <see cref="GameInputActions"/> + <see cref="InputContextController"/>.
 	/// Tracks the open container, drives input map / cursor toggles, and forwards
 	/// drag-drop / right-click / Take-All actions to the container's RPCs.
+	///
+	/// Registers as an <see cref="IMenuScreen"/> while open so <see cref="MenuManager"/> routes Escape to it.
 	/// </summary>
 	[RequireComponent(typeof(GameInputActions))]
 	[RequireComponent(typeof(InputContextController))]
-	public sealed class LootSession : MonoBehaviour, IInteractionGate
+	public sealed class LootSession : MonoBehaviour, IInteractionGate, IMenuScreen
 	{
 		bool IInteractionGate.AllowInteractions => Current == null;
+
+		string IMenuScreen.MenuName => "Loot";
+		bool IMenuScreen.DismissOnEscape => true;
+		void IMenuScreen.CloseFromMenu() => RequestClose();
 
 		public LootContainer Current { get; private set; }
 
@@ -52,7 +59,6 @@ namespace Starter.Common.Inventory
 
 			if (_actions != null && _actions.IsInitialized)
 			{
-				_actions.Close.performed += OnClosePerformed;
 				_actions.TakeAll.performed += OnTakeAllPerformed;
 			}
 
@@ -78,11 +84,14 @@ namespace Starter.Common.Inventory
 
 			if (_actions != null && _actions.IsInitialized)
 			{
-				_actions.Close.performed -= OnClosePerformed;
 				_actions.TakeAll.performed -= OnTakeAllPerformed;
 			}
 
-			if (Current != null) IsAnyLooting = false;
+			if (Current != null)
+			{
+				IsAnyLooting = false;
+				MenuManager.Instance?.Close(this);
+			}
 			Untrack();
 		}
 
@@ -151,6 +160,7 @@ namespace Starter.Common.Inventory
 				Current = source;
 				IsAnyLooting = true;
 				if (_context != null) _context.EnterInventoryMode();
+				MenuManager.Instance?.Open(this);
 				OpenedChanged?.Invoke(Current);
 				Debug.Log($"[LootSession] Opened '{Current.DisplayName}' as {_self}.");
 			}
@@ -159,6 +169,7 @@ namespace Starter.Common.Inventory
 				var closed = Current;
 				Current = null;
 				IsAnyLooting = false;
+				MenuManager.Instance?.Close(this);
 				Untrack();
 				if (_context != null) _context.EnterPlayerMode();
 				OpenedChanged?.Invoke(null);
@@ -169,11 +180,6 @@ namespace Starter.Common.Inventory
 				// Race lost on the container we were trying to open.
 				Untrack();
 			}
-		}
-
-		private void OnClosePerformed(InputAction.CallbackContext ctx)
-		{
-			RequestClose();
 		}
 
 		private void OnTakeAllPerformed(InputAction.CallbackContext ctx)

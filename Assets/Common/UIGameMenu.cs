@@ -1,19 +1,21 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Fusion;
-using Starter.Common.Input;
-using Starter.Common.Inventory;
+using Starter.Common.Menu;
 using TMPro;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
 namespace Starter
 {
 	/// <summary>
 	/// Shows in-game menu, handles player connecting/disconnecting to the network game and cursor locking.
+	///
+	/// The pause menu is the root screen of the global <see cref="MenuManager"/> stack: it is the only thing
+	/// that opens when Escape is pressed with nothing else open. It no longer reads the keyboard itself —
+	/// Escape is owned entirely by <see cref="MenuManager"/>, and Enter does nothing.
 	/// </summary>
-	public class UIGameMenu : MonoBehaviour
+	public class UIGameMenu : MonoBehaviour, IMenuScreen
 	{
 		[Header("Start Game Setup")]
 		[Tooltip("Specifies which game mode player should join - e.g. Platformer, ThirdPersonCharacter")]
@@ -39,6 +41,15 @@ namespace Starter
 		private static string _shutdownStatus;
 		private static bool _autoStartConsumed;
 
+		// The MenuManager we subscribed our OpenPauseRequested handler to. Stored so we can unsubscribe even
+		// if Instance changes, and to detect whether we have wired up yet (subscription is done lazily in
+		// Update because the manager bootstraps AfterSceneLoad and may not exist during our OnEnable).
+		private MenuManager _menu;
+
+		string IMenuScreen.MenuName => "Pause";
+		bool IMenuScreen.DismissOnEscape => true;
+		void IMenuScreen.CloseFromMenu() => HidePause();
+
 		[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
 		private static void ResetStatics()
 		{
@@ -62,18 +73,28 @@ namespace Starter
 			var sceneInfo = new NetworkSceneInfo();
 			sceneInfo.AddSceneRef(SceneRef.FromIndex(SceneManager.GetActiveScene().buildIndex));
 
+			// Debug isolation: instead of GameMode.Single (which fails to start in this project), spin up a
+			// real Host on the cloud so every networked system behaves exactly as in normal multiplayer — but
+			// make it impossible for anyone else to land in it:
+			//   * random, unguessable session name (no one can target it by name),
+			//   * IsVisible = false (hidden from the lobby list, so AutoHostOrClient matchmaking never finds it),
+			//   * IsOpen = false (closed to joins even if someone learned the name).
+			var isolatedHost = Application.isEditor && ForceSinglePlayer;
+
 			var startArguments = new StartGameArgs()
 			{
-				GameMode = Application.isEditor && ForceSinglePlayer ? GameMode.Single : GameMode.AutoHostOrClient,
-				SessionName = RoomText.text,
+				GameMode = isolatedHost ? GameMode.Host : GameMode.AutoHostOrClient,
+				SessionName = isolatedHost ? "solo-" + System.Guid.NewGuid().ToString("N") : RoomText.text,
 				PlayerCount = MaxPlayerCount,
+				IsOpen = !isolatedHost,
+				IsVisible = !isolatedHost,
 				// We need to specify a session property for matchmaking to decide where the player wants to join.
 				// Otherwise players from Platformer scene could connect to ThirdPersonCharacter game etc.
 				SessionProperties = new Dictionary<string, SessionProperty> {["GameMode"] = GameModeIdentifier},
 				Scene = sceneInfo,
 			};
 
-			StatusText.text = startArguments.GameMode == GameMode.Single ? "Starting single-player..." : "Connecting...";
+			StatusText.text = isolatedHost ? "Starting isolated host..." : "Connecting...";
 
 			var startTask = _runnerInstance.StartGame(startArguments);
 			await startTask;
@@ -81,7 +102,7 @@ namespace Starter
 			if (startTask.Result.Ok)
 			{
 				StatusText.text = "";
-				PanelGroup.gameObject.SetActive(false);
+				HidePause();
 			}
 			else
 			{
@@ -103,10 +124,33 @@ namespace Starter
 
 		public void TogglePanelVisibility()
 		{
-			if (PanelGroup.gameObject.activeSelf && _runnerInstance == null)
-				return; // Panel cannot be hidden if the game is not running
+			if (PanelGroup.gameObject.activeSelf)
+			{
+				if (_runnerInstance == null)
+					return; // Panel cannot be hidden if the game is not running
 
-			PanelGroup.gameObject.SetActive(!PanelGroup.gameObject.activeSelf);
+				HidePause();
+			}
+			else
+			{
+				OpenPause();
+			}
+		}
+
+		/// <summary>Show the pause panel and register it as the top of the menu stack. Invoked by
+		/// <see cref="MenuManager.OpenPauseRequested"/> (Escape with nothing else open) or a UI button.</summary>
+		private void OpenPause()
+		{
+			PanelGroup.gameObject.SetActive(true);
+			_menu?.Open(this);
+		}
+
+		/// <summary>Hide the pause panel and pop it off the menu stack. The single close path — used by the
+		/// X button, Escape (via <see cref="IMenuScreen.CloseFromMenu"/>), and after a successful connect.</summary>
+		private void HidePause()
+		{
+			PanelGroup.gameObject.SetActive(false);
+			_menu?.Close(this);
 		}
 
 		private void OnEnable()
@@ -135,29 +179,14 @@ namespace Starter
 
 		private void Update()
 		{
-			// While a loot container, crafting bench, quest giver, or computer is open, or the player
-			// is sleeping in a bed, Esc/Enter and cursor management belong to that UI — the menu must
-			// not steal Escape, and must not re-lock the cursor each frame.
-			if (LootSession.IsAnyLooting
-				|| Starter.Shooter.CraftingSession.IsAnyCrafting
-				|| Starter.Shooter.QuestSession.IsAnyOpen
-				|| Starter.Shooter.ShopSession.IsAnyOpen
-				|| Starter.Shooter.ComputerSession.IsAnyAtComputer
-				|| Starter.Shooter.SleepSession.IsAnySleeping
-				|| Starter.Shooter.UIMatchLobby.IsLobbyOpen
-				|| Starter.Shooter.UIMatchResult.IsResultOpen)
-				return;
-
-			// A session that closed on this very frame (via the InventoryMap Close action bound to
-			// Escape) already consumed the key — don't let the same press also toggle the pause menu.
-			if (InputContextController.LastExitInventoryFrame == Time.frameCount)
-				return;
-
-			// Enter/Esc key is used for locking/unlocking cursor in game view.
-			var keyboard = Keyboard.current;
-			if (keyboard != null && (keyboard.enterKey.wasPressedThisFrame || keyboard.escapeKey.wasPressedThisFrame))
+			// Escape is owned by MenuManager (it calls OpenPauseRequested / our CloseFromMenu); Enter does
+			// nothing. Here we only keep our own panel state fresh and the gameplay cursor lock. Subscription
+			// is lazy because MenuManager bootstraps AfterSceneLoad and may not exist during our OnEnable.
+			var menu = MenuManager.Instance;
+			if (menu != null && _menu == null)
 			{
-				TogglePanelVisibility();
+				_menu = menu;
+				_menu.OpenPauseRequested += OpenPause;
 			}
 
 			if (PanelGroup.gameObject.activeSelf)
@@ -170,10 +199,22 @@ namespace Starter
 				Cursor.lockState = CursorLockMode.None;
 				Cursor.visible = true;
 			}
-			else
+			else if (_menu == null || _menu.IsAnyOpen == false)
 			{
+				// Baseline gameplay cursor lock — only when no other menu/session owns the cursor.
 				Cursor.lockState = CursorLockMode.Locked;
 				Cursor.visible = false;
+			}
+			// else: another screen (loot/crafting/console/…) is open and owns the cursor — leave it alone.
+		}
+
+		private void OnDisable()
+		{
+			if (_menu != null)
+			{
+				_menu.OpenPauseRequested -= OpenPause;
+				_menu.Close(this);
+				_menu = null;
 			}
 		}
 

@@ -2,8 +2,8 @@ using System;
 using Fusion;
 using Starter.Common.Input;
 using Starter.Common.Interactions;
+using Starter.Common.Menu;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace Starter.Shooter
 {
@@ -12,11 +12,17 @@ namespace Starter.Shooter
 	/// prefab next to <see cref="GameInputActions"/> + <see cref="InputContextController"/>.
 	/// Mirrors <see cref="Starter.Common.Inventory.LootSession"/>, but the open/close
 	/// transition is purely local — the bench is multi-user and stores no per-opener state.
+	///
+	/// Registers as an <see cref="IMenuScreen"/> while open so <see cref="MenuManager"/> routes Escape to it.
 	/// </summary>
 	[RequireComponent(typeof(GameInputActions))]
 	[RequireComponent(typeof(InputContextController))]
-	public sealed class CraftingSession : MonoBehaviour, IInteractionGate
+	public sealed class CraftingSession : MonoBehaviour, IInteractionGate, IMenuScreen
 	{
+		string IMenuScreen.MenuName => "Crafting";
+		bool IMenuScreen.DismissOnEscape => true;
+		void IMenuScreen.CloseFromMenu() => RequestClose();
+
 		[Tooltip("Auto-close margin: when the local player walks further than InteractRange * this multiplier from the open bench, the menu closes.")]
 		public float AutoCloseRangeMultiplier = 1.5f;
 
@@ -36,7 +42,6 @@ namespace Starter.Shooter
 		/// <summary>Fires when the open bench changes. Argument is null when closed.</summary>
 		public event Action<CraftingBench> OpenedChanged;
 
-		private GameInputActions _actions;
 		private InputContextController _context;
 		private bool _initialized;
 
@@ -44,13 +49,7 @@ namespace Starter.Shooter
 		{
 			if (_initialized) return;
 
-			_actions = GetComponent<GameInputActions>();
 			_context = GetComponent<InputContextController>();
-
-			if (_actions != null && _actions.IsInitialized)
-			{
-				_actions.Close.performed += OnClosePerformed;
-			}
 
 			_initialized = true;
 		}
@@ -59,12 +58,11 @@ namespace Starter.Shooter
 		{
 			if (!_initialized) return;
 
-			if (_actions != null && _actions.IsInitialized)
+			if (Current != null)
 			{
-				_actions.Close.performed -= OnClosePerformed;
+				IsAnyCrafting = false;
+				MenuManager.Instance?.Close(this);
 			}
-
-			if (Current != null) IsAnyCrafting = false;
 			Current = null;
 		}
 
@@ -90,6 +88,7 @@ namespace Starter.Shooter
 			Current = bench;
 			IsAnyCrafting = true;
 			if (_context != null) _context.EnterInventoryMode();
+			MenuManager.Instance?.Open(this);
 			OpenedChanged?.Invoke(Current);
 			Debug.Log($"[CraftingSession] Opened '{bench.DisplayName}'.");
 		}
@@ -101,6 +100,7 @@ namespace Starter.Shooter
 			var closed = Current;
 			Current = null;
 			IsAnyCrafting = false;
+			MenuManager.Instance?.Close(this);
 			if (_context != null) _context.EnterPlayerMode();
 			OpenedChanged?.Invoke(null);
 			Debug.Log($"[CraftingSession] Closed '{closed.DisplayName}'.");
@@ -118,11 +118,6 @@ namespace Starter.Shooter
 		{
 			if (Current == null) return;
 			Current.RPC_RequestScavenge(slotIndex);
-		}
-
-		private void OnClosePerformed(InputAction.CallbackContext ctx)
-		{
-			RequestClose();
 		}
 	}
 }

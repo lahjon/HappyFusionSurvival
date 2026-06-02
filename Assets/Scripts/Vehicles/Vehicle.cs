@@ -42,7 +42,7 @@ namespace Starter.Shooter
 		[Tooltip("Yaw rate (deg/s) at zero speed.")]
 		[Min(0f)] public float MaxTurnDegPerSec = 90f;
 		[Tooltip("Yaw rate (deg/s) at full forward speed.")]
-		[Min(0f)] public float MinTurnDegPerSec = 28f;
+		[Min(0f)] public float MinTurnDegPerSec = 50f;
 		[Tooltip("How fast the steering wheel rotates toward / back from full lock (units per second; 1 = full lock). Lower = softer, slower onset.")]
 		[Min(0.1f)] public float SteerRate = 10f;
 		[Tooltip("Forward speed (m/s, absolute) below which the truck is considered standing still for the reverse-flip. Keeps the yaw direction stable around zero.")]
