@@ -120,22 +120,6 @@ namespace Starter.Shooter
 			_agent    = GetComponent<NavMeshAgent>();
 			_invoker  = GetComponent<ActionInvoker>();
 			_animator = GetComponent<Animator>();
-			ApplyChildAvatar();
-		}
-
-		private void ApplyChildAvatar()
-		{
-			if (_animator == null) return;
-			foreach (Transform child in transform)
-			{
-				if (!child.gameObject.activeSelf) continue;
-				var childAnim = child.GetComponent<Animator>();
-				if (childAnim != null && childAnim.avatar != null)
-				{
-					_animator.avatar = childAnim.avatar;
-					return;
-				}
-			}
 		}
 
 		/// <summary>

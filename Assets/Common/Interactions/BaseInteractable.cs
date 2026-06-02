@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -65,6 +66,13 @@ namespace Starter.Common.Interactions
 		[Tooltip("Seconds before this can be used again. 0 = no cooldown. Ignored when IsConsumable is true.")]
 		[Min(0f)] public float Cooldown = 0f;
 
+		[Header("SFX")]
+		[Tooltip("Clip played locally when interacted with. Leave empty for no sound.")]
+		public AudioClip SfxClip;
+		[Range(0f, 1f)] public float SfxVolume = 1f;
+		[Tooltip("Seconds after interact before the clip plays. 0 = immediate.")]
+		[Min(0f)] public float SfxDelay = 0f;
+
 		[Header("Events")]
 		[Tooltip("Fires locally on whoever interacted. For multiplayer state changes, wire this to a method that invokes an RPC.")]
 		public UnityEvent OnInteracted;
@@ -78,6 +86,12 @@ namespace Starter.Common.Interactions
 		private IInteractableState _state;
 
 		private void Awake() => _state = GetComponent<IInteractableState>();
+
+		private IEnumerator PlaySfxDelayed()
+		{
+			yield return new WaitForSeconds(SfxDelay);
+			Starter.Shooter.AudioManager.Instance?.PlaySFX2D(SfxClip, SfxVolume);
+		}
 
 		// --- IInteractable ---
 
@@ -99,6 +113,13 @@ namespace Starter.Common.Interactions
 		void IInteractable.OnInteract(InteractionScanner scanner)
 		{
 			LastScanner = scanner;
+			if (SfxClip != null)
+			{
+				if (SfxDelay > 0f)
+					StartCoroutine(PlaySfxDelayed());
+				else
+					Starter.Shooter.AudioManager.Instance?.PlaySFX2D(SfxClip, SfxVolume);
+			}
 			OnInteracted?.Invoke();
 
 			if (IsConsumable)

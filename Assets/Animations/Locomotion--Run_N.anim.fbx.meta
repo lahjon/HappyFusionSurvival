@@ -1,11 +1,11 @@
 fileFormatVersion: 2
-guid: 8269a9f8cf495034c817722ac21f309f
+guid: 16114d403eabb53438de032c6f0d1deb
 ModelImporter:
   serializedVersion: 20200
   internalIDToNameTable:
   - first:
-      74: 1657602633327794031
-    second: Walk_N
+      74: 6564411413370888346
+    second: Run_N
   externalObjects: {}
   materials:
     materialImportMode: 1
@@ -35,11 +35,11 @@ ModelImporter:
     extraUserProperties: []
     clipAnimations:
     - serializedVersion: 16
-      name: Walk_N
-      takeName: Walk_N
+      name: Run_N
+      takeName: Run_N
       internalID: 0
       firstFrame: 0
-      lastFrame: 29
+      lastFrame: 20
       wrapMode: 0
       orientationOffsetY: 0
       level: 0
@@ -47,7 +47,7 @@ ModelImporter:
       loop: 0
       hasAdditiveReferencePose: 0
       loopTime: 1
-      loopBlend: 1
+      loopBlend: 0
       loopBlendOrientation: 1
       loopBlendPositionY: 1
       loopBlendPositionXZ: 1
@@ -58,21 +58,7 @@ ModelImporter:
       mirror: 0
       bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
       curves: []
-      events:
-      - time: 0.31872225
-        functionName: OnFootstep
-        data: 
-        objectReferenceParameter: {instanceID: 0}
-        floatParameter: 0
-        intParameter: 0
-        messageOptions: 0
-      - time: 0.7970205
-        functionName: OnFootstep
-        data: 
-        objectReferenceParameter: {instanceID: 0}
-        floatParameter: 0
-        intParameter: 0
-        messageOptions: 0
+      events: []
       transformMask: []
       maskType: 3
       maskSource: {instanceID: 0}
@@ -937,5 +923,5 @@ AssetOrigin:
   packageName: Starter Assets - ThirdPerson | Updates in new CharacterController
     package
   packageVersion: 1.1.7
-  assetPath: Assets/StarterAssets/ThirdPersonController/Character/Animations/Locomotion--Walk_N.anim.fbx
+  assetPath: Assets/StarterAssets/ThirdPersonController/Character/Animations/Locomotion--Run_N.anim.fbx
   uploadId: 879174
