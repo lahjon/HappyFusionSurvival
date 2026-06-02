@@ -35,4 +35,18 @@ namespace Starter.Common.Interactions
 		/// <summary>Short action label shown in the screen-space HUD when this is the current target (e.g. "Open chest", "Enter vehicle"). Defaults to a generic prompt.</summary>
 		string InteractLabel => "Press E to interact";
 	}
+
+	/// <summary>
+	/// Optional facet for interactables that come in clusters where only the nearest one
+	/// should ever be selectable (e.g. the seats of a single vehicle). Candidates sharing
+	/// the same non-null <see cref="InteractionGroupKey"/> are collapsed by the
+	/// <see cref="InteractionScanner"/> to the single closest member before the usual
+	/// look-alignment scoring runs — so you can't, say, target the passenger seat through
+	/// the cab while standing at the driver's door.
+	/// </summary>
+	public interface IInteractableGroup : IInteractable
+	{
+		/// <summary>Shared identity for the cluster (return the parent vehicle, door rig, etc.). Null opts out of grouping.</summary>
+		object InteractionGroupKey { get; }
+	}
 }

@@ -54,9 +54,12 @@ namespace Starter.Shooter
 
 		private List<Player> _players = new(32);
 		private SpawnPoint[] _spawnPoints;
+		// Tracks match phase on the host to fire the per-round reset exactly on the transition into Day.
+		private MatchPhase _lastSeenPhase = MatchPhase.Lobby;
 
 		private void Awake()
 		{
+			Debug.Log($"[SPAWNDBG] GameManager.Awake on '{name}' (NetworkObject present={(GetComponent<NetworkObject>() != null)})");
 			// Bind on every client (authority + remotes) so item lookups work without Resources.
 			if (ItemDatabase != null)
 				ItemDatabase.Bind();
@@ -74,6 +77,7 @@ namespace Starter.Shooter
 
 		public override void Spawned()
 		{
+			Debug.Log($"[SPAWNDBG] GameManager.Spawned hasStateAuth={HasStateAuthority} object={Object?.Id}");
 			_spawnPoints = FindObjectsByType<SpawnPoint>(FindObjectsInactive.Exclude);
 
 			if (HasStateAuthority)
@@ -87,22 +91,44 @@ namespace Starter.Shooter
 			for (int i = 0; i < _players.Count; i++)
 			{
 				var player = _players[i];
+				if (player == null) continue;
 
-				if (player.KCC.Position.y < -15f)
+				// Fall-through-the-world kill. With per-death respawn removed (Purge "dead is dead"),
+				// this is now a permanent elimination, same as a combat death.
+				if (player.Health.IsAlive && player.KCC.Position.y < -15f)
 				{
-					// Player fell, let's kill him
 					player.Health.TakeHit(1000);
-				}
-
-				if (player.Health.IsFinished)
-				{
-					player.Respawn(GetSpawnPosition());
 				}
 			}
 
 			if (HasStateAuthority)
 			{
+				// A new round begins when the match enters Day — revive + reposition everyone. This is the
+				// ONLY place players (and bots) come back now that per-death respawn is gone. Polled here in
+				// FixedUpdateNetwork so the [Networked] mutations inside Respawn stay on the simulation path
+				// (rather than firing from an OnChangedRender event).
+				var phase = MatchManager.Instance != null ? MatchManager.Instance.Phase : MatchPhase.Lobby;
+				if (phase != _lastSeenPhase)
+				{
+					if (phase == MatchPhase.Day)
+						ResetPlayersForNewRound();
+					_lastSeenPhase = phase;
+				}
+
 				TickSleepSkip();
+			}
+		}
+
+		// Revive + reposition every roster member at the start of a round (Lobby/MatchOver → Day). Teams are
+		// already assigned by MatchManager.BeginMatch before the phase flips, so GetSpawnPositionForPlayer
+		// places each player in their team zone.
+		private void ResetPlayersForNewRound()
+		{
+			for (int i = 0; i < _players.Count; i++)
+			{
+				var player = _players[i];
+				if (player == null || player.Object == null) continue;
+				player.Respawn(GetSpawnPositionForPlayer(player.Owner));
 			}
 		}
 
@@ -198,10 +224,15 @@ namespace Starter.Shooter
 
 		public void PlayerJoined(PlayerRef playerRef)
 		{
+			Debug.Log($"[SPAWNDBG] PlayerJoined ref={playerRef} hasStateAuth={HasStateAuthority} prefab={(PlayerPrefab == null ? "NULL" : PlayerPrefab.name)} spawnPoints={(_spawnPoints == null ? -1 : _spawnPoints.Length)}");
+
 			if (HasStateAuthority == false)
 				return;
 
-			var player = Runner.Spawn(PlayerPrefab, GetSpawnPosition(), Quaternion.identity, playerRef);
+			var pos = GetSpawnPositionForPlayer(playerRef);
+			Debug.Log($"[SPAWNDBG] spawning at {pos}");
+			var player = Runner.Spawn(PlayerPrefab, pos, Quaternion.identity, playerRef);
+			Debug.Log($"[SPAWNDBG] Runner.Spawn returned {(player == null ? "NULL" : player.name)}");
 			Runner.SetPlayerObject(playerRef, player.Object);
 
 			// This list is state authority only,
@@ -226,9 +257,102 @@ namespace Starter.Shooter
 			}
 		}
 
-		private Vector3 GetSpawnPosition()
+		// =========================================================================
+		// AI bots (host-authoritative; driven from the add_bot debug command)
+		// =========================================================================
+
+		/// <summary>Synthetic <c>PlayerId</c> base for bot <see cref="Player.Owner"/> refs. Kept far above
+		/// <see cref="TeamManager.MaxPlayers"/> so a bot's Owner can never collide with a real connection's PlayerRef.</summary>
+		public const int BotRefBase = 1000;
+
+		private int _nextBotIndex;
+
+		/// <summary>Host-only: spawn <paramref name="count"/> AI bots as Player objects with synthetic Owner refs. They
+		/// join <see cref="Players"/> (so the win scan counts them) and are teamed onto bot-only (enemy) teams when a
+		/// round is already underway, or at the next <see cref="MatchManager.BeginMatch"/> when added in the lobby.
+		/// Returns how many actually spawned.</summary>
+		public int AddBots(int count)
 		{
-			var spawnPoint = _spawnPoints[Random.Range(0, _spawnPoints.Length)];
+			if (HasStateAuthority == false || count <= 0) return 0;
+
+			var mm = MatchManager.Instance;
+			bool roundActive = mm != null && mm.Phase != MatchPhase.Lobby && mm.Phase != MatchPhase.MatchOver;
+
+			int spawned = 0;
+			for (int i = 0; i < count; i++)
+			{
+				var owner = PlayerRef.FromIndex(BotRefBase + _nextBotIndex);
+				_nextBotIndex++;
+
+				var bot = Runner.Spawn(PlayerPrefab, GetSpawnPosition(), Quaternion.identity, null,
+					(runner, obj) =>
+					{
+						var player = obj.GetComponent<Player>();
+						if (player != null) player.ConfigureAsBot(owner);
+					});
+				if (bot == null) continue;
+
+				_players.Add(bot);
+				if (roundActive)
+					TeamManager.Instance?.RegisterBotJoin(owner);
+
+				spawned++;
+			}
+			return spawned;
+		}
+
+		/// <summary>Host-only: despawn up to <paramref name="count"/> bots, most-recently-added first. Returns the count removed.</summary>
+		public int RemoveBots(int count)
+		{
+			if (HasStateAuthority == false || count <= 0) return 0;
+
+			int removed = 0;
+			for (int i = _players.Count - 1; i >= 0 && removed < count; i--)
+			{
+				var p = _players[i];
+				if (p == null || p.IsBot == false) continue;
+
+				if (p.Object != null) Runner.Despawn(p.Object);
+				_players.RemoveAt(i);
+				removed++;
+			}
+			return removed;
+		}
+
+		/// <summary>Host-only: despawn every bot.</summary>
+		public int ClearBots() => RemoveBots(int.MaxValue);
+
+		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+		public void RPC_DebugAddBots(int count)
+		{
+			if (HasStateAuthority) AddBots(count);
+		}
+
+		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+		public void RPC_DebugRemoveBots(int count)
+		{
+			if (HasStateAuthority) RemoveBots(count);
+		}
+
+		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+		public void RPC_DebugClearBots()
+		{
+			if (HasStateAuthority) ClearBots();
+		}
+
+		/// <summary>Spawn position inside the player's team zone when one is assigned (Day start / Night respawn),
+		/// otherwise a random spawn (Lobby joins with no team yet).</summary>
+		private Vector3 GetSpawnPositionForPlayer(PlayerRef player)
+		{
+			int zoneId = ZoneManager.Instance != null ? ZoneManager.Instance.ZoneIdOfPlayer(player) : -1;
+			return GetSpawnPosition(zoneId);
+		}
+
+		private Vector3 GetSpawnPosition() => GetSpawnPosition(-1);
+
+		private Vector3 GetSpawnPosition(int zoneId)
+		{
+			var spawnPoint = PickSpawnPoint(zoneId);
 			var randomPositionOffset = Random.insideUnitCircle * spawnPoint.Radius;
 			Vector3 position = spawnPoint.transform.position + new Vector3(randomPositionOffset.x, 0f, randomPositionOffset.y);
 
@@ -241,6 +365,29 @@ namespace Starter.Shooter
 				position.y = hit.point.y + 0.5f;
 			}
 			return position;
+		}
+
+		// Random spawn point tagged with the requested zone; falls back to any spawn point when zoneId is
+		// negative or no spawn carries that tag. Reservoir-style pick avoids allocating a filtered list.
+		private SpawnPoint PickSpawnPoint(int zoneId)
+		{
+			if (zoneId >= 0 && _spawnPoints != null)
+			{
+				int count = 0;
+				for (int i = 0; i < _spawnPoints.Length; i++)
+					if (_spawnPoints[i] != null && _spawnPoints[i].ZoneId == zoneId) count++;
+
+				if (count > 0)
+				{
+					int pick = Random.Range(0, count);
+					for (int i = 0; i < _spawnPoints.Length; i++)
+					{
+						if (_spawnPoints[i] == null || _spawnPoints[i].ZoneId != zoneId) continue;
+						if (pick-- == 0) return _spawnPoints[i];
+					}
+				}
+			}
+			return _spawnPoints[Random.Range(0, _spawnPoints.Length)];
 		}
 	}
 }

@@ -214,6 +214,8 @@ namespace Starter.Shooter
 		public float CameraCollisionRadius = 0.15f;
 		[Tooltip("Extra clearance kept between the camera and any blocking surface.")]
 		public float CameraCollisionPadding = 0.05f;
+		[Tooltip("How quickly the camera eases along the pivot→camera axis when the collision clamp engages or releases. Higher = snappier; too high reintroduces the pop near walls.")]
+		public float CameraCollisionLerpSpeed = 16f;
 
 		[Networked, HideInInspector, Capacity(24), OnChangedRender(nameof(OnNicknameChanged))]
 		public string Nickname { get; set; }
@@ -234,6 +236,18 @@ namespace Starter.Shooter
 		/// <summary>Effective stamina ceiling. Hunger cap removed in the Purge × Stardew pivot — kept as a property
 		/// so callers don't need to change. Restore the <c>Mathf.Min(MaxStamina, Hunger)</c> form if survival ever returns.</summary>
 		public float EffectiveMaxStamina => MaxStamina;
+
+		/// <summary>Stable actor identity, decoupled from Fusion input authority. Equals <see cref="NetworkObject.InputAuthority"/>
+		/// for human players; for AI bots (no connection) it is a synthetic ref allocated by <see cref="GameManager"/>
+		/// (see <see cref="ConfigureAsBot"/>). Team assignment, the win scan, and combat identity key on THIS, not
+		/// InputAuthority — so bots are first-class match participants. Written once on the authority.</summary>
+		[Networked, HideInInspector]
+		public PlayerRef Owner { get; private set; }
+
+		/// <summary>True if this Player is an AI bot driven by <see cref="BotBrain"/> rather than a connected client.
+		/// Set once in <see cref="ConfigureAsBot"/> before Spawned; drives the input seam and skips nickname RPCs.</summary>
+		[Networked, HideInInspector]
+		public NetworkBool IsBot { get; private set; }
 
 		[Networked]
 		private Vector3 _moveVelocity { get; set; }
@@ -310,6 +324,11 @@ namespace Starter.Shooter
 		/// FOV zoom (local), sway/recoil steadying (PlayerInput), and hitscan spread tightening.</summary>
 		[Networked]
 		public NetworkBool IsAiming { get; private set; }
+		/// <summary>True once this player has entered their team's zone during Night and may fire (arm-once —
+		/// stays true for the rest of the night). Written by <see cref="ZoneManager"/> on the state authority via
+		/// <see cref="SetPvpArmed"/>; read by the local fire gate (<see cref="CanFireWeaponNow"/>) and UI.</summary>
+		[Networked]
+		public NetworkBool PvpArmed { get; private set; }
 		[Networked]
 		private Vector3 _knockbackDirection { get; set; }
 		[Networked]
@@ -376,6 +395,9 @@ namespace Starter.Shooter
 		// drop can be cleanly unwound when standing back up.
 		private float _standHeight = -1f;
 		private Vector3 _standCameraPivotLocalPos;
+		// Last applied pivot→camera distance, smoothed across frames so the collision clamp eases in/out
+		// instead of snapping. -1 = uninitialized (snap to target on the first frame).
+		private float _smoothedCameraDist = -1f;
 
 		// Animation IDs
 		private int _animIDSpeedX;
@@ -388,6 +410,8 @@ namespace Starter.Shooter
 		private int _visibleFireCount;
 		private int _visibleSecondaryFireCount;
 		private Inventory _inventory;
+		// AI brain for bot-controlled players; dormant (IsActive == false) on humans. Drives TryGetTickInput.
+		private BotBrain _botBrain;
 		// Cached renderers under ScalingRoot — populated on Spawned for the local input authority only.
 		// Toggled off while seated so the driver doesn't see their own torso/legs floating in the cab.
 		private Renderer[] _localBodyRenderers;
@@ -463,6 +487,24 @@ namespace Starter.Shooter
 			return true;
 		}
 
+		/// <summary>Debug-only: routes an <see cref="AddMoney"/> grant from the controlling client up to the state
+		/// authority so debug-console tools (e.g. Quantum Console <c>add_gold</c>) replicate correctly off-host.
+		/// Called on the local player (input authority); executes on the host.</summary>
+		[Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
+		public void RPC_DebugAddMoney(int amount)
+		{
+			AddMoney(amount);
+		}
+
+		/// <summary>Debug-only: routes an <see cref="AddScraps"/> grant from the controlling client up to the state
+		/// authority so debug-console tools (e.g. Quantum Console <c>add_scraps</c>) replicate correctly off-host.
+		/// Called on the local player (input authority); executes on the host.</summary>
+		[Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
+		public void RPC_DebugAddScraps(int amount)
+		{
+			AddScraps(amount);
+		}
+
 		/// <summary>Grant <paramref name="amount"/> scraps. State-authority only — remote peers no-op. Used by the crafting bench when an item is scavenged.</summary>
 		public void AddScraps(int amount)
 		{
@@ -489,8 +531,11 @@ namespace Starter.Shooter
 
 			// Intercept lethal damage so the player enters the downed state instead of dying
 			// outright. The hook only fires on state authority (Health checks HasStateAuthority
-			// before invoking it), so wiring it on every peer is harmless.
-			Health.AuthorityDownHook = OnLethalDamage;
+			// before invoking it), so wiring it on every peer is harmless. Bots skip the downed
+			// flow — they have no allies to revive them, so they die outright and the last-team-
+			// standing scan resolves on the killing blow instead of after a bleed-out.
+			if (IsBot == false)
+				Health.AuthorityDownHook = OnLethalDamage;
 
 			// Attach a programmatic InteractionPrompt so allies see a "revive me" indicator
 			// while the player is downed. Opt into HideWhenLocked so the prompt only appears
@@ -509,13 +554,23 @@ namespace Starter.Shooter
 
 			if (HasStateAuthority)
 			{
+				// Bots get their synthetic Owner in ConfigureAsBot (onBeforeSpawned); humans bind theirs here.
+				if (IsBot == false)
+					Owner = Object.InputAuthority;
+
 				Stamina = MaxStamina;
 				Hunger = MaxHunger;
 				Money = StartingMoney;
 				Scraps = StartingScraps;
 			}
 
-			if (HasInputAuthority)
+			if (IsBot)
+			{
+				// Give bots a readable name so nameplates / team previews don't show a blank.
+				if (HasStateAuthority && string.IsNullOrEmpty(Nickname))
+					Nickname = $"Bot {Owner.PlayerId - GameManager.BotRefBase + 1}";
+			}
+			else if (HasInputAuthority)
 			{
 				// Sending player nickname that is saved in UIGameMenu
 				RPC_SetNickname(PlayerPrefs.GetString("PlayerName"));
@@ -605,11 +660,11 @@ namespace Starter.Shooter
 				// animation finishing the climb-up onto the ledge. Input is locked via IsInputLocked.
 				ProcessMantle();
 			}
-			else if (Health.IsAlive && RagdollState == ERagdollState.Normal && IsSleeping == false && GetInput<GameplayInput>(out var input))
+			else if (Health.IsAlive && RagdollState == ERagdollState.Normal && IsSleeping == false && TryGetTickInput(out var input, out var previousButtons))
 			{
 				drainedThisTick = IsClimbing
-					? ProcessClimbInput(input, Input.PreviousButtons)
-					: ProcessInput(input, Input.PreviousButtons);
+					? ProcessClimbInput(input, previousButtons)
+					: ProcessInput(input, previousButtons);
 			}
 			else
 			{
@@ -719,8 +774,36 @@ namespace Starter.Shooter
 			AssignAnimationIDs();
 			_inventory = GetComponent<Inventory>();
 			if (ActionInvoker == null) ActionInvoker = GetComponent<ActionInvoker>();
+			_botBrain = GetComponent<BotBrain>();
 			// Auto-attach the procedural climbing-hand visual so the Player prefab doesn't need editing.
 			if (GetComponent<ClimbingHands>() == null) gameObject.AddComponent<ClimbingHands>();
+		}
+
+		/// <summary>Marks this Player as an AI bot and stamps its synthetic <see cref="Owner"/> ref. Called by
+		/// <see cref="GameManager.AddBots"/> inside <c>Runner.Spawn</c>'s <c>onBeforeSpawned</c> on the host, so the
+		/// [Networked] state is valid before <see cref="Spawned"/> runs. No-op off the state authority.</summary>
+		public void ConfigureAsBot(PlayerRef syntheticOwner)
+		{
+			if (HasStateAuthority == false) return;
+			IsBot = true;
+			Owner = syntheticOwner;
+		}
+
+		/// <summary>Single input seam for <see cref="FixedUpdateNetwork"/>. Bots pull a freshly-computed
+		/// <see cref="GameplayInput"/> from their <see cref="BotBrain"/>; humans read the networked input buffer.
+		/// Everything downstream (ProcessInput / ProcessClimbInput) is identical for both.</summary>
+		private bool TryGetTickInput(out GameplayInput input, out NetworkButtons previousButtons)
+		{
+			if (_botBrain != null && _botBrain.IsActive)
+				return _botBrain.ProduceInput(out input, out previousButtons);
+
+			previousButtons = default;
+			if (GetInput<GameplayInput>(out input))
+			{
+				previousButtons = Input.PreviousButtons;
+				return true;
+			}
+			return false;
 		}
 
 		private void LateUpdate()
@@ -807,11 +890,29 @@ namespace Starter.Shooter
 			// and would otherwise catch on the KCC capsule / nearby head hitboxes sitting on the same layer.
 			int mask = CameraCollisionMask & ~(1 << gameObject.layer);
 
+			// Resolve the clamp target. Default to the full desired distance (no blocker).
+			float targetDist = desiredDist;
 			if (Physics.SphereCast(pivotPos, radius, dir, out RaycastHit hit, desiredDist, mask, QueryTriggerInteraction.Ignore))
 			{
-				float safeDist = Mathf.Max(0f, hit.distance - CameraCollisionPadding);
-				cam.transform.position = pivotPos + dir * safeDist;
+				// hit.distance == 0 means the sphere was ALREADY overlapping a collider at the pivot
+				// (e.g. standing close to a wall in front — the wall is within `radius` of the head).
+				// That's not a blocker sitting between the pivot and the eye, so clamping here would
+				// snap the camera all the way down onto the pivot. Treat it as "no clamp" (full distance);
+				// only clamp for genuine blockers the eye-offset sweeps INTO (the climb / look-up case).
+				if (hit.distance > 0.0001f)
+				{
+					targetDist = Mathf.Max(0f, hit.distance - CameraCollisionPadding);
+				}
 			}
+
+			// Ease the applied distance toward the target instead of snapping. Without this, the SphereCast
+			// flips abruptly between "clamped in" (eye-offset sweep clips the wall) and "full extension"
+			// (sphere initially overlaps → ignored above) as you close the last few cm to a wall — that flip
+			// is the visible jump. Smoothing turns it into a soft push/pull. -1 = first frame, snap.
+			if (_smoothedCameraDist < 0f) _smoothedCameraDist = targetDist;
+			else _smoothedCameraDist = Mathf.Lerp(_smoothedCameraDist, targetDist, 1f - Mathf.Exp(-CameraCollisionLerpSpeed * Time.deltaTime));
+
+			cam.transform.position = pivotPos + dir * _smoothedCameraDist;
 		}
 
 		private void ApplySprintFOV()
@@ -1030,6 +1131,15 @@ namespace Starter.Shooter
 				return;
 			}
 
+			// PvP arming gate (weapons only — placeables/consumables above still work in town): no weapon fires
+			// outside Night, and during Night only after the player has reached their team zone (see ZoneManager).
+			// Drop any in-progress charge so it can't release once disarmed.
+			if (CanFireWeaponNow() == false)
+			{
+				if (ActionInvoker != null && ActionInvoker.IsCharging) ActionInvoker.CancelCharge();
+				return;
+			}
+
 			var action = GetActiveAction();
 			if (action == null)
 			{
@@ -1088,7 +1198,7 @@ namespace Starter.Shooter
 				&& IsClimbing == false;
 			if (IsAiming != wantAim) IsAiming = wantAim;
 
-			if (mode == ESecondaryMode.Attack && weapon.SecondaryAction != null)
+			if (mode == ESecondaryMode.Attack && weapon.SecondaryAction != null && CanFireWeaponNow())
 			{
 				if (input.Buttons.WasPressed(previousButtons, EInputButton.SecondaryFire))
 					FireSecondary(weapon.SecondaryAction);
@@ -1100,6 +1210,7 @@ namespace Starter.Shooter
 		private void FireSecondary(CombatAction action)
 		{
 			if (action == null || ActionInvoker == null) return;
+			if (CanFireWeaponNow() == false) return; // authoritative safety net behind the input gate
 
 			_hitPosition = Vector3.zero;
 			_hitNormal = Vector3.zero;
@@ -1107,7 +1218,7 @@ namespace Starter.Shooter
 			var ctx = new ActorContext
 			{
 				Runner = Runner,
-				IgnoreAuthority = Object.InputAuthority,
+				IgnoreAuthority = Owner,
 				AttackerPosition = transform.position,
 				FireTransform = CameraHandle,
 				AttackerRoot = gameObject,
@@ -1712,6 +1823,7 @@ namespace Starter.Shooter
 		private void Fire(CombatAction action, bool charged, float chargeNormalized = 0f)
 		{
 			if (action == null || ActionInvoker == null) return;
+			if (CanFireWeaponNow() == false) return; // authoritative safety net behind the input gate
 
 			// Clear hit position in case nothing will be hit
 			_hitPosition = Vector3.zero;
@@ -1720,7 +1832,7 @@ namespace Starter.Shooter
 			var ctx = new ActorContext
 			{
 				Runner = Runner,
-				IgnoreAuthority = Object.InputAuthority,
+				IgnoreAuthority = Owner,
 				AttackerPosition = transform.position,
 				FireTransform = CameraHandle,
 				AttackerRoot = gameObject,
@@ -1808,6 +1920,27 @@ namespace Starter.Shooter
 		// the selected item's WeaponCapability, or the unarmed (fists) action when the hand is empty.
 		// A non-weapon held item (medkit, wood, ...) yields null, so it can't attack.
 		private CombatAction GetActiveAction() => _inventory != null ? _inventory.ActiveAction : null;
+
+		/// <summary>State-authority-only setter for <see cref="PvpArmed"/>. Called by <see cref="ZoneManager"/>
+		/// when the player enters their team zone (arm) or at the start of a new Night / Lobby (disarm).</summary>
+		public void SetPvpArmed(bool armed)
+		{
+			if (HasStateAuthority == false) return;
+			if (PvpArmed != armed) PvpArmed = armed;
+		}
+
+		/// <summary>Weapons can only fire during Night, and only once the player has armed by reaching their
+		/// team's zone (see <see cref="ZoneManager"/>). During Day / Lobby / Dusk / MatchOver no action fires at
+		/// all, which prevents the Night opening from becoming an instant cluster-kill. Scenes with no
+		/// <see cref="MatchManager"/> (isolated test scenes) are not gated.</summary>
+		private bool CanFireWeaponNow()
+		{
+			var match = MatchManager.Instance;
+			if (match == null) return true;
+			if (match.IsPvpForced) return true; // `arm` debug override — fire regardless of phase / zone-arming
+			if (match.Phase != MatchPhase.Night) return false;
+			return PvpArmed;
+		}
 
 		private void AssignAnimationIDs()
 		{
@@ -1945,7 +2078,7 @@ namespace Starter.Shooter
 				if (ActionInvoker != null && ActionInvoker.IsCharging) ActionInvoker.CancelCharge();
 			}
 
-			if (GetInput<GameplayInput>(out var input))
+			if (TryGetTickInput(out var input, out _))
 			{
 				KCC.SetLookRotation(input.LookRotation, -90f, 90f);
 
@@ -2217,6 +2350,8 @@ namespace Starter.Shooter
 				Camera.main.transform.SetPositionAndRotation(pos, CameraPivot.rotation);
 				// Skip ApplyCameraCollision while seated — the truck's chassis/cab colliders would
 				// snap the camera onto the cab interior wall whenever the player looks sideways.
+				// Invalidate the smoothed distance so it snaps (not eases from a stale clamp) on un-seat.
+				_smoothedCameraDist = -1f;
 			}
 		}
 

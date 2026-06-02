@@ -120,6 +120,7 @@ MonoBehaviour:
   _initialCount: 1
   _lootTable: []
   _randomize: 0
+  _visualRoot: {fileID: 0}
   PickupRange: 2
   _playerPushRadius: 0.2
   _baselinePushSpeed: 0.5
@@ -130,6 +131,10 @@ MonoBehaviour:
   _Count: 0
   _NetPosition: {x: 0, y: 0, z: 0}
   _NetRotation: {x: 0, y: 0, z: 0, w: 0}
+  _AttachedTo:
+    Raw: 0
+  _AttachLocalPos: {x: 0, y: 0, z: 0}
+  _AttachLocalRot: {x: 0, y: 0, z: 0, w: 0}
 --- !u!114 &7714426376843702833
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -143,10 +148,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Interactions.InteractionPrompt
   LocalOffset: {x: 0, y: 0, z: 0}
-  CameraBias: 0
-  CanvasSortOrder: 100
-  VisibilityRange: 2
-  ActiveRange: 2
+  CenterLabelText: 
+  SuppressLabel: 0
+  HideWhenLocked: 0
   ActiveColor: {r: 0.3, g: 0.65, b: 1, a: 1}
   InactiveColor: {r: 0.3, g: 0.65, b: 1, a: 0.35}
   HoldColor: {r: 1, g: 0.85, b: 0.2, a: 1}

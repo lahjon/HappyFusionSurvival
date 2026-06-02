@@ -148,6 +148,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.LootContainer
   DisplayName: Chest
   InteractRange: 2.5
+  IsPickupable: 0
+  PickupItem: {fileID: 0}
+  PickupHoldSeconds: 2
   _initialContents:
   - Item: {fileID: 11400000, guid: 937396294af95d448a9b450b9c0dede9, type: 2}
     Count: 12
@@ -157,6 +160,11 @@ MonoBehaviour:
     Count: 2
   - Item: {fileID: 11400000, guid: 79683915c9c0e314aae32371617049f1, type: 2}
     Count: 5
+  - Item: {fileID: 11400000, guid: 0cb2ee84da1a30e44b7b12a7e4286260, type: 2}
+    Count: 1
+  _lootTable: []
+  _randomize: 1
+  _itemCount: 0
 --- !u!114 &8806928272541746998
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -170,9 +178,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.InteractionPrompt
   LocalOffset: {x: 0, y: 0, z: 0}
-  CameraBias: 0
-  CanvasSortOrder: 100
-  VisibilityRange: 4
-  ActiveRange: 2.5
+  CenterLabelText: 
+  SuppressLabel: 0
+  HideWhenLocked: 0
   ActiveColor: {r: 0.3, g: 0.65, b: 1, a: 1}
   InactiveColor: {r: 0.3, g: 0.65, b: 1, a: 0.35}
+  HoldColor: {r: 1, g: 0.85, b: 0.2, a: 1}

@@ -279,6 +279,31 @@ namespace Starter.Shooter
 			SessionTime = Mathf.Ceil((SessionTime + 0.001f) / cycle) * cycle;
 		}
 
+		/// <summary>Debug-only: snap the visual cycle to mid-day or mid-night from any peer. Routes to the state
+		/// authority; the resulting <see cref="SessionTime"/> jump replicates so all clients re-derive sun/ambient/fog
+		/// and the BGM crossfade fires via <see cref="LogPhaseTransitions"/>. Used by the set_daytime / set_nighttime
+		/// console commands. Going to day from night advances to the next cycle so the day index/BGM update cleanly.</summary>
+		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+		public void RPC_DebugSetNight(NetworkBool night)
+		{
+			if (HasStateAuthority == false) return;
+
+			float cycle = FullCycleLength;
+			if (cycle <= 0f) return;
+
+			float cycleStart = Mathf.Floor(SessionTime / cycle) * cycle;
+			if (night)
+			{
+				SessionTime = cycleStart + DayLength + NightLength * 0.5f; // middle of this cycle's night
+			}
+			else
+			{
+				float target = cycleStart + DayLength * 0.5f;             // middle of this cycle's day
+				if (IsNight) target += cycle;                            // already night → jump to next morning
+				SessionTime = target;
+			}
+		}
+
 		private void Update()
 		{
 			if (Object == null || Object.IsValid == false) return;

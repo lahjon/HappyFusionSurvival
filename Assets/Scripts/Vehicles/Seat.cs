@@ -20,7 +20,7 @@ namespace Starter.Shooter
 	/// GetComponentInParent on Spawned.
 	/// </summary>
 	[RequireComponent(typeof(NetworkObject))]
-	public sealed class Seat : NetworkBehaviour, IInteractable
+	public sealed class Seat : NetworkBehaviour, IInteractable, IInteractableGroup
 	{
 		[Header("Authoring")]
 		public ESeatRole Role = ESeatRole.Passenger;
@@ -68,6 +68,11 @@ namespace Starter.Shooter
 
 		string IInteractable.LockedReason => OccupiedText;
 		string IInteractable.InteractLabel => InteractLabelText;
+
+		// Group all seats of one vehicle so the scanner only offers the seat nearest the player —
+		// prevents reaching the passenger seat from the driver's door. Falls back to no grouping
+		// (each seat selectable independently) if the seat hasn't resolved its Vehicle yet.
+		object IInteractableGroup.InteractionGroupKey => Vehicle;
 
 		void IInteractable.OnInteract(InteractionScanner scanner)
 		{

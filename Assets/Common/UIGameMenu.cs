@@ -144,7 +144,8 @@ namespace Starter
 				|| Starter.Shooter.ShopSession.IsAnyOpen
 				|| Starter.Shooter.ComputerSession.IsAnyAtComputer
 				|| Starter.Shooter.SleepSession.IsAnySleeping
-				|| Starter.Shooter.UIMatchLobby.IsLobbyOpen)
+				|| Starter.Shooter.UIMatchLobby.IsLobbyOpen
+				|| Starter.Shooter.UIMatchResult.IsResultOpen)
 				return;
 
 			// A session that closed on this very frame (via the InventoryMap Close action bound to

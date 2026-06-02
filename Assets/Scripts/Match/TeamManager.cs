@@ -133,6 +133,41 @@ namespace Starter.Shooter
 			TeamByPlayer.Set(player, bestTeam);
 		}
 
+		/// <summary>Teams a bot added mid-round. Unlike <see cref="RegisterLateJoin"/> (which fills the smallest team —
+		/// the right behaviour for a human teammate), bots are enemies: they fill <i>bot-only</i> teams up to
+		/// <see cref="TeamSize"/> and open a fresh team id when the last bot team is full, so a bot never lands on a
+		/// human's team. A member counts as a bot when its <c>PlayerId</c> is at/above <see cref="GameManager.BotRefBase"/>.</summary>
+		public void RegisterBotJoin(PlayerRef botOwner)
+		{
+			if (HasStateAuthority == false) return;
+			if (TeamByPlayer.ContainsKey(botOwner)) return;
+
+			int size = Mathf.Max(1, TeamSize);
+
+			System.Span<int> counts = stackalloc int[MaxPlayers];
+			System.Span<bool> hasHuman = stackalloc bool[MaxPlayers];
+			int maxTeamId = -1;
+			foreach (var kvp in TeamByPlayer)
+			{
+				int t = kvp.Value;
+				if (t < 0 || t >= MaxPlayers) continue;
+				counts[t]++;
+				if (kvp.Key.PlayerId < GameManager.BotRefBase) hasHuman[t] = true;
+				if (t > maxTeamId) maxTeamId = t;
+			}
+
+			// Smallest non-full, human-free team gets the bot; otherwise open a new team id.
+			int bestTeam = -1, bestCount = int.MaxValue;
+			for (int t = 0; t <= maxTeamId; t++)
+			{
+				if (hasHuman[t] || counts[t] == 0 || counts[t] >= size) continue;
+				if (counts[t] < bestCount) { bestCount = counts[t]; bestTeam = t; }
+			}
+			if (bestTeam < 0) bestTeam = maxTeamId + 1;
+
+			TeamByPlayer.Set(botOwner, bestTeam);
+		}
+
 		/// <summary>Bump kill count for the attacker's team. No-op if attacker unassigned. Call from <c>Health.ApplyDamage</c>
 		/// on killing blow, state-authority only.</summary>
 		public void RegisterKill(PlayerRef attacker)
@@ -180,7 +215,7 @@ namespace Starter.Shooter
 				var p = players[i];
 				if (p == null || p.Health == null || p.Health.IsAlive == false) continue;
 
-				int teamId = TeamOf(p.Object.InputAuthority);
+				int teamId = TeamOf(p.Owner);
 				if (teamId < 0 || teamId >= MaxPlayers) continue;
 
 				if (living[teamId] == false)
@@ -222,7 +257,7 @@ namespace Starter.Shooter
 			{
 				var p = players[i];
 				if (p == null || p.Object == null) continue;
-				list.Add(p.Object.InputAuthority);
+				list.Add(p.Owner);
 			}
 			return list;
 		}

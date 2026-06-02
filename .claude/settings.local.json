@@ -68,7 +68,10 @@
       "Bash(Select-Object Name)",
       "Bash(echo \"exit:$?\")",
       "Bash(awk '/m_Script: {fileID: 11500000, guid: 188d9993f89faeb44b052a01958ce9a2/{found=1} found{print} found&&/^--- /&&!/188d9993/{c++; if\\(c>1\\) exit}' Assets/03_Shooter/03_Shooter.unity)",
-      "mcp__UnityMCP__manage_camera"
+      "mcp__UnityMCP__manage_camera",
+      "Bash(Get-ChildItem -Path \"C:\\\\Unity Projects\\\\HappyFusionSurvival\" -Directory)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Unity Projects\\\\HappyFusionSurvival\" -Recurse -Directory)",
+      "Bash(Select-Object -First 20)"
     ]
   }
 }

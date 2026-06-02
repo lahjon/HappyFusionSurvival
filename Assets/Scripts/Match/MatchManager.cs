@@ -53,6 +53,14 @@ namespace Starter.Shooter
 		/// <summary>Set when a winner is found. -1 = no winner yet (or draw). Read by UI on MatchOver.</summary>
 		[Networked] public int WinningTeamId { get; private set; } = -1;
 
+		/// <summary>Debug override (the <c>arm</c> console command): while this timer is running, PvP damage is
+		/// allowed regardless of <see cref="Phase"/> — letting you test combat during the Day/Lobby. Networked so
+		/// every predicting peer agrees with the host's gate in <c>Health.PvpDamageBlocked</c>.</summary>
+		[Networked] public TickTimer DebugArmTimer { get; private set; }
+
+		/// <summary>True while the <c>arm</c> debug override is active (PvP forced on regardless of phase).</summary>
+		public bool IsPvpForced => DebugArmTimer.ExpiredOrNotRunning(Runner) == false;
+
 		// =========================================================================
 		// Lifecycle
 		// =========================================================================
@@ -81,9 +89,15 @@ namespace Starter.Shooter
 			if (Instance == this) Instance = null;
 		}
 
+		/// <summary>Set by the debug console (set_daytime / set_nighttime). While true the host stops auto-advancing
+		/// the phase machine — the forced phase holds indefinitely instead of expiring or resolving a winner.
+		/// Authority-only; the phase machine only runs on the authority so it need not be networked.</summary>
+		private bool _debugHoldPhase;
+
 		public override void FixedUpdateNetwork()
 		{
 			if (HasStateAuthority == false) return;
+			if (_debugHoldPhase) return;
 
 			switch (Phase)
 			{
@@ -130,6 +144,10 @@ namespace Starter.Shooter
 			if (TeamManager != null)
 				TeamManager.AssignTeams();
 
+			// Map each team to a distinct staging zone (used by the Night PvP-arming gate). Must run after
+			// teams are assigned so it can see the team ids.
+			ZoneManager.Instance?.AssignZones();
+
 			EnterPhase(MatchPhase.Day);
 		}
 
@@ -150,6 +168,33 @@ namespace Starter.Shooter
 			if (Phase != MatchPhase.Night) return;
 			WinningTeamId = winningTeamId;
 			EnterPhase(MatchPhase.MatchOver);
+		}
+
+		// =========================================================================
+		// Debug (Quantum Console)
+		// =========================================================================
+
+		/// <summary>Debug-only: force the round into <paramref name="phase"/> from any peer. Routes to the state
+		/// authority, which enters the phase and freezes the machine so it won't auto-advance or resolve a winner
+		/// (set_nighttime would otherwise hit <see cref="CheckNightWin"/> and end instantly with no teams assigned).
+		/// Use <see cref="ReturnToLobby"/> / <see cref="BeginMatch"/> to resume normal flow.</summary>
+		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+		public void RPC_DebugForcePhase(MatchPhase phase)
+		{
+			if (HasStateAuthority == false) return;
+			_debugHoldPhase = true;
+			WinningTeamId = -1;
+			EnterPhase(phase);
+		}
+
+		/// <summary>Debug-only: force-enable PvP for <paramref name="seconds"/> regardless of phase (override the
+		/// no-combat-during-Day gate). <paramref name="seconds"/> &lt;= 0 disarms immediately. Routes to the state
+		/// authority so the networked <see cref="DebugArmTimer"/> replicates to every peer's damage gate.</summary>
+		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+		public void RPC_DebugArm(int seconds)
+		{
+			if (HasStateAuthority == false) return;
+			DebugArmTimer = seconds > 0 ? TickTimer.CreateFromSeconds(Runner, seconds) : default;
 		}
 
 		// =========================================================================
