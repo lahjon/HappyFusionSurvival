@@ -1917,7 +1917,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ecf3909fda7e70f49b0a6094c87140fa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.AudioManager
-  mixer: {fileID: 24100000, guid: 2065929b971bbc6499d173ef293b9cb0, type: 2}
+  mixer: {fileID: 24100000, guid: 854bdd78e6fdf9349b6e4d9ebbc40aa5, type: 2}
   sfxPoolSize: 20
   uiPoolSize: 8
   defaultMasterVolume: 1
