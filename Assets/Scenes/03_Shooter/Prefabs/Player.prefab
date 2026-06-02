@@ -655,12 +655,15 @@ MonoBehaviour:
     m_Bits: 513
   CameraCollisionRadius: 0.15
   CameraCollisionPadding: 0.05
+  CameraCollisionLerpSpeed: 16
   _Nickname: 
   _Money: 0
   _Scraps: 0
   _Stamina: 0
   _Hunger: 0
   _IsCrouching:
+    _value: 0
+  _IsBot:
     _value: 0
   _InCurrentSeat: {fileID: 0}
   _IsSleeping:
@@ -673,6 +676,10 @@ MonoBehaviour:
   _CanClimb:
     _value: 1
   _IsClimbing:
+    _value: 0
+  _IsAiming:
+    _value: 0
+  _PvpArmed:
     _value: 0
   _RagdollState: 0
 --- !u!114 &7362189930313428062

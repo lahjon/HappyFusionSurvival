@@ -359,6 +359,10 @@ namespace Starter.Common.Interactions
 			return true;
 		}
 
+		// Reused scratch buffers so the per-frame scan stays alloc-free.
+		private readonly List<IInteractable> _scanCandidates = new List<IInteractable>();
+		private readonly Dictionary<object, IInteractable> _groupReps = new Dictionary<object, IInteractable>();
+
 		private IInteractable TryFindBest(bool includeLocked = false)
 		{
 			var camT = Camera.main != null ? Camera.main.transform : transform;
@@ -366,8 +370,8 @@ namespace Starter.Common.Interactions
 			Vector3 camFwd = camT.forward;
 			Vector3 playerPos = transform.position;
 
-			IInteractable best = null;
-			float bestScore = ViewConeDot;
+			_scanCandidates.Clear();
+			_groupReps.Clear();
 
 			Transform selfRoot = transform;
 			var hits = Physics.OverlapSphere(playerPos, ScanRadius);
@@ -388,14 +392,54 @@ namespace Starter.Common.Interactions
 				float range = candidate.InteractRange;
 				if ((point - playerPos).sqrMagnitude > range * range) continue;
 
-				float score = LookAlignment(point, camPos, camFwd);
-				if (score <= bestScore) continue;
+				// OverlapSphere can return several colliders that resolve to the same interactable
+				// (multi-collider rigs); de-dupe so it isn't scored twice and group reps are sane.
+				if (_scanCandidates.Contains(candidate)) continue;
 
+				// Collapse clustered interactables (e.g. a vehicle's seats) to the closest member,
+				// so you can't reach the far seat through the cab from the near door. An interactable
+				// member is preferred over a locked one at equal-or-greater distance.
+				if (candidate is IInteractableGroup grouped && grouped.InteractionGroupKey != null)
+				{
+					object key = grouped.InteractionGroupKey;
+					if (_groupReps.TryGetValue(key, out var existing))
+					{
+						if (PreferGroupMember(existing, candidate, playerPos)) continue;
+						_scanCandidates.Remove(existing);
+					}
+					_groupReps[key] = candidate;
+				}
+
+				_scanCandidates.Add(candidate);
+			}
+
+			IInteractable best = null;
+			float bestScore = ViewConeDot;
+			for (int i = 0; i < _scanCandidates.Count; i++)
+			{
+				var candidate = _scanCandidates[i];
+				float score = LookAlignment(candidate.InteractionPoint, camPos, camFwd);
+				if (score <= bestScore) continue;
 				bestScore = score;
 				best = candidate;
 			}
 
 			return best;
+		}
+
+		/// <summary>
+		/// Returns true if <paramref name="existing"/> should remain the group's representative
+		/// over <paramref name="contender"/>. Interactable members win over locked ones; among
+		/// members of equal lock state, the nearer to the player wins.
+		/// </summary>
+		private static bool PreferGroupMember(IInteractable existing, IInteractable contender, Vector3 playerPos)
+		{
+			if (existing.CanInteract != contender.CanInteract)
+				return existing.CanInteract;
+
+			float dExisting = (existing.InteractionPoint - playerPos).sqrMagnitude;
+			float dContender = (contender.InteractionPoint - playerPos).sqrMagnitude;
+			return dExisting <= dContender;
 		}
 
 		private static float LookAlignment(Vector3 targetPos, Vector3 camPos, Vector3 camFwd)

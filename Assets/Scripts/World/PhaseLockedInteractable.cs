@@ -42,6 +42,14 @@ namespace Starter.Shooter
 		[Tooltip("Toast shown when a player tries to interact while locked. Leave empty for silent.")]
 		[SerializeField] private string _lockedReason = "Sealed for the night";
 
+		[Header("Electricity")]
+		[Tooltip("Also lock + close whenever this object's LightGrid zone loses power, independent of the phase. " +
+			"Lets devices die when the Purge blackout reaches them, not just at a fixed phase.")]
+		[SerializeField] private bool _lockWhenZoneDark = true;
+
+		[Tooltip("Toast shown when locked because the zone lost power.")]
+		[SerializeField] private string _unpoweredReason = "No power";
+
 		private string _unlockedReason;
 
 		private void Reset()
@@ -58,29 +66,47 @@ namespace Starter.Shooter
 			if (_interactable != null)
 				_unlockedReason = _interactable.LockedReasonText;
 
-			MatchManager.PhaseChanged += Apply;
+			MatchManager.PhaseChanged += OnPhaseChanged;
+			LightGrid.PowerChanged    += Reevaluate;
 
-			// Apply the current phase immediately — covers being enabled after MatchManager spawned, and late joiners.
-			Apply(MatchManager.Instance != null ? MatchManager.Instance.Phase : MatchPhase.Lobby);
+			// Apply current state immediately — covers being enabled after the managers spawned, and late joiners.
+			Reevaluate();
 		}
 
 		private void OnDisable()
 		{
-			MatchManager.PhaseChanged -= Apply;
+			MatchManager.PhaseChanged -= OnPhaseChanged;
+			LightGrid.PowerChanged    -= Reevaluate;
 		}
 
-		private void Apply(MatchPhase phase)
+		private void OnPhaseChanged(MatchPhase _) => Reevaluate();
+
+		/// <summary>Recompute the lock from the two networked sources of truth — the match phase and this object's
+		/// grid zone power. Both are derived identically on every peer, so the lock stays consistent without any
+		/// extra networking; only the authority writes the forced-close door state (ForceSetState no-ops elsewhere).</summary>
+		private void Reevaluate()
 		{
-			bool locked = (phase == MatchPhase.Night       && _lockAtNight)
-			           || (phase == MatchPhase.DuskWarning  && _lockAtDusk);
+			MatchPhase phase = MatchManager.Instance != null ? MatchManager.Instance.Phase : MatchPhase.Lobby;
+
+			bool phaseLocked = (phase == MatchPhase.Night       && _lockAtNight)
+			                || (phase == MatchPhase.DuskWarning  && _lockAtDusk);
+
+			bool zoneDark = _lockWhenZoneDark
+				&& LightGrid.Instance != null
+				&& LightGrid.Instance.GetZonePowerAt(transform.position) <= 0f;
+
+			bool locked = phaseLocked || zoneDark;
 
 			if (_interactable != null && _disableInteraction)
 			{
-				_interactable.Interactable    = !locked;
-				_interactable.LockedReasonText = locked ? _lockedReason : _unlockedReason;
+				_interactable.Interactable = !locked;
+				if (locked)
+					_interactable.LockedReasonText = zoneDark && !phaseLocked ? _unpoweredReason : _lockedReason;
+				else
+					_interactable.LockedReasonText = _unlockedReason;
 			}
 
-			// Only slam shut on the rising edge into a locked phase; ForceSetState no-ops off-authority.
+			// Slam shut while locked; ForceSetState no-ops off-authority so only the host writes the networked state.
 			if (locked && _closeOnLock && _animated != null)
 				_animated.ForceSetState(false);
 		}

@@ -67,6 +67,16 @@ namespace Starter.Shooter
 
 			CurrentHealth -= damage;
 
+			// Feed the Purge director: landing PvP damage on another player during Night marks the attacker
+			// as active, so aggressive players are never flagged passive / picked as the hunter.
+			if (attacker != PlayerRef.None
+				&& MatchManager.Instance != null
+				&& MatchManager.Instance.Phase == MatchPhase.Night
+				&& TryGetComponent<Player>(out _))
+			{
+				GameHostManager.Instance?.RecordCombat(attacker);
+			}
+
 			if (IsAlive == false)
 			{
 				bool isPlayerTarget = TryGetComponent<Player>(out _);
@@ -107,17 +117,19 @@ namespace Starter.Shooter
 		private bool PvpDamageBlocked(PlayerRef attacker)
 		{
 			if (attacker == PlayerRef.None) return false;
-			if (TryGetComponent<Player>(out _) == false) return false;
+			if (TryGetComponent<Player>(out var victim) == false) return false;
 
 			var match = MatchManager.Instance;
 			if (match == null) return false;
 
-			// Day / DuskWarning / Lobby / MatchOver → no PvP allowed.
-			if (match.Phase != MatchPhase.Night) return true;
+			// Day / DuskWarning / Lobby / MatchOver → no PvP allowed, unless the `arm` debug command
+			// has force-enabled combat (IsPvpForced) for testing.
+			if (match.Phase != MatchPhase.Night && match.IsPvpForced == false) return true;
 
-			// Night: friendly fire off.
+			// PvP active (Night or debug-armed): friendly fire off. Key on the victim's stable Owner
+			// (synthetic for bots) so bot teams get the same friendly-fire protection humans do.
 			var team = TeamManager.Instance;
-			return team != null && team.SameTeam(attacker, Object.InputAuthority);
+			return team != null && team.SameTeam(attacker, victim.Owner);
 		}
 
 		/// <summary>State-authority-only path that drops HP straight to zero and starts the death

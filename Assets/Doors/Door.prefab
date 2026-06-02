@@ -186,6 +186,8 @@ MonoBehaviour:
   _disableInteraction: 1
   _closeOnLock: 1
   _lockedReason: Sealed for the night
+  _lockWhenZoneDark: 1
+  _unpoweredReason: No power
 --- !u!114 &6465002326711583895
 MonoBehaviour:
   m_ObjectHideFlags: 0
