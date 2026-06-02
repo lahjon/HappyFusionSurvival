@@ -1,8 +1,8 @@
 using System;
 using Starter.Common.Input;
 using Starter.Common.Interactions;
+using Starter.Common.Menu;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace Starter.Shooter
 {
@@ -16,8 +16,12 @@ namespace Starter.Shooter
 	/// </summary>
 	[RequireComponent(typeof(GameInputActions))]
 	[RequireComponent(typeof(InputContextController))]
-	public sealed class ComputerSession : MonoBehaviour, IInteractionGate
+	public sealed class ComputerSession : MonoBehaviour, IInteractionGate, IMenuScreen
 	{
+		string IMenuScreen.MenuName => "Computer";
+		bool IMenuScreen.DismissOnEscape => true;
+		void IMenuScreen.CloseFromMenu() => RequestClose();
+
 		[Tooltip("Auto-close margin: when the local player walks further than the computer's InteractRange * this multiplier, the session closes.")]
 		public float AutoCloseRangeMultiplier = 1.5f;
 
@@ -39,7 +43,6 @@ namespace Starter.Shooter
 
 		private enum CamPhase { Idle, ZoomingIn, Docked, ZoomingOut }
 
-		private GameInputActions _actions;
 		private InputContextController _context;
 		private bool _initialized;
 
@@ -52,13 +55,7 @@ namespace Starter.Shooter
 		{
 			if (_initialized) return;
 
-			_actions = GetComponent<GameInputActions>();
 			_context = GetComponent<InputContextController>();
-
-			if (_actions != null && _actions.IsInitialized)
-			{
-				_actions.Close.performed += OnClosePerformed;
-			}
 
 			_initialized = true;
 		}
@@ -67,12 +64,11 @@ namespace Starter.Shooter
 		{
 			if (!_initialized) return;
 
-			if (_actions != null && _actions.IsInitialized)
+			if (Current != null)
 			{
-				_actions.Close.performed -= OnClosePerformed;
+				IsAnyAtComputer = false;
+				MenuManager.Instance?.Close(this);
 			}
-
-			if (Current != null) IsAnyAtComputer = false;
 			Current = null;
 		}
 
@@ -170,6 +166,7 @@ namespace Starter.Shooter
 			_phaseElapsed = 0f;
 
 			if (_context != null) _context.EnterInventoryMode();
+			MenuManager.Instance?.Open(this);
 
 			OpenedChanged?.Invoke(Current);
 			Debug.Log($"[ComputerSession] Opened '{computer.DisplayName}'.");
@@ -191,15 +188,11 @@ namespace Starter.Shooter
 			IsAnyAtComputer = false;
 			_phase = CamPhase.Idle;
 
+			MenuManager.Instance?.Close(this);
 			if (_context != null) _context.EnterPlayerMode();
 
 			OpenedChanged?.Invoke(null);
 			Debug.Log($"[ComputerSession] Closed '{(closed != null ? closed.DisplayName : "<null>")}'.");
-		}
-
-		private void OnClosePerformed(InputAction.CallbackContext ctx)
-		{
-			RequestClose();
 		}
 	}
 }

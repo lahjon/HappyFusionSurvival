@@ -1,8 +1,8 @@
 using System;
 using Starter.Common.Input;
 using Starter.Common.Interactions;
+using Starter.Common.Menu;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace Starter.Shooter
 {
@@ -11,11 +11,17 @@ namespace Starter.Shooter
 	/// <see cref="GameInputActions"/> + <see cref="InputContextController"/>. Mirrors
 	/// <see cref="CraftingSession"/>: the open/close transition is purely local, the giver itself
 	/// is multi-user and stores no per-opener state (only first-come completion).
+	///
+	/// Registers as an <see cref="IMenuScreen"/> while open so <see cref="MenuManager"/> routes Escape to it.
 	/// </summary>
 	[RequireComponent(typeof(GameInputActions))]
 	[RequireComponent(typeof(InputContextController))]
-	public sealed class QuestSession : MonoBehaviour, IInteractionGate
+	public sealed class QuestSession : MonoBehaviour, IInteractionGate, IMenuScreen
 	{
+		string IMenuScreen.MenuName => "Quest";
+		bool IMenuScreen.DismissOnEscape => true;
+		void IMenuScreen.CloseFromMenu() => RequestClose();
+
 		[Tooltip("Auto-close margin: when the local player walks further than InteractRange * this multiplier from the open giver, the menu closes.")]
 		public float AutoCloseRangeMultiplier = 1.5f;
 
@@ -35,7 +41,6 @@ namespace Starter.Shooter
 		/// <summary>Fires when the open giver changes. Argument is null when closed.</summary>
 		public event Action<QuestGiver> OpenedChanged;
 
-		private GameInputActions _actions;
 		private InputContextController _context;
 		private bool _initialized;
 
@@ -43,13 +48,7 @@ namespace Starter.Shooter
 		{
 			if (_initialized) return;
 
-			_actions = GetComponent<GameInputActions>();
 			_context = GetComponent<InputContextController>();
-
-			if (_actions != null && _actions.IsInitialized)
-			{
-				_actions.Close.performed += OnClosePerformed;
-			}
 
 			_initialized = true;
 		}
@@ -58,12 +57,11 @@ namespace Starter.Shooter
 		{
 			if (!_initialized) return;
 
-			if (_actions != null && _actions.IsInitialized)
+			if (Current != null)
 			{
-				_actions.Close.performed -= OnClosePerformed;
+				IsAnyOpen = false;
+				MenuManager.Instance?.Close(this);
 			}
-
-			if (Current != null) IsAnyOpen = false;
 			Current = null;
 		}
 
@@ -89,6 +87,7 @@ namespace Starter.Shooter
 			Current = giver;
 			IsAnyOpen = true;
 			if (_context != null) _context.EnterInventoryMode();
+			MenuManager.Instance?.Open(this);
 			// Tell the NPC (if it's an NpcAgent) to stop and face us during the turn-in.
 			giver.GetComponent<NpcAgent>()?.LocalBeginAttending();
 			OpenedChanged?.Invoke(Current);
@@ -102,6 +101,7 @@ namespace Starter.Shooter
 			var closed = Current;
 			Current = null;
 			IsAnyOpen = false;
+			MenuManager.Instance?.Close(this);
 			if (_context != null) _context.EnterPlayerMode();
 			closed.GetComponent<NpcAgent>()?.LocalEndAttending();
 			OpenedChanged?.Invoke(null);
@@ -113,11 +113,6 @@ namespace Starter.Shooter
 		{
 			if (Current == null) return;
 			Current.RPC_RequestComplete(offerIndex);
-		}
-
-		private void OnClosePerformed(InputAction.CallbackContext ctx)
-		{
-			RequestClose();
 		}
 	}
 }

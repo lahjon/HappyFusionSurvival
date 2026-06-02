@@ -1,6 +1,7 @@
 using System;
 using Starter.Common.Input;
 using Starter.Common.Interactions;
+using Starter.Common.Menu;
 using UnityEngine;
 
 namespace Starter.Shooter
@@ -17,9 +18,14 @@ namespace Starter.Shooter
 	[RequireComponent(typeof(GameInputActions))]
 	[RequireComponent(typeof(InputContextController))]
 	[RequireComponent(typeof(Player))]
-	public sealed class SleepSession : MonoBehaviour, IInteractionGate
+	public sealed class SleepSession : MonoBehaviour, IInteractionGate, IMenuScreen
 	{
 		bool IInteractionGate.AllowInteractions => CurrentBed == null;
+
+		// Modal screen: while sleeping, Escape is swallowed (you wake with Interact), not passed to the pause menu.
+		string IMenuScreen.MenuName => "Sleep";
+		bool IMenuScreen.DismissOnEscape => false;
+		void IMenuScreen.CloseFromMenu() => RequestWake();
 
 		public Bed CurrentBed { get; private set; }
 
@@ -59,7 +65,11 @@ namespace Starter.Shooter
 
 		private void OnDestroy()
 		{
-			if (CurrentBed != null) IsAnySleeping = false;
+			if (CurrentBed != null)
+			{
+				IsAnySleeping = false;
+				MenuManager.Instance?.Close(this);
+			}
 			CurrentBed = null;
 		}
 
@@ -153,6 +163,7 @@ namespace Starter.Shooter
 
 			CurrentBed = bed;
 			IsAnySleeping = true;
+			MenuManager.Instance?.Open(this);
 
 			var cam = Camera.main;
 			if (cam != null)
@@ -192,6 +203,7 @@ namespace Starter.Shooter
 			CurrentBed = null;
 			IsAnySleeping = false;
 			_phase = CamPhase.Idle;
+			MenuManager.Instance?.Close(this);
 
 			OpenedChanged?.Invoke(null);
 			Debug.Log($"[SleepSession] Woke up from '{(closed != null ? closed.DisplayName : "<null>")}'.");

@@ -200,7 +200,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6a01df1db20125445860eb1cc6f7f19f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Interactions.InteractionPrompt
-  LocalOffset: {x: 0, y: 2.1, z: 0}
+  LocalOffset: {x: 0.5, y: 1, z: 0}
   CenterLabelText: Door
   SuppressLabel: 0
   HideWhenLocked: 0

@@ -581,7 +581,7 @@ MonoBehaviour:
   SprintSpeedMultiplier: 1.6
   SprintAccelMultiplier: 1.5
   MaxTurnDegPerSec: 90
-  MinTurnDegPerSec: 28
+  MinTurnDegPerSec: 50
   SteerRate: 10
   ReverseFlipThreshold: 0.2
   DriftMinSpeed: 5

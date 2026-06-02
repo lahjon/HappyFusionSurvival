@@ -1,3 +1,4 @@
+using Starter.Common.Menu;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -18,11 +19,17 @@ namespace Starter.Shooter
 	/// Like <see cref="UIMatchLobby"/> this MUST sit on an always-active object — an inactive GameObject
 	/// stops running Update and would never notice the phase reaching MatchOver.
 	/// </summary>
-	public sealed class UIMatchResult : MonoBehaviour
+	public sealed class UIMatchResult : MonoBehaviour, IMenuScreen
 	{
 		/// <summary>True on this peer while the result overlay is showing (Phase == MatchOver). <see cref="UIGameMenu"/>
 		/// reads this to yield cursor/Escape control, mirroring <see cref="UIMatchLobby.IsLobbyOpen"/>.</summary>
 		public static bool IsResultOpen { get; private set; }
+
+		// Modal screen: while the result overlay shows, Escape is swallowed (the overlay is phase-driven and
+		// closes itself when the round returns to Lobby), not passed to the pause menu.
+		string IMenuScreen.MenuName => "MatchResult";
+		bool IMenuScreen.DismissOnEscape => false;
+		void IMenuScreen.CloseFromMenu() { }
 
 		[Header("Colours")]
 		public Color VictoryColor = new Color(0.30f, 0.95f, 0.45f);
@@ -174,11 +181,15 @@ namespace Starter.Shooter
 		{
 			IsResultOpen = show;
 			if (_group != null) _group.alpha = show ? 1f : 0f;
+
+			if (show) MenuManager.Instance?.Open(this);
+			else MenuManager.Instance?.Close(this);
 		}
 
 		private void OnDisable()
 		{
 			IsResultOpen = false;
+			MenuManager.Instance?.Close(this);
 		}
 	}
 }

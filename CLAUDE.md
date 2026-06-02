@@ -28,6 +28,10 @@ Build new gameplay around this two-phase structure. Anything that changes betwee
 
 **Phase-aware gameplay.** New systems that behave differently in day vs. night must read the phase from a single networked `MatchManager` (planned — see `prompt.md`), not from per-system timers. Damage-to-players, vendor visibility, and music/lighting all gate on the same source of truth.
 
+**Reuse before adding.** Before writing a new feature or helper, search the codebase for an existing system that already does the same or similar work and share/extend it instead of duplicating. The shared primitives here are deliberate (interaction system, `ActionInvoker`/`CombatAction`, `ItemCapability` facets, SimpleKCC `Player.cs`, inventory ops) — a new mechanic should usually plug into one of them, not reimplement it. If you do add parallel code, say in your plan why the existing system couldn't be reused.
+
+**Console / debug commands use Quantum Console.** All console and debug commands go through QFSW Quantum Console (`Assets/Plugins/QFSW/`) — annotate static methods with `[Command("name", "description")]` (see `Assets/Scripts/Debug/DebugCommands.cs`). Don't build ad-hoc debug-key handlers, custom IMGUI consoles, or one-off `Debug.Log`-driven cheat hooks. Commands that touch networked state must route into the simulation via RPCs so they replicate on host and client alike (canonical pattern in `DebugCommands.cs`).
+
 ## Build / run
 
 No CLI build. Open in Unity 6000.4.8f1.
@@ -106,6 +110,16 @@ Anything the player can "use" (chests, pickups, doors, benches, vehicles, NPCs) 
 - `InteractionPrompt` (local, on every interactable's prefab) — camera-facing world-space indicator. Standardized size/colors — don't tweak per-prefab.
 - Authority pattern: `OnInteract` routes into a per-player networked session via `scanner.GetComponent<TSession>()`. Canonical example: `LootContainer.OnInteract` → `LootSession.TryOpen`.
 - Re-validate range on the host in any RPC the interaction kicks off (convention: `InteractRange * 1.25f`) — never trust the client scan alone.
+
+### Menu / Escape system (shared, mandatory)
+
+Every openable local UI (pause menu, loot/crafting/quest/shop/computer sessions, sleep, match lobby/result, and any new one) **must** register on the global menu stack in `Assets/Common/Menu/`. This is the single owner of the Escape key — no script reads `Keyboard.escapeKey` on its own.
+
+- `MenuManager` (local singleton, auto-bootstrapped `AfterSceneLoad`, `DontDestroyOnLoad` — no scene/prefab wiring) holds a `List<IMenuScreen>` stack. `Open(screen)` / `Close(screen)` push/pop; `IsAnyOpen` / `Top` query it.
+- **Escape resolution (the only handler):** ① if `QuantumConsole.Instance.IsActive`, `Deactivate()` it first (console floats above the stack, opens by its own key); ② else the top screen handles it — closes if `IMenuScreen.DismissOnEscape`, otherwise swallows it; ③ else raise `OpenPauseRequested` → the pause menu opens. **Enter is never read** — it must not open any menu.
+- `IMenuScreen`: `MenuName`, `DismissOnEscape` (`false` = modal: Escape swallowed, screen dismisses via its own logic — e.g. sleep wakes on Interact, lobby/result close on phase change), `CloseFromMenu()` (idempotent self-close).
+- A screen calls `MenuManager.Instance?.Open(this)` where it opens and `Close(this)` where it closes (and in `OnDestroy`/`OnDisable` if still open). Sessions still set their `IsAny*` flags — those gate gameplay (camera ownership, `Player.LateUpdate`), separate from the menu stack.
+- `UIGameMenu` is the **root screen**: it only opens via `OpenPauseRequested` and owns the gameplay cursor-lock baseline, gated on `MenuManager.IsAnyOpen` so open sessions keep cursor control.
 
 ### Movement
 

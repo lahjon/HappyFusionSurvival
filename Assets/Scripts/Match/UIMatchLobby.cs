@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text;
+using Starter.Common.Menu;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -20,8 +21,16 @@ namespace Starter.Shooter
 	///
 	/// MonoBehaviour by design — pure view/input. Authoritative state lives on the networked managers.
 	/// </summary>
-	public sealed class UIMatchLobby : MonoBehaviour
+	public sealed class UIMatchLobby : MonoBehaviour, IMenuScreen
 	{
+		// Modal screen: while the lobby shows, Escape is swallowed (the lobby is phase-driven and closes itself
+		// when the match begins), not passed to the pause menu.
+		string IMenuScreen.MenuName => "MatchLobby";
+		bool IMenuScreen.DismissOnEscape => false;
+		void IMenuScreen.CloseFromMenu() { }
+
+		private bool _menuRegistered;
+
 		/// <summary>True on this peer while the lobby panel is showing (Phase == Lobby). <see cref="UIGameMenu"/>
 		/// reads this to yield cursor/Escape control, the same contract used by the loot/crafting/etc. sessions —
 		/// otherwise UIGameMenu would re-lock the cursor every frame and the lobby buttons would be unclickable.</summary>
@@ -66,6 +75,11 @@ namespace Starter.Shooter
 		private void OnDisable()
 		{
 			IsLobbyOpen = false;
+			if (_menuRegistered)
+			{
+				MenuManager.Instance?.Close(this);
+				_menuRegistered = false;
+			}
 			if (SoloButton != null) SoloButton.onClick.RemoveAllListeners();
 			if (DuoButton != null) DuoButton.onClick.RemoveAllListeners();
 			if (TrioButton != null) TrioButton.onClick.RemoveAllListeners();
@@ -96,6 +110,23 @@ namespace Starter.Shooter
 				Panel.SetActive(inLobby);
 
 			IsLobbyOpen = inLobby;
+
+			// Register/unregister on the menu stack as the lobby opens/closes. Retries Open until the manager
+			// exists (it bootstraps AfterSceneLoad), so a lobby that is already up on the first frame still lands.
+			if (inLobby)
+			{
+				if (_menuRegistered == false && MenuManager.Instance != null)
+				{
+					MenuManager.Instance.Open(this);
+					_menuRegistered = true;
+				}
+			}
+			else if (_menuRegistered)
+			{
+				MenuManager.Instance?.Close(this);
+				_menuRegistered = false;
+			}
+
 			if (inLobby == false) return;
 
 			// The lobby is a modal pre-game screen — free the cursor so the buttons are clickable. UIGameMenu
