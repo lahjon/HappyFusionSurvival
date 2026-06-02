@@ -40,6 +40,19 @@ namespace Starter.Shooter
 		[Tooltip("ADS tuning used when SecondaryMode == Aim.")]
 		public AimTuning Aim = new();
 
+		[Header("Ammo (magazine-fed)")]
+		[Tooltip("Ammo item this weapon consumes. Null = no ammo (infinite — melee, fists). When set together with MagazineSize > 0 the weapon is magazine-fed: firing draws from the loaded magazine and auto-reloads from this item's inventory stacks when empty. (Projectile weapons like the Bow keep their own ProjectileAction.AmmoItem and ignore this.)")]
+		public ItemDefinition AmmoItem;
+		[Tooltip("Rounds held in one magazine. 0 = not magazine-fed (no reload). >0 enables the magazine + auto-reload cycle for this hitscan weapon.")]
+		[Min(0)]
+		public int MagazineSize = 0;
+		[Tooltip("Seconds to refill the magazine from reserve ammo once it runs dry.")]
+		[Min(0f)]
+		public float ReloadSeconds = 1.5f;
+
+		/// <summary>True if this weapon uses the magazine + auto-reload cycle (a non-null ammo item and a positive magazine).</summary>
+		public bool UsesMagazine => AmmoItem != null && MagazineSize > 0;
+
 		[Tooltip("Visual-rig tuning the generic hand rig (HeldWeapon) reads at equip — swing/recoil/sway feel and muzzle.")]
 		public HeldRigTuning Rig = new();
 	}
@@ -62,6 +75,13 @@ namespace Starter.Shooter
 		[Range(0f, 1f)]
 		[Tooltip("Aim-recoil scale while aiming. Lower = flatter recoil when shooting from ADS.")]
 		public float RecoilMultiplier = 0.5f;
+
+		[Header("Breath-Hold (scoped — hold Sprint to steady)")]
+		[Range(0f, 1f)]
+		[Tooltip("Sway scale while holding the steady-aim (breath-hold) button. 0 = perfectly steady. Drains stamina fast (Player.BreathHoldStaminaDrainPerSecond).")]
+		public float BreathHoldSwayMultiplier = 0f;
+		[Tooltip("Recoil kick when stamina runs out mid breath-hold, as a fraction of a normal aim-recoil shot — the scope jolts as the breath gives out. 0 = no jolt.")]
+		public float BreathDepletionRecoilScale = 0.6f;
 	}
 
 	/// <summary>
@@ -96,7 +116,10 @@ namespace Starter.Shooter
 		[Range(0f, 1f)] public float AimRecoil = 0f;
 		public float AimRecoilPitchPerShot = 3.5f;
 		public float AimRecoilHorizontalRandom = 1.5f;
+		[Tooltip("How fast the per-shot kick rises to its peak (higher = snappier).")]
 		public float AimRecoilLerpSpeed = 18f;
+		[Tooltip("How fast the accumulated recoil bleeds back toward zero after firing, returning the view to where it started (CS-style climb-then-settle). 0 = no recovery (kick stays).")]
+		public float AimRecoilRecoverySpeed = 6f;
 
 		[Header("Muzzle")]
 		[Tooltip("Enable the muzzle flash (ranged weapons).")]

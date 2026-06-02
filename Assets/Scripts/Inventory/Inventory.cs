@@ -48,6 +48,12 @@ namespace Starter.Shooter
 		         "Read by Player.GetActiveAction when no item is selected. Not placed in the hotbar.")]
 		[SerializeField] private ItemDefinition _unarmedItem;
 
+		[Tooltip("Optional ammo item seeded into the inventory on first spawn (state authority only), so a " +
+		         "magazine-fed starting weapon isn't bricked before the shop/crafting loop exists. Leave null for none.")]
+		[SerializeField] private ItemDefinition _startingAmmo;
+		[Tooltip("How many _startingAmmo units to seed on first spawn.")]
+		[SerializeField, Min(0)] private int _startingAmmoCount = 0;
+
 		[Tooltip("Shared world-pickup prefab (NetworkObject + PickupableItem) spawned for any dropped item whose " +
 		         "ItemDefinition has no bespoke WorldPrefab override. Builds its visual from the item's ItemVisual.")]
 		[SerializeField] private GameObject _genericWorldPrefab;
@@ -73,6 +79,15 @@ namespace Starter.Shooter
 
 		[Networked]
 		private TickTimer _useCooldownTimer { get; set; }
+
+		/// <summary>Counts down a reload of the selected magazine-fed weapon. Started on state authority by
+		/// <see cref="UpdateAmmoCycle"/> when the magazine runs dry and reserve ammo exists; on expiry the
+		/// magazine is refilled. Networked so clients see the reload in progress.</summary>
+		[Networked]
+		public TickTimer ReloadTimer { get; private set; }
+		/// <summary>True while a reload is in flight. Blocks firing and drives the HUD "Reloading…" state.</summary>
+		[Networked]
+		public NetworkBool IsReloading { get; private set; }
 
 		public event System.Action SlotsChanged;
 		public event System.Action SelectedChanged;
@@ -142,6 +157,30 @@ namespace Starter.Shooter
 			}
 		}
 
+		/// <summary>True if the held weapon is magazine-fed (drives the ammo HUD + reload cycle).</summary>
+		public bool ActiveUsesMagazine
+		{
+			get
+			{
+				var w = ActiveWeapon;
+				return w != null && w.UsesMagazine;
+			}
+		}
+
+		/// <summary>Rounds in the held weapon's magazine (the selected slot's Loaded). 0 if nothing magazine-fed is held.</summary>
+		public int ActiveLoaded => ActiveUsesMagazine ? Slots[SelectedSlot].Loaded : 0;
+
+		/// <summary>Reserve rounds for the held weapon's ammo type, summed across all hotbar slots.</summary>
+		public int ActiveReserve
+		{
+			get
+			{
+				var w = ActiveWeapon;
+				if (w == null || w.UsesMagazine == false) return 0;
+				return AmmoReserve(w.AmmoItem.Id);
+			}
+		}
+
 		/// <summary>Item currently carried in-hand, or null. Independent of any hotbar slot.</summary>
 		public ItemDefinition CarriedDefinition
 		{
@@ -192,8 +231,17 @@ namespace Starter.Shooter
 
 			if (HasStateAuthority && _startingItem != null && _startingItem.Id != 0 && AllSlotsEmpty())
 			{
-				Slots.Set(0, new InventorySlot { ItemId = _startingItem.Id, Count = 1 });
+				// Seed a magazine-fed starting weapon with a full magazine so it's ready to fire.
+				var startWeapon = _startingItem.GetCapability<WeaponCapability>();
+				short loaded = startWeapon != null && startWeapon.UsesMagazine ? (short)startWeapon.MagazineSize : (short)0;
+				Slots.Set(0, new InventorySlot { ItemId = _startingItem.Id, Count = 1, Loaded = loaded });
 				SelectedSlot = 0;
+
+				// Seed reserve ammo so the starting weapon can reload before the shop/crafting loop exists.
+				if (_startingAmmo != null && _startingAmmo.Id != 0 && _startingAmmoCount > 0)
+				{
+					TryAdd(_startingAmmo.Id, (short)_startingAmmoCount);
+				}
 			}
 
 			if (HasInputAuthority)
@@ -546,8 +594,132 @@ namespace Starter.Shooter
 			if (s.IsEmpty || s.Count < count) return false;
 
 			s.Count -= count;
+			// Preserve Loaded only while the stack survives; a fully-removed slot resets to Empty.
 			Slots.Set(slot, s.Count <= 0 ? InventorySlot.Empty : s);
 			return true;
+		}
+
+		// ---- Ammo / magazine ----
+
+		/// <summary>First slot holding <paramref name="ammoId"/>, or -1. Mirrors ProjectileAction.FindAmmoSlot.</summary>
+		public int FindAmmoSlot(short ammoId)
+		{
+			if (ammoId == 0) return -1;
+			for (int i = 0; i < Slots.Length; i++)
+			{
+				var s = Slots[i];
+				if (s.IsEmpty) continue;
+				if (s.ItemId == ammoId) return i;
+			}
+			return -1;
+		}
+
+		/// <summary>Total reserve rounds of <paramref name="ammoId"/> across the hotbar (not counting loaded magazines).</summary>
+		public int AmmoReserve(short ammoId)
+		{
+			if (ammoId == 0) return 0;
+			int total = 0;
+			for (int i = 0; i < Slots.Length; i++)
+			{
+				var s = Slots[i];
+				if (s.IsEmpty || s.ItemId != ammoId) continue;
+				total += s.Count;
+			}
+			return total;
+		}
+
+		/// <summary>
+		/// Consume one round from the selected weapon's magazine. Predicted on every predicting peer
+		/// (no HasStateAuthority gate — Slots is networked so IA's write reconciles to SA, exactly like
+		/// <see cref="RemoveAt"/>). Returns false when the magazine is empty.
+		/// </summary>
+		public bool TryConsumeChamberedRound()
+		{
+			int slot = SelectedSlot;
+			if (slot < 0 || slot >= SlotCount) return false;
+			var s = Slots[slot];
+			if (s.IsEmpty || s.Loaded <= 0) return false;
+			s.Loaded -= 1;
+			Slots.Set(slot, s);
+			return true;
+		}
+
+		/// <summary>
+		/// Drives the auto-reload cycle for the held magazine-fed weapon. Called every tick from
+		/// <see cref="Player.ProcessInput"/> on state + input authority; all mutations gate on state
+		/// authority (the [Networked] ReloadTimer / IsReloading replicate to clients for the HUD).
+		/// When the magazine runs dry and reserve ammo exists, starts a reload; on timer expiry, moves
+		/// rounds from the reserve stacks into the selected slot's magazine.
+		/// </summary>
+		public void UpdateAmmoCycle()
+		{
+			var weapon = ActiveWeapon;
+			if (weapon == null || weapon.UsesMagazine == false)
+			{
+				// Not holding a magazine weapon — cancel any stale reload (e.g. switched off mid-reload).
+				if (HasStateAuthority && IsReloading)
+				{
+					IsReloading = false;
+					ReloadTimer = default;
+				}
+				return;
+			}
+
+			if (HasStateAuthority == false) return;
+
+			int slot = SelectedSlot;
+			if (slot < 0 || slot >= SlotCount) return;
+			var s = Slots[slot];
+			// The selected slot must actually be the weapon (it is — ActiveWeapon reads SelectedDefinition).
+			if (s.IsEmpty) return;
+
+			short ammoId = weapon.AmmoItem.Id;
+
+			if (IsReloading)
+			{
+				if (ReloadTimer.ExpiredOrNotRunning(Runner))
+				{
+					// Refill: pull rounds from reserve stacks into the magazine.
+					int need = weapon.MagazineSize - s.Loaded;
+					int moved = ConsumeReserve(ammoId, need);
+					if (moved > 0)
+					{
+						// Re-read the slot — ConsumeReserve may have touched it if the weapon shared
+						// an index path (it won't, weapons aren't ammo, but stay correct under change).
+						s = Slots[slot];
+						s.Loaded = (short)(s.Loaded + moved);
+						Slots.Set(slot, s);
+					}
+					IsReloading = false;
+					ReloadTimer = default;
+				}
+				return;
+			}
+
+			// Auto-start a reload when the magazine is empty and reserve exists.
+			if (s.Loaded <= 0 && AmmoReserve(ammoId) > 0)
+			{
+				ReloadTimer = TickTimer.CreateFromSeconds(Runner, Mathf.Max(0f, weapon.ReloadSeconds));
+				IsReloading = true;
+			}
+		}
+
+		/// <summary>State-authority: remove up to <paramref name="amount"/> rounds of <paramref name="ammoId"/>
+		/// from reserve stacks (lowest slot first). Returns how many were actually removed.</summary>
+		private int ConsumeReserve(short ammoId, int amount)
+		{
+			if (ammoId == 0 || amount <= 0) return 0;
+			int remaining = amount;
+			for (int i = 0; i < Slots.Length && remaining > 0; i++)
+			{
+				var s = Slots[i];
+				if (s.IsEmpty || s.ItemId != ammoId) continue;
+				short take = (short)Mathf.Min(remaining, s.Count);
+				s.Count -= take;
+				Slots.Set(i, s.Count <= 0 ? InventorySlot.Empty : s);
+				remaining -= take;
+			}
+			return amount - remaining;
 		}
 
 		/// <summary>Bespoke WorldPrefab override if the item sets one, else the shared generic pickup. Null if neither exists.</summary>

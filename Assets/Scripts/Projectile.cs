@@ -198,7 +198,7 @@ namespace Starter.Shooter
 					int finalDamage = Damage;
 					var region = hit.Hitbox != null ? BodyHitbox.From(hit.Hitbox) : null;
 					if (region != null) finalDamage = region.Apply(Damage);
-					if (health.TakeHit(finalDamage, Attacker) && KnockbackDistance > 0f)
+					if (health.TakeHit(finalDamage, Attacker, NetPosition, normal) && KnockbackDistance > 0f)
 					{
 						var knockable = health.GetComponent<IKnockbackable>();
 						knockable?.ApplyKnockback(NetPosition, KnockbackDistance);

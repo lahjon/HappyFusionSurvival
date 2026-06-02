@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1c928c5b3fb913044ad31023bb8400b9, type: 3}
+  m_Name: Recipe_SniperRounds
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Crafting.RecipeDefinition
+  Id: 105
+  DisplayName: Sniper Rounds
+  Icon: {fileID: 21300000, guid: 4de173ae5bfcc0e41a066f16fbde177c, type: 3}
+  Description: 
+  ScrapCost: 4
+  Ingredients: []
+  Output: {fileID: 11400000, guid: 52a2a8b5972b3554db5159e35dac5bee, type: 2}
+  OutputCount: 5
+  UnlockedByDefault: 1

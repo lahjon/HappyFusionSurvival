@@ -63,6 +63,9 @@ namespace Starter.Shooter
 		private Vector2 _recoilPending;
 		private Vector2 _recoilApplied;
 		private Vector2 _prevSwayOffset;
+		// True last frame iff the player was steadying a scoped weapon WITH stamina left. The
+		// transition to "no stamina while still holding" fires the one-shot depletion recoil.
+		private bool _breathHadStamina;
 
 		public override void Spawned()
 		{
@@ -298,8 +301,29 @@ namespace Starter.Shooter
 			float swayMul = aim != null ? aim.SwayMultiplier : 1f;
 			float recoilMul = aim != null ? aim.RecoilMultiplier : 1f;
 
-			// Recoil edge-trigger: each press queues a fresh kick toward _recoilPending.
-			if (weapon != null && weapon.AimRecoil > 0f && _actions.Fire.WasPressedThisFrame())
+			// Sniper breath-hold: holding Sprint while scoped steadies the sway (stamina burns in the sim).
+			// When stamina runs dry mid-hold, kick a slight recoil once — the breath giving out.
+			bool breathButton = aiming && _actions.Sprint.IsPressed();
+			bool breathHasStamina = _player != null && _player.Stamina > 0.01f;
+			bool breathSteady = breathButton && breathHasStamina;
+			if (breathSteady && aim != null)
+				swayMul *= Mathf.Clamp01(aim.BreathHoldSwayMultiplier);
+			if (breathButton && breathHasStamina == false && _breathHadStamina && weapon != null && aim != null)
+			{
+				float scale = Mathf.Max(0f, aim.BreathDepletionRecoilScale);
+				float pitchImpulse = -weapon.AimRecoilPitchPerShot * scale;
+				float yawImpulse = Random.Range(-weapon.AimRecoilHorizontalRandom, weapon.AimRecoilHorizontalRandom) * scale;
+				_recoilPending += new Vector2(pitchImpulse, yawImpulse);
+			}
+			_breathHadStamina = breathSteady;
+
+			// Recoil edge-trigger: each press queues a fresh kick toward _recoilPending — but only when
+			// a shot would actually fire. For magazine-fed guns that means a loaded, non-reloading mag;
+			// otherwise an empty-click would still kick the camera and read as "firing with no ammo".
+			bool canFireShot = _inventory == null
+				|| _inventory.ActiveUsesMagazine == false
+				|| (_inventory.ActiveLoaded > 0 && _inventory.IsReloading == false);
+			if (weapon != null && weapon.AimRecoil > 0f && canFireShot && _actions.Fire.WasPressedThisFrame())
 			{
 				float r = weapon.AimRecoil * recoilMul;
 				// LookRotation.x = pitch; more negative = look up. So pitch impulse is negative.
@@ -307,6 +331,14 @@ namespace Starter.Shooter
 				float yawImpulse = Random.Range(-weapon.AimRecoilHorizontalRandom, weapon.AimRecoilHorizontalRandom) * r;
 				_recoilPending += new Vector2(pitchImpulse, yawImpulse);
 			}
+
+			// Recoil recovery: bleed the accumulated kick back toward zero so the view settles back to
+			// where it was before the shot. Because only the per-frame delta of _recoilApplied is written
+			// into LookRotation, decaying _recoilPending makes that delta go negative and unwinds exactly
+			// the recoil contribution — the player's own mouse aim during recovery is preserved.
+			float recoverySpeed = weapon != null ? Mathf.Max(0f, weapon.AimRecoilRecoverySpeed) : 6f;
+			if (recoverySpeed > 0f)
+				_recoilPending = Vector2.Lerp(_recoilPending, Vector2.zero, 1f - Mathf.Exp(-recoverySpeed * Time.deltaTime));
 
 			float lerpSpeed = weapon != null ? Mathf.Max(0f, weapon.AimRecoilLerpSpeed) : 18f;
 			Vector2 newApplied = Vector2.Lerp(_recoilApplied, _recoilPending, 1f - Mathf.Exp(-lerpSpeed * Time.deltaTime));

@@ -58,6 +58,15 @@ namespace Starter.Shooter
 		private bool _wasAlive = true;
 		private TextMeshProUGUI _eventLabel;
 		private TextMeshProUGUI _armingLabel;
+		private TextMeshProUGUI _ammoLabel;
+
+		[Header("Ammo Readout (auto-built at runtime from DayTimeLabel)")]
+		[Tooltip("Anchored offset of the magazine/reserve readout, relative to screen centre (near the crosshair).")]
+		public Vector2 AmmoReadoutOffset = new Vector2(150f, -70f);
+		[Tooltip("Colour of the ammo readout.")]
+		public Color AmmoReadoutColor = Color.white;
+		[Tooltip("Colour of the ammo readout while reloading.")]
+		public Color AmmoReloadingColor = new Color(1f, 0.72f, 0.12f);
 
 		[Header("PvP Arming Prompt (auto-built at runtime from DayTimeLabel)")]
 		[Tooltip("Shown during Night while the local player has not yet reached their team's zone (cannot fire).")]
@@ -77,6 +86,7 @@ namespace Starter.Shooter
 			UpdateArmingPrompt();
 
 			var player = GameManager.LocalPlayer;
+			UpdateAmmoReadout(player);
 			if (player == null)
 			{
 				CanvasGroup.alpha = 0f;
@@ -170,6 +180,54 @@ namespace Starter.Shooter
 
 			BuildEventBanner();
 			BuildArmingPrompt();
+			BuildAmmoReadout();
+		}
+
+		// Clone the day/night label to make a crosshair-adjacent ammo readout — no bespoke prefab needed,
+		// same trick as the event banner / arming prompt.
+		private void BuildAmmoReadout()
+		{
+			if (DayTimeLabel == null) return;
+
+			_ammoLabel = Instantiate(DayTimeLabel, DayTimeLabel.transform.parent);
+			_ammoLabel.name = "AmmoReadout";
+
+			var rt = _ammoLabel.rectTransform;
+			rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+			rt.pivot = new Vector2(0.5f, 0.5f);
+			rt.anchoredPosition = AmmoReadoutOffset;
+
+			_ammoLabel.alignment = TextAlignmentOptions.Left;
+			_ammoLabel.fontStyle |= FontStyles.Bold;
+			_ammoLabel.color = AmmoReadoutColor;
+			_ammoLabel.gameObject.SetActive(false);
+		}
+
+		// Show "loaded / reserve" (or "RELOADING") for the held magazine-fed weapon; hidden otherwise.
+		// Reads the networked Inventory each frame — no [Networked] state on the UI.
+		private void UpdateAmmoReadout(Player player)
+		{
+			if (_ammoLabel == null) return;
+
+			var inventory = player != null ? player.GetComponent<Inventory>() : null;
+			bool show = inventory != null && inventory.ActiveUsesMagazine && player.Health != null && player.Health.IsAlive;
+
+			if (show)
+			{
+				if (inventory.IsReloading)
+				{
+					_ammoLabel.color = AmmoReloadingColor;
+					_ammoLabel.text = "RELOADING";
+				}
+				else
+				{
+					_ammoLabel.color = AmmoReadoutColor;
+					_ammoLabel.text = $"{inventory.ActiveLoaded} / {inventory.ActiveReserve}";
+				}
+			}
+
+			if (_ammoLabel.gameObject.activeSelf != show)
+				_ammoLabel.gameObject.SetActive(show);
 		}
 
 		// Clone of the day/night label, centred, used to tell the local player they must reach their team

@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 215c4744854153b4a948021ef1445cc3, type: 3}
-  m_Name: Pistol
-  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ItemDefinition
-  Id: 4
-  DisplayName: Pistol
-  Icon: {fileID: -498329690, guid: e0bafaad9daa92a4c992e1a41a16a12a, type: 3}
-  Description: Standard-issue sidearm.
+  m_Name: SniperRifle
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.ItemDefinition
+  Id: 17
+  DisplayName: Sniper Rifle
+  Icon: {fileID: 0}
+  Description: 
   Stats: []
   Visual:
     Mesh: {fileID: -5721217614269247348, guid: 8e1530ae5a2286341a35e7d289b1847a, type: 3}
@@ -27,32 +27,32 @@ MonoBehaviour:
     HeldScale: {x: 1, y: 1, z: 1}
     HeldLocalPosition: {x: 0, y: 0, z: 0}
     HeldLocalEuler: {x: 0, y: 0, z: 0}
-    VisualOverride: {fileID: 919132149155446097, guid: 8e1530ae5a2286341a35e7d289b1847a, type: 3}
+    VisualOverride: {fileID: 0}
   WorldPrefab: {fileID: 0}
   HandPrefab: {fileID: 0}
   MaxStack: 1
-  Weight: 0
-  ScrapValue: 1
+  Weight: 6
+  ScrapValue: 5
   Capabilities:
-  - rid: 8357564934323699985
+  - rid: 8357564954676298356
   references:
     version: 2
     RefIds:
-    - rid: 8357564934323699985
+    - rid: 8357564954676298356
       type: {class: WeaponCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
       data:
         Actions:
-        - {fileID: 11400000, guid: 25e431ef6ffea8240b0921c70ddff187, type: 2}
+        - {fileID: 11400000, guid: 96ee84b8846f345409bfd4ed0da90d89, type: 2}
         SecondaryMode: 2
         SecondaryAction: {fileID: 0}
         Aim:
-          FOVReduction: 18
-          FOVLerpSpeed: 10
-          SwayMultiplier: 0.25
-          RecoilMultiplier: 0.5
-        AmmoItem: {fileID: 11400000, guid: 9d155cd363aa28544b20c6a8a2dfd079, type: 2}
-        MagazineSize: 12
-        ReloadSeconds: 1.5
+          FOVReduction: 45
+          FOVLerpSpeed: 12
+          SwayMultiplier: 0.15
+          RecoilMultiplier: 0.4
+        AmmoItem: {fileID: 11400000, guid: 52a2a8b5972b3554db5159e35dac5bee, type: 2}
+        MagazineSize: 5
+        ReloadSeconds: 3
         Rig:
           SwingArcEuler: {x: -80, y: 0, z: 0}
           SwingDuration: 0.28
@@ -60,15 +60,15 @@ MonoBehaviour:
           ChargePoseLerpSpeed: 12
           ChargedSwingArcScale: 1.35
           ChargedSwingDurationScale: 1.2
-          RecoilBackKick: 0.06
-          RecoilPitchDegrees: -8
-          RecoilDuration: 0.12
-          WeaponSway: 0
-          SwayMaxDegrees: 1.25
-          SwayFrequency: 0.9
-          AimRecoil: 0
-          AimRecoilPitchPerShot: 3.5
-          AimRecoilHorizontalRandom: 1.5
+          RecoilBackKick: 0.16
+          RecoilPitchDegrees: -22
+          RecoilDuration: 0.18
+          WeaponSway: 1
+          SwayMaxDegrees: 3.5
+          SwayFrequency: 0.8
+          AimRecoil: 1
+          AimRecoilPitchPerShot: 9
+          AimRecoilHorizontalRandom: 2.5
           AimRecoilLerpSpeed: 18
           HasMuzzle: 1
           MuzzleLocalPosition: {x: -0.001, y: 0.121, z: 0.713}
