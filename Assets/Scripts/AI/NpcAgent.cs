@@ -15,7 +15,7 @@ namespace Starter.Shooter
 	[RequireComponent(typeof(NavMeshAgent))]
 	public sealed class NpcAgent : NPC
 	{
-		private enum RuntimeState : byte { Passive, Chase, ReturnHome }
+		private enum RuntimeState : byte { Passive, Chase, ReturnHome, Retreat, Guard, GuardChase }
 
 		// ── Behavior ──────────────────────────────────────────────────────────
 		[Header("Behavior")]
@@ -68,6 +68,13 @@ namespace Starter.Shooter
 		[Tooltip("Abandon chase when target leaves the movement area.")]
 		public bool LeashChaseToArea = true;
 
+		// ── Building (optional) ───────────────────────────────────────────────
+		[Header("Building (optional)")]
+		[Tooltip("Home/territory this NPC retreats into at dusk and defends at night. Leave null for free-roaming NPCs.")]
+		public NpcBuilding Building;
+		[Tooltip("NavMeshAgent speed while hustling home during the dusk lockdown.")]
+		[Min(0f)] public float RetreatSpeed = 3f;
+
 		// ── Scene refs ────────────────────────────────────────────────────────
 		[Header("Scene references (authority-only; usually set by NpcSpawner)")]
 		[Tooltip("Box the NPC roams within. Required for Wander; also leashes chase.")]
@@ -105,6 +112,9 @@ namespace Starter.Shooter
 		// Hostile bookkeeping.
 		private TickTimer _outOfRangeTimer;
 		private int _lastChaseRepathTick;
+
+		// Building retreat bookkeeping (authority-local).
+		private NpcExit _retreatExit;
 
 		// Interaction bookkeeping (authority-local).
 		private const float FaceLerpDuration = 0.3f;
@@ -173,6 +183,20 @@ namespace Starter.Shooter
 			_idleTimer         = TickTimer.CreateFromSeconds(Runner, 0f);
 			if (Behavior == NpcBehavior.Patrol && Path != null)
 				_patrolIndex = Path.ClosestIndex(transform.position);
+
+			// Join the household — the building drives retreat/hostility from the match phase. If we
+			// spawned mid-phase, RegisterMember immediately switches us into the right behavior.
+			if (Building != null)
+				Building.RegisterMember(this);
+		}
+
+		public override void Despawned(NetworkRunner runner, bool hasState)
+		{
+			if (HasStateAuthority && Building != null)
+			{
+				if (_retreatExit != null) _retreatExit.ReleaseClaim(this);
+				Building.UnregisterMember(this);
+			}
 		}
 
 		protected override void OnFixedUpdateAlive()
@@ -217,6 +241,9 @@ namespace Starter.Shooter
 				case RuntimeState.Passive:    TickPassive(target);    break;
 				case RuntimeState.Chase:      TickChase(target);      break;
 				case RuntimeState.ReturnHome: TickReturnHome(target); break;
+				case RuntimeState.Retreat:    TickRetreat();          break;
+				case RuntimeState.Guard:      TickGuard();            break;
+				case RuntimeState.GuardChase: TickGuardChase();       break;
 			}
 		}
 
@@ -380,6 +407,199 @@ namespace Starter.Shooter
 			_agent.speed     = MoveSpeed;
 			_outOfRangeTimer = default;
 			if (_agent.isOnNavMesh) _agent.SetDestination(_home);
+		}
+
+		// ─── Building: dusk retreat & night defense ───────────────────────────
+		// Driven by NpcBuilding off the match phase. All authority-only (NPC AI never runs on proxies).
+
+		/// <summary>DuskWarning: drop whatever we were doing, claim an exit to shut, and head home.</summary>
+		public void BeginRetreat()
+		{
+			if (HasStateAuthority == false) return;
+
+			AttendedPlayer = PlayerRef.None;
+			_wasAttending  = false;
+			_resumeTimer   = default;
+
+			_state       = RuntimeState.Retreat;
+			_agent.speed = RetreatSpeed;
+			if (_agent.enabled == false || _agent.isOnNavMesh == false) return;
+
+			_retreatExit = Building != null ? Building.ClaimNextOpenExit(this) : null;
+			if (_retreatExit != null) _agent.SetDestination(_retreatExit.CloseStandPoint);
+			else                      GoToInterior();
+		}
+
+		/// <summary>Night: the household turns hostile and defends its zone.</summary>
+		public void BeginHostileGuard()
+		{
+			if (HasStateAuthority == false) return;
+
+			AttendedPlayer = PlayerRef.None;
+			_wasAttending  = false;
+			_resumeTimer   = default;
+
+			if (_retreatExit != null) { _retreatExit.ReleaseClaim(this); _retreatExit = null; }
+			EnterGuard();
+		}
+
+		/// <summary>Day/Lobby: resume the normal passive routine.</summary>
+		public void ResumePassive()
+		{
+			if (HasStateAuthority == false) return;
+			if (_retreatExit != null) { _retreatExit.ReleaseClaim(this); _retreatExit = null; }
+			EnterPassive();
+		}
+
+		private void TickRetreat()
+		{
+			if (Building == null) { EnterPassive(); return; }
+
+			if (_retreatExit != null)
+			{
+				// A player may have smashed/pried this door before we reached it — drop it and move on.
+				if (_retreatExit.IsBreached || _retreatExit.IsClosed)
+				{
+					_retreatExit.ReleaseClaim(this);
+					AdvanceRetreat();
+					return;
+				}
+
+				if (_agent.hasPath == false) _agent.SetDestination(_retreatExit.CloseStandPoint);
+				if (HasArrived())
+				{
+					_retreatExit.AuthorityClose();
+					_retreatExit.ReleaseClaim(this);
+					AdvanceRetreat();
+				}
+				return;
+			}
+
+			// Nothing left to close — settle inside and start guarding.
+			if (HasArrived()) EnterGuard();
+		}
+
+		private void AdvanceRetreat()
+		{
+			_retreatExit = Building.ClaimNextOpenExit(this);
+			if (_retreatExit != null) _agent.SetDestination(_retreatExit.CloseStandPoint);
+			else                      GoToInterior();
+		}
+
+		private void GoToInterior()
+		{
+			if (_agent.isOnNavMesh) _agent.SetDestination(Building.GetRetreatPoint(this));
+		}
+
+		private void EnterGuard()
+		{
+			_state       = RuntimeState.Guard;
+			_agent.speed = MoveSpeed;
+			if (_agent.isOnNavMesh) _agent.ResetPath();
+			_idleTimer   = TickTimer.CreateFromSeconds(Runner, 0f);
+		}
+
+		private void TickGuard()
+		{
+			if (Building == null) { EnterPassive(); return; }
+
+			// Territorial only at night: attack any player who enters the defense zone.
+			if (Building.IsHostile && FindClosestPlayerInDefense() != null)
+			{
+				EnterGuardChase();
+				return;
+			}
+
+			// Otherwise wander inside the interior.
+			TickWanderWithin(Building.InteriorArea);
+		}
+
+		private void EnterGuardChase()
+		{
+			_state               = RuntimeState.GuardChase;
+			_agent.speed         = ChaseSpeed;
+			_outOfRangeTimer     = default;
+			_lastChaseRepathTick = (int)Runner.Tick - ChaseRepathTicks;
+		}
+
+		private void TickGuardChase()
+		{
+			var zone   = Building != null ? Building.DefenseZone : null;
+			var target = FindClosestPlayerInDefense();
+
+			// Detection is gated on the zone, so a target leaving it reads as null here — the NPC never
+			// chases beyond its house. Wait out the grace window, then give up and resume guarding.
+			if (target == null)
+			{
+				if (_outOfRangeTimer.IsRunning == false)
+					_outOfRangeTimer = TickTimer.CreateFromSeconds(Runner, ResetGraceSeconds);
+				else if (_outOfRangeTimer.Expired(Runner))
+					EnterGuard();
+				return;
+			}
+
+			_outOfRangeTimer = default;
+			FaceTarget(target.transform.position);
+
+			if ((int)Runner.Tick - _lastChaseRepathTick >= ChaseRepathTicks)
+			{
+				// Clamp the chase destination into the zone so the NPC holds the line at its border
+				// rather than stepping outside the house to reach a target hugging the edge.
+				Vector3 dest = zone != null ? zone.ClampInside(target.transform.position) : target.transform.position;
+				_agent.SetDestination(dest);
+				_lastChaseRepathTick = (int)Runner.Tick;
+			}
+
+			float range   = Attack != null ? Attack.EffectiveRange : 0f;
+			float distSqr = (target.transform.position - transform.position).sqrMagnitude;
+			if (range > 0f && distSqr <= range * range) TryAttack();
+		}
+
+		private void TickWanderWithin(NpcMovementArea area)
+		{
+			if (_agent.hasPath)
+			{
+				if (HasArrived())
+				{
+					_agent.ResetPath();
+					_idleTimer = TickTimer.CreateFromSeconds(Runner, RandRange(WanderIdleMin, WanderIdleMax));
+				}
+				return;
+			}
+
+			if (_idleTimer.ExpiredOrNotRunning(Runner))
+			{
+				if (area != null && area.TryRandomPoint(_rng, out Vector3 dest))
+					_agent.SetDestination(dest);
+				else
+					_idleTimer = TickTimer.CreateFromSeconds(Runner, 0.5f);
+			}
+		}
+
+		/// <summary>Closest living player inside the building's defense zone, or null. The AggroRadius
+		/// overlap is the broad-phase cull — size it to cover the defense zone from where the NPC guards.</summary>
+		private Player FindClosestPlayerInDefense()
+		{
+			if (Building == null) return null;
+			var zone = Building.DefenseZone;
+			if (zone == null) return null;
+
+			int count = Physics.OverlapSphereNonAlloc(
+				transform.position, AggroRadius, _overlapBuffer, CombatAction.HitMask, QueryTriggerInteraction.Ignore);
+
+			Player closest   = null;
+			float closestSqr = float.MaxValue;
+			for (int i = 0; i < count; i++)
+			{
+				var player = _overlapBuffer[i].GetComponentInParent<Player>();
+				if (player == null) continue;
+				if (player.Health == null || player.Health.IsAlive == false) continue;
+				if (zone.Contains(player.transform.position) == false) continue;
+
+				float sqr = (player.transform.position - transform.position).sqrMagnitude;
+				if (sqr < closestSqr) { closest = player; closestSqr = sqr; }
+			}
+			return closest;
 		}
 
 		// ─── Helpers ──────────────────────────────────────────────────────────

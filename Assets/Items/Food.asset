@@ -40,7 +40,7 @@ MonoBehaviour:
     version: 2
     RefIds:
     - rid: 8357564934323699988
-      type: {class: FoodCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
+      type: {class: FoodCapability, ns: Starter.Hunger, asm: Assembly-CSharp}
       data:
         UseCooldownSeconds: 1
         HungerAmount: 25

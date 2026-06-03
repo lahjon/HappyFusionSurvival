@@ -82,5 +82,15 @@ namespace Starter.Shooter
 
 		/// <summary>Per-frame logic that runs only on the holding player's own instance (the scan/ping work).</summary>
 		protected virtual void OnOwnerTick() { }
+
+		/// <summary>
+		/// Local primary-use hook: called once on the holding player's own instance when LMB is pressed while
+		/// this gadget is held (routed from <c>Player.ProcessFireInput</c> via the inventory, so it shares the
+		/// single Fire input authority — no parallel input read). Use for purely-local effects: an active radar
+		/// ping, a flashlight toggle, a local UI readout. Networked effects (movement, spawning a NetworkObject)
+		/// must NOT live here — route them through the networked tick like the grapple does on the player.
+		/// Only fires when the gadget's <c>GadgetCapability.UsesPrimary</c> is true. Default no-op.
+		/// </summary>
+		public virtual void OnUsePressed() { }
 	}
 }

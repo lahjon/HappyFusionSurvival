@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 215c4744854153b4a948021ef1445cc3, type: 3}
+  m_Name: RubberDuck
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.ItemDefinition
+  Id: 22
+  DisplayName: Rubber Duck
+  Icon: {fileID: 21300000, guid: 8f6a9222ef0653d4693955c8790e2d17, type: 3}
+  Description: A squeaky little rubber duck. Mostly decorative.
+  Stats: []
+  Visual:
+    Mesh: {fileID: 4300000, guid: 60aa0bac948e4264eae104d9272958ee, type: 3}
+    Material: {fileID: 2100000, guid: d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1, type: 2}
+    WorldScale: {x: 0.5, y: 0.5, z: 0.5}
+    WorldBob: 0
+    WorldRotate: 0
+    PromptOffset: {x: 0, y: 0, z: 0}
+    HeldScale: {x: 0.5, y: 0.5, z: 0.5}
+    HeldLocalPosition: {x: 0, y: 0, z: 0}
+    HeldLocalEuler: {x: 0, y: 0, z: 0}
+    VisualOverride: {fileID: 1289544612947206, guid: 45894ac8f819c924cada460357b598cc, type: 3}
+  WorldPrefab: {fileID: 0}
+  HandPrefab: {fileID: 0}
+  MaxStack: 8
+  Weight: 0
+  ScrapValue: 1
+  BaseValue: 5
+  Floats: 1
+  Capabilities: []
+  references:
+    version: 2
+    RefIds: []

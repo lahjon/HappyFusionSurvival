@@ -123,7 +123,35 @@ namespace Starter.Shooter
 					_lastSeenPhase = phase;
 				}
 
+				TickZoneDamage();
 				TickSleepSkip();
+			}
+		}
+
+		// Out-of-zone "Purge grid" damage. While the LightGrid's safe circle is collapsing during Night, any living
+		// player standing in a blacked-out zone takes periodic environmental damage (no attacker — a "dead is dead"
+		// elimination, exactly like the fall-through kill). Host-authority only; clients receive the Health change.
+		private float _zoneDamageAccum;
+		private void TickZoneDamage()
+		{
+			var grid = LightGrid.Instance;
+			if (grid == null || MatchManager.Instance == null || MatchManager.Instance.Phase != MatchPhase.Night)
+			{
+				_zoneDamageAccum = 0f;
+				return;
+			}
+
+			float interval = Mathf.Max(0.1f, grid.DamageInterval);
+			_zoneDamageAccum += Runner.DeltaTime;
+			if (_zoneDamageAccum < interval) return;
+			_zoneDamageAccum -= interval;
+
+			for (int i = 0; i < _players.Count; i++)
+			{
+				var player = _players[i];
+				if (player == null || player.Health == null || player.Health.IsAlive == false) continue;
+				if (grid.IsLethalAt(player.KCC.Position))
+					player.Health.TakeHit(grid.OutOfZoneDamage);
 			}
 		}
 

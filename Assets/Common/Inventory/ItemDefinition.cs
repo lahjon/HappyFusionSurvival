@@ -55,6 +55,19 @@ namespace Starter.Common.Inventory
 		[Min(0)]
 		public int BaseValue = 10;
 
+		[Header("World physics")]
+		[Tooltip("ON: when dropped in a WaterVolume, this item floats to the surface and self-rights " +
+		         "(e.g. a sealed case, a cork). OFF (default): it sinks. Read by the generic pickup; bespoke " +
+		         "WorldPrefab items use this too via PickupableItem.")]
+		public bool Floats = false;
+
+		[Tooltip("ON: override the dropped item's rigidbody center of mass with the offset below. A low COM " +
+		         "(negative Y) makes the item bottom-heavy so it self-rights and floats the right way up. " +
+		         "Only relevant when Floats is on — a sinking item keeps Unity's auto-computed COM.")]
+		public bool OverrideCenterOfMass = false;
+		[Tooltip("Local-space center of mass when the override is on.")]
+		public Vector3 CenterOfMass = Vector3.zero;
+
 		[Header("Capabilities")]
 		[Tooltip("Composable behavior modules. Add a WeaponCapability to make this item a weapon, a " +
 		         "PlaceableCapability to make it placeable, a ConsumableCapability to make it usable, etc. " +
@@ -80,5 +93,23 @@ namespace Starter.Common.Inventory
 		}
 
 		public bool HasCapability<T>() where T : ItemCapability => GetCapability<T>() != null;
+
+		/// <summary>
+		/// The <c>InventorySlot.Loaded</c> value a fresh unit of this item should enter a slot with — the max
+		/// <see cref="ItemCapability.InitialLoaded"/> across its capabilities (e.g. a gadget's charge count).
+		/// 0 for ordinary items. Used by <c>InventoryOps.TryAdd</c> when filling an empty slot.
+		/// </summary>
+		public short InitialLoaded()
+		{
+			if (Capabilities == null) return 0;
+			short max = 0;
+			for (int i = 0; i < Capabilities.Count; i++)
+			{
+				if (Capabilities[i] == null) continue;
+				short v = Capabilities[i].InitialLoaded;
+				if (v > max) max = v;
+			}
+			return max;
+		}
 	}
 }

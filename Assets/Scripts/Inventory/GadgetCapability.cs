@@ -21,6 +21,25 @@ namespace Starter.Shooter
 	public abstract class GadgetCapability : ItemCapability
 	{
 		/// <summary>
+		/// True if this gadget does something on the primary (LMB) use button. Passive gadgets (the radar)
+		/// leave this false and just run while held. When true, <c>Player.ProcessFireInput</c> claims LMB for
+		/// the gadget: a networked gadget (the grapple) is handled on the player; a purely-local gadget gets
+		/// its <see cref="HeldGadget.OnUsePressed"/> hook fired on the owning client.
+		/// </summary>
+		public virtual bool UsesPrimary => false;
+
+		/// <summary>
+		/// Number of uses this gadget carries. 0 = unlimited (no charge gating). When positive, the live count
+		/// rides the holding slot's <c>InventorySlot.Loaded</c> — seeded to this value when the item enters a
+		/// slot (via <see cref="InitialLoaded"/>) and decremented per use, exactly like a weapon magazine but
+		/// with no reload: spent to zero, the gadget is useless.
+		/// </summary>
+		public virtual int MaxCharges => 0;
+
+		/// <inheritdoc/>
+		public override short InitialLoaded => (short)Mathf.Max(0, MaxCharges);
+
+		/// <summary>
 		/// Attach this gadget's runtime behavior to <paramref name="host"/> (the held hand instance) and
 		/// initialize it from this data. Returns the spawned gadget. Called once per equip.
 		/// </summary>

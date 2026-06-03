@@ -39,6 +39,32 @@ namespace Starter.Shooter
 			return $"add_scraps: requested +{amount} for local player.";
 		}
 
+		[Command("heal", "Heals the local player by N health (clamped to max). Replicated via the state authority.")]
+		private static string Heal(int amount)
+		{
+			var player = FindLocalPlayer();
+			if (player == null) return "heal: no local player found (not in a match?).";
+			if (player.Health == null) return "heal: local player has no Health component.";
+			if (amount <= 0) return $"heal: amount must be positive (got {amount}).";
+			if (player.Health.IsAlive == false) return "heal: local player is dead — nothing to heal.";
+
+			player.Health.RPC_DebugHeal(amount);
+			return $"heal: requested +{amount} health for the local player.";
+		}
+
+		[Command("take_damage", "Deals N unattributed damage to the local player (ignores PvP phase/team gate). Replicated via the state authority.")]
+		private static string TakeDamage(int amount)
+		{
+			var player = FindLocalPlayer();
+			if (player == null) return "take_damage: no local player found (not in a match?).";
+			if (player.Health == null) return "take_damage: local player has no Health component.";
+			if (amount <= 0) return $"take_damage: amount must be positive (got {amount}).";
+			if (player.Health.IsAlive == false) return "take_damage: local player is already dead.";
+
+			player.Health.RPC_DebugTakeDamage(amount);
+			return $"take_damage: requested {amount} damage to the local player.";
+		}
+
 		[Command("set_stamina", "Sets the local player's stamina. Negative value maxes it out (9999). Replicated via the state authority.")]
 		private static string SetStamina(int value)
 		{
@@ -244,6 +270,16 @@ namespace Starter.Shooter
 				: $"action={(action != null ? action.name : "<null>")} canFire={player.ActionInvoker.CanFire} charging={player.ActionInvoker.IsCharging}";
 
 			return $"armstatus: {matchPart} | {firePart}";
+		}
+
+		[Command("set_dusk", "Forces the DuskWarning phase — sounds the town siren and sends NPCs retreating to their buildings to shut the exits. Use set_nighttime next to turn them hostile, set_daytime to reset. Replicated.")]
+		private static string SetDusk()
+		{
+			var match = MatchManager.Instance;
+			if (match == null) return "set_dusk: no MatchManager found (not in a match?).";
+
+			match.RPC_DebugForcePhase(MatchPhase.DuskWarning);
+			return "set_dusk: forced DuskWarning (siren + NPC retreat). set_nighttime → hostility, set_daytime → reset.";
 		}
 
 		[Command("set_daytime", "Forces DAY — MatchManager Day phase + TimeManager visual day. Replicated.")]

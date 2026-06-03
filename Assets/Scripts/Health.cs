@@ -147,7 +147,8 @@ namespace Starter.Shooter
 				// entity remains "alive" for the rest of the gameplay logic; the downed flow owns
 				// the bleed-out timer separately. If no hook or the hook declines, fall through to
 				// the normal death cooldown.
-				if (AuthorityDownHook != null && AuthorityDownHook())
+				bool downHandled = AuthorityDownHook != null && AuthorityDownHook();
+				if (downHandled)
 				{
 					CurrentHealth = 1;
 				}
@@ -158,10 +159,14 @@ namespace Starter.Shooter
 					_deathCooldown = TickTimer.CreateFromSeconds(Runner,  DeathTime);
 				}
 
-				// Credit the elimination to the attacker's team even when the down-hook caught the blow —
-				// putting another player into downed is the kill event for tiebreaker scoring. Only counts
-				// during Night, only when a real player struck a real player.
-				if (isPlayerTarget
+				// Credit the elimination to the attacker's team the moment the victim is first taken out of
+				// the fight: either the down-hook just caught the blow (player → downed) or there's no hook at
+				// all (bot / non-downable entity dies outright). A finishing hit on an ALREADY-downed player
+				// (hook present but declined) must not re-credit — that takedown was scored when they went down.
+				// Only counts during Night, only when a real player struck a real player.
+				bool firstTakedown = downHandled || AuthorityDownHook == null;
+				if (firstTakedown
+					&& isPlayerTarget
 					&& attacker != PlayerRef.None
 					&& MatchManager.Instance != null
 					&& MatchManager.Instance.Phase == MatchPhase.Night)
@@ -228,6 +233,25 @@ namespace Starter.Shooter
 			if (IsAlive == false || amount <= 0) return;
 
 			CurrentHealth = Mathf.Min(InitialHealth, CurrentHealth + amount);
+		}
+
+		/// <summary>Debug-only: routes a <see cref="Heal"/> from the controlling client up to the state
+		/// authority so debug-console tools (Quantum Console <c>heal</c>) replicate correctly off-host.
+		/// Called on the local entity (input authority); executes on the host.</summary>
+		[Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
+		public void RPC_DebugHeal(int amount)
+		{
+			Heal(amount);
+		}
+
+		/// <summary>Debug-only: routes unattributed self-damage from the controlling client up to the state
+		/// authority so debug-console tools (Quantum Console <c>take_damage</c>) replicate correctly off-host.
+		/// Uses the <see cref="PlayerRef.None"/> path so it bypasses the PvP phase/team gate and lands in any
+		/// phase. Called on the local entity (input authority); executes on the host.</summary>
+		[Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
+		public void RPC_DebugTakeDamage(int amount)
+		{
+			TakeHit(amount);
 		}
 
 		public override void Spawned()

@@ -171,6 +171,22 @@ namespace Starter.Shooter
 		/// <summary>Rounds in the held weapon's magazine (the selected slot's Loaded). 0 if nothing magazine-fed is held.</summary>
 		public int ActiveLoaded => ActiveUsesMagazine ? Slots[SelectedSlot].Loaded : 0;
 
+		/// <summary>Gadget facet of the held item, or null. Source for the charge accessors below.</summary>
+		public GadgetCapability ActiveGadget => SelectedDefinition != null ? SelectedDefinition.GetCapability<GadgetCapability>() : null;
+
+		/// <summary>True if the held gadget is charge-limited (drives the charge HUD + the fire gate).</summary>
+		public bool ActiveUsesCharges
+		{
+			get
+			{
+				var g = ActiveGadget;
+				return g != null && g.MaxCharges > 0;
+			}
+		}
+
+		/// <summary>Charges left in the held gadget (the selected slot's Loaded). 0 if no charge gadget is held.</summary>
+		public int ActiveCharges => ActiveUsesCharges ? Slots[SelectedSlot].Loaded : 0;
+
 		/// <summary>Reserve rounds for the held weapon's ammo type, summed across all hotbar slots.</summary>
 		public int ActiveReserve
 		{
@@ -232,9 +248,12 @@ namespace Starter.Shooter
 
 			if (HasStateAuthority && _startingItem != null && _startingItem.Id != 0 && AllSlotsEmpty())
 			{
-				// Seed a magazine-fed starting weapon with a full magazine so it's ready to fire.
+				// Seed the slot's Loaded: a magazine-fed weapon starts with a full magazine; a charge gadget
+				// (grapple) starts with its full charges (InitialLoaded). Ordinary items stay 0.
 				var startWeapon = _startingItem.GetCapability<WeaponCapability>();
-				short loaded = startWeapon != null && startWeapon.UsesMagazine ? (short)startWeapon.MagazineSize : (short)0;
+				short loaded = startWeapon != null && startWeapon.UsesMagazine
+					? (short)startWeapon.MagazineSize
+					: _startingItem.InitialLoaded();
 				Slots.Set(0, new InventorySlot { ItemId = _startingItem.Id, Count = 1, Loaded = loaded });
 				SelectedSlot = 0;
 
@@ -643,6 +662,34 @@ namespace Starter.Shooter
 			s.Loaded -= 1;
 			Slots.Set(slot, s);
 			return true;
+		}
+
+		/// <summary>
+		/// Spend one charge from the held gadget (grapple). Predicted on every peer via the networked Loaded
+		/// write, exactly like <see cref="TryConsumeChamberedRound"/> — no recharge, so at zero the gadget is
+		/// spent. Returns false when no charge gadget is held or it is already empty.
+		/// </summary>
+		public bool TryConsumeCharge()
+		{
+			if (ActiveUsesCharges == false) return false;
+			int slot = SelectedSlot;
+			if (slot < 0 || slot >= SlotCount) return false;
+			var s = Slots[slot];
+			if (s.IsEmpty || s.Loaded <= 0) return false;
+			s.Loaded -= 1;
+			Slots.Set(slot, s);
+			return true;
+		}
+
+		/// <summary>
+		/// Fire the local-only <see cref="HeldGadget.OnUsePressed"/> hook of the currently-held gadget (active
+		/// radar ping, flashlight toggle, …). Call on the owning client only — the effect is local. Networked
+		/// gadgets (the grapple) do NOT route through here; they are handled on the player tick.
+		/// </summary>
+		public void UseSelectedGadgetLocal()
+		{
+			if (_heldInstance != null && _heldInstance.TryGetComponent<HeldGadget>(out var gadget))
+				gadget.OnUsePressed();
 		}
 
 		/// <summary>

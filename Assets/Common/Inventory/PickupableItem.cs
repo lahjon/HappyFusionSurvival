@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using Fusion;
-using Fusion.Addons.SimpleKCC;
 using Starter.Common.Interactions;
 using Starter.Shooter;
 using UnityEngine;
@@ -13,13 +12,8 @@ namespace Starter.Common.Inventory
 	/// remote clients read the networked position so they see the same arc.
 	/// </summary>
 	[RequireComponent(typeof(NetworkObject))]
-	public sealed class PickupableItem : NetworkBehaviour, IInteractable, IKnockbackable, IBuoyantBody
+	public sealed class PickupableItem : PhysicsBody, IInteractable
 	{
-		[Header("Water")]
-		[Tooltip("ON: this dropped item floats in any WaterVolume (e.g. a cork, a bottle). " +
-		         "OFF (default): it sinks. See WaterVolume / IBuoyantBody.")]
-		[SerializeField] private bool _floats = false;
-
 		[Header("Authoring (scene-placed pickups)")]
 		[Tooltip("Used when a pickup is placed in the scene. Programmatic spawns call Initialize() instead.")]
 		[SerializeField] private ItemDefinition _initialItem;
@@ -40,20 +34,6 @@ namespace Starter.Common.Inventory
 		[Tooltip("Max distance from the player at which this can be picked up.")]
 		public float PickupRange = 2f;
 
-		[Header("Player Push")]
-		[Tooltip("Extra radius (m) beyond the item's collider used to detect player overlap for shove-out. SimpleKCC is kinematic, so PhysX never imparts velocity on contact — this is what makes the item move when you walk into it.")]
-		[SerializeField] private float _playerPushRadius = 0.2f;
-		[Tooltip("Baseline nudge speed (m/s) when a stationary player just touches the item.")]
-		[SerializeField] private float _baselinePushSpeed = 0.5f;
-		[Tooltip("Upper bound on the push speed (m/s) so a sprinting player can't kick items across the map.")]
-		[SerializeField] private float _maxPushSpeed = 4f;
-
-		[Header("Hit Response")]
-		[Tooltip("Multiplier converting a CombatAction's KnockbackDistance (meters) into initial horizontal velocity (m/s) when shot or melee'd.")]
-		[SerializeField] private float _knockbackImpulseScale = 4f;
-		[Tooltip("Upward velocity (m/s) added per unit of KnockbackDistance, for a small toss arc.")]
-		[SerializeField] private float _knockbackUpScale = 2f;
-
 		[Networked, OnChangedRender(nameof(OnItemIdChanged))] public short ItemId { get; set; }
 		[Networked] public short Count { get; set; }
 		[Networked] public Vector3 NetPosition { get; set; }
@@ -70,11 +50,26 @@ namespace Starter.Common.Inventory
 		public ItemDefinition Definition =>
 			ItemDatabase.Instance != null ? ItemDatabase.Instance.GetById(ItemId) : null;
 
-		private Rigidbody _rb;
-		private Collider _col;
+		// A dropped item's float behaviour is a property of the item type, not the (shared) generic pickup
+		// prefab, so source it from the ItemDefinition. Falls back to the base prefab flag when the item
+		// can't resolve yet (e.g. before ItemId replicates).
+		public override bool Floats => Definition != null ? Definition.Floats : _floats;
+
+		// Center of mass is likewise per-item (a low COM keeps a floating item upright), so read it from
+		// the ItemDefinition; fall back to the prefab override when the item can't resolve.
+		protected override bool TryGetCenterOfMass(out Vector3 com)
+		{
+			var def = Definition;
+			if (def != null && def.OverrideCenterOfMass)
+			{
+				com = def.CenterOfMass;
+				return true;
+			}
+			return base.TryGetCenterOfMass(out com);
+		}
+
 		private bool _isSpawned;
 		private GameObject _visualOverrideInstance;
-		private static readonly Collider[] s_pushBuffer = new Collider[8];
 
 		/// <summary>Authority-only. Call right after Runner.Spawn for programmatic pickups.</summary>
 		public void Initialize(short itemId, short count)
@@ -86,8 +81,7 @@ namespace Starter.Common.Inventory
 		public override void Spawned()
 		{
 			_isSpawned = true;
-			_rb = GetComponent<Rigidbody>();
-			_col = GetComponentInChildren<Collider>();
+			CachePhysicsRefs();
 
 			if (Object.HasStateAuthority)
 			{
@@ -119,15 +113,22 @@ namespace Starter.Common.Inventory
 				_rb.interpolation = RigidbodyInterpolation.None;
 			}
 
-			// Build the visual now in case ItemId was already set before Spawned (scene-placed / SA).
-			// For programmatic spawns that call Initialize() after Spawn, OnItemIdChanged covers it.
+			// Build the visual + apply the item's physics tuning now in case ItemId was already set before
+			// Spawned (scene-placed / SA). For programmatic spawns that call Initialize() after Spawn,
+			// OnItemIdChanged covers both.
 			ConfigureVisual();
+			ApplyCenterOfMass();
 		}
 
 		// ItemId is the single networked input for the visual — every peer builds the same model
 		// deterministically from it (no networked visual state). Fires on SA when Initialize/loot sets
-		// it, and on proxies when it replicates.
-		private void OnItemIdChanged() => ConfigureVisual();
+		// it, and on proxies when it replicates. It also resolves the ItemDefinition's physics tuning,
+		// so re-apply the center of mass here.
+		private void OnItemIdChanged()
+		{
+			ConfigureVisual();
+			ApplyCenterOfMass();
+		}
 
 		/// <summary>
 		/// Configure the generic pickup's Visual child from the item's <see cref="ItemVisual"/>:
@@ -191,6 +192,7 @@ namespace Starter.Common.Inventory
 			if (_rb != null)
 			{
 				ApplyPlayerPush();
+				TickSettle(Runner.DeltaTime);
 				NetPosition = _rb.position;
 				NetRotation = _rb.rotation;
 			}
@@ -265,80 +267,12 @@ namespace Starter.Common.Inventory
 				c.isTrigger = attached;
 		}
 
-		// SimpleKCC is a kinematic capsule, so PhysX never imparts contact velocity to the
-		// dynamic pickup Rigidbody. We do it manually: each tick on SA, check for player
-		// overlap and shove the item away from the player along the horizontal.
-		private void ApplyPlayerPush()
-		{
-			if (_rb.isKinematic || _col == null) return;
-
-			Vector3 center = _rb.position;
-			var ext = _col.bounds.extents;
-			float radius = Mathf.Max(ext.x, ext.y, ext.z) + _playerPushRadius;
-
-			int count = Physics.OverlapSphereNonAlloc(center, radius, s_pushBuffer, ~0, QueryTriggerInteraction.Ignore);
-			for (int i = 0; i < count; i++)
-			{
-				var col = s_pushBuffer[i];
-				if (col == null) continue;
-				if (col.attachedRigidbody == _rb) continue;
-
-				var kcc = col.GetComponentInParent<SimpleKCC>();
-				if (kcc == null) continue;
-
-				Vector3 away = center - kcc.transform.position;
-				away.y = 0f;
-				if (away.sqrMagnitude < 1e-6f)
-				{
-					// Player standing directly on the item — pick an arbitrary horizontal direction.
-					away = new Vector3(Random.Range(-1f, 1f), 0f, Random.Range(-1f, 1f));
-					if (away.sqrMagnitude < 1e-6f) away = Vector3.right;
-				}
-				away.Normalize();
-
-				Vector3 playerVel = kcc.RealVelocity; playerVel.y = 0f;
-				float intoSpeed = Mathf.Max(Vector3.Dot(playerVel, away), 0f);
-				float pushSpeed = Mathf.Min(intoSpeed + _baselinePushSpeed, _maxPushSpeed);
-
-				Vector3 newVel = away * pushSpeed;
-				newVel.y = _rb.linearVelocity.y;
-				_rb.linearVelocity = newVel;
-				if (_rb.IsSleeping()) _rb.WakeUp();
-			}
-		}
-
 		public override void Render()
 		{
 			if (Object.HasStateAuthority == false)
 			{
 				transform.SetPositionAndRotation(NetPosition, NetRotation);
 			}
-		}
-
-		// --- IBuoyantBody: WaterVolume reads these to apply buoyancy on the host ---
-
-		Rigidbody IBuoyantBody.Body => _rb;
-		bool IBuoyantBody.Floats => _floats;
-
-		// --- IKnockbackable ---
-
-		// Combat actions (bat, punch, pistol) push items when they hit. We just convert
-		// the KnockbackDistance to an initial impulse on the Rigidbody — friction/damping
-		// handle the rest.
-		void IKnockbackable.ApplyKnockback(Vector3 fromPosition, float distance)
-		{
-			if (Object.HasStateAuthority == false) return;
-			if (_rb == null || _rb.isKinematic || distance <= 0f) return;
-
-			Vector3 dir = transform.position - fromPosition;
-			dir.y = 0f;
-			if (dir.sqrMagnitude < 1e-6f) dir = transform.forward;
-			dir.Normalize();
-
-			Vector3 vel = dir * (distance * _knockbackImpulseScale);
-			vel.y = Mathf.Max(_rb.linearVelocity.y, distance * _knockbackUpScale);
-			_rb.linearVelocity = vel;
-			if (_rb.IsSleeping()) _rb.WakeUp();
 		}
 
 		/// <summary>

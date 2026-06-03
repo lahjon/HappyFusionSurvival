@@ -16,5 +16,13 @@ namespace Starter.Common.Inventory
 	[Serializable]
 	public abstract class ItemCapability
 	{
+		/// <summary>
+		/// Initial <c>InventorySlot.Loaded</c> for a fresh unit carrying this capability — e.g. a gadget's
+		/// charge count. 0 means "no per-slot load". <see cref="ItemDefinition.InitialLoaded"/> takes the max
+		/// across an item's capabilities and seeds the slot with it on add. Weapons deliberately stay 0 here:
+		/// magazines are seeded explicitly at spawn and refilled by the reload cycle, so picked-up guns arrive
+		/// empty by design.
+		/// </summary>
+		public virtual short InitialLoaded => 0;
 	}
 }

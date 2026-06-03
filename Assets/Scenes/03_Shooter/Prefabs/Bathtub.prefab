@@ -625,7 +625,7 @@ MonoBehaviour:
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.WaterVolume
   _surfaceOverride: {fileID: 0}
-  _floatBuoyancy: 22
+  _floatBuoyancy: 35
   _sinkBuoyancy: 4
   _linearDrag: 3
   _angularDrag: 2

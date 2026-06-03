@@ -40,14 +40,28 @@ namespace Starter.Shooter
 		[Min(0.1f)] public float CellSize = 20f;
 
 		[Tooltip("Number of zone columns along world X.")]
-		[Min(1)] public int ColumnsX = 8;
+		[Min(1)] public int ColumnsX = 10;
 
 		[Tooltip("Number of zone columns along world Z.")]
-		[Min(1)] public int ColumnsZ = 8;
+		[Min(1)] public int ColumnsZ = 10;
 
-		[Header("Night blackout")]
-		[Tooltip("Fraction of zones still powered at the very end of night. The lit core shrinks toward the center to this size across the Night phase.")]
-		[Range(0f, 1f)] public float EndLitFraction = 0.15f;
+		[Header("Night collapse (PUBG-style shrinking zone)")]
+		[Tooltip("Side length (in cells) of the central safe core that survives to the end of Night. The collapse stops " +
+			"once the lit circle has shrunk to enclose just this CoreSize×CoreSize block. 10×10 grid + CoreSize 4 → the " +
+			"central 4×4 stays lit.")]
+		[Min(1)] public int CoreSize = 4;
+
+		[Tooltip("Seconds the safe circle holds at each step before collapsing one cell-width (one ring) closer to the " +
+			"center. The current outer ring fully goes dark, then after this delay the next ring inward collapses.")]
+		[Min(0.1f)] public float SecondsPerStep = 10f;
+
+		[Header("Out-of-zone damage (the Purge grid)")]
+		[Tooltip("Damage dealt to a player standing in a blacked-out (collapsed) zone during Night, applied every " +
+			"DamageInterval seconds. Host-authority, environmental (no attacker). Consumed by GameManager's per-tick loop.")]
+		[Min(0)] public int OutOfZoneDamage = 5;
+
+		[Tooltip("Seconds between out-of-zone damage ticks.")]
+		[Min(0.1f)] public float DamageInterval = 1f;
 
 		[Tooltip("Y height at which the editor gizmo grid is drawn (purely cosmetic).")]
 		public float GizmoHeight = 0f;
@@ -87,6 +101,15 @@ namespace Starter.Shooter
 		/// order, so the lit area collapses toward the center. Deterministic — identical on every peer.</summary>
 		private int[] _blackoutOrder = Array.Empty<int>();
 		private int _orderedForZoneCount = -1;
+
+		/// <summary>Cell-center distance from the grid center for each zone (world units). Drives the circular Night
+		/// collapse. Deterministic — identical on every peer.</summary>
+		private float[] _zoneDist = Array.Empty<float>();
+
+		/// <summary>Radius (world units) enclosing every zone (collapse start) and the central CoreSize² core (collapse
+		/// end). Computed in <see cref="RebuildBlackoutOrder"/> from the pure grid layout.</summary>
+		private float _startRadius;
+		private float _coreRadius;
 
 		/// <summary>Set by the debug console (<c>blackout</c>). While true the authority holds a forced lit fraction
 		/// instead of running the night schedule. Authority-only — the schedule only runs there.</summary>
@@ -149,11 +172,13 @@ namespace Starter.Shooter
 			switch (mm.Phase)
 			{
 				case MatchPhase.Night:
-					// Night progress 0..1. Lit fraction shrinks from 1 → EndLitFraction across the phase.
-					float t = mm.NightMaxDuration > 0f
-						? Mathf.Clamp01(1f - mm.RemainingPhaseSeconds / mm.NightMaxDuration)
-						: 1f;
-					ApplyLitFraction(Mathf.Lerp(1f, EndLitFraction, t));
+					// PUBG-style collapse: the safe circle holds, then steps one cell-width (one ring) closer to the
+					// center every SecondsPerStep, until it encloses just the central CoreSize×CoreSize block. Each ring
+					// fully blacks out before the next collapses — driven by a discrete step index, not a smooth lerp.
+					float elapsed = mm.NightMaxDuration > 0f ? mm.NightMaxDuration - mm.RemainingPhaseSeconds : 0f;
+					int   step    = SecondsPerStep > 0f ? Mathf.Max(0, Mathf.FloorToInt(elapsed / SecondsPerStep)) : 0;
+					float radius  = Mathf.Max(_coreRadius, _startRadius - step * CellSize);
+					ApplyLitRadius(radius);
 					break;
 
 				default:
@@ -173,6 +198,16 @@ namespace Starter.Shooter
 		{
 			int zone = WorldToZone(worldPos);
 			return zone < 0 ? 1f : GetZonePower(zone);
+		}
+
+		/// <summary>True when a player at <paramref name="worldPos"/> should take Purge-grid damage: only during Night,
+		/// and only when standing in a blacked-out (collapsed) zone. Positions outside the authored grid read as powered,
+		/// so they are never lethal. Consumed by GameManager's host-authority damage tick.</summary>
+		public bool IsLethalAt(Vector3 worldPos)
+		{
+			var mm = MatchManager.Instance;
+			if (mm == null || mm.Phase != MatchPhase.Night) return false;
+			return GetZonePowerAt(worldPos) <= 0f;
 		}
 
 		/// <summary>Power [0,1] for an explicit zone index. Out-of-range → 1 (powered).</summary>
@@ -271,6 +306,28 @@ namespace Starter.Shooter
 			if (changed) PowerVersion++;
 		}
 
+		/// <summary>Power every zone whose cell-center lies within <paramref name="radius"/> of the grid center (the lit
+		/// safe circle); black out the rest. Used by the Night collapse so the lit area is a shrinking disc.</summary>
+		private void ApplyLitRadius(float radius)
+		{
+			RebuildBlackoutOrder();
+
+			float limit = radius + CellSize * 0.01f; // epsilon so cells exactly on the boundary stay lit
+			int   count = ZoneCount;
+			bool  changed = false;
+			for (int z = 0; z < count; z++)
+			{
+				float want = _zoneDist[z] <= limit ? 1f : 0f;
+				if (ZonePower[z] != want)
+				{
+					ZonePower.Set(z, want);
+					changed = true;
+				}
+			}
+
+			if (changed) PowerVersion++;
+		}
+
 		private void SetAllZones(float value)
 		{
 			bool changed = false;
@@ -290,9 +347,10 @@ namespace Starter.Shooter
 		private void RebuildBlackoutOrder()
 		{
 			int count = ZoneCount;
-			if (_orderedForZoneCount == count && _blackoutOrder.Length == count) return;
+			if (_orderedForZoneCount == count && _blackoutOrder.Length == count && _zoneDist.Length == count) return;
 
 			_blackoutOrder = new int[count];
+			_zoneDist      = new float[count];
 			for (int i = 0; i < count; i++) _blackoutOrder[i] = i;
 
 			// Geometric center of the grid in world space.
@@ -301,12 +359,30 @@ namespace Starter.Shooter
 				GizmoHeight,
 				GridOrigin.z + ColumnsZ * CellSize * 0.5f);
 
+			// Central CoreSize×CoreSize block of cells that survives to the end of Night.
+			int core     = Mathf.Clamp(CoreSize, 1, Mathf.Min(ColumnsX, ColumnsZ));
+			int coreMinX  = (ColumnsX - core) / 2, coreMaxX = coreMinX + core - 1;
+			int coreMinZ  = (ColumnsZ - core) / 2, coreMaxZ = coreMinZ + core - 1;
+
+			// _startRadius encloses the farthest cell (collapse start, all lit); _coreRadius encloses the core's
+			// farthest cell (collapse end). Both are pure functions of the layout, so every peer agrees.
+			_startRadius = 0f;
+			_coreRadius  = 0f;
+			for (int z = 0; z < count; z++)
+			{
+				float d = (ZoneCenter(z) - center).magnitude;
+				_zoneDist[z] = d;
+				if (d > _startRadius) _startRadius = d;
+
+				int cx = z % ColumnsX, cz = z / ColumnsX;
+				if (cx >= coreMinX && cx <= coreMaxX && cz >= coreMinZ && cz <= coreMaxZ && d > _coreRadius)
+					_coreRadius = d;
+			}
+
 			Array.Sort(_blackoutOrder, (a, b) =>
 			{
-				float da = (ZoneCenter(a) - center).sqrMagnitude;
-				float db = (ZoneCenter(b) - center).sqrMagnitude;
-				int cmp = db.CompareTo(da); // descending — farthest (outermost) first
-				return cmp != 0 ? cmp : a.CompareTo(b); // tie-break by index for determinism
+				int cmp = _zoneDist[b].CompareTo(_zoneDist[a]); // descending — farthest (outermost) first
+				return cmp != 0 ? cmp : a.CompareTo(b);          // tie-break by index for determinism
 			});
 
 			_orderedForZoneCount = count;

@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 215c4744854153b4a948021ef1445cc3, type: 3}
+  m_Name: Apple
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.ItemDefinition
+  Id: 21
+  DisplayName: Apple
+  Icon: {fileID: 0}
+  Description: A crunchy red apple. Restores a little health when eaten.
+  Stats: []
+  Visual:
+    Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+    Material: {fileID: 0}
+    WorldScale: {x: 0.25, y: 0.25, z: 0.25}
+    WorldBob: 0
+    WorldRotate: 0
+    PromptOffset: {x: 0, y: 0, z: 0}
+    HeldScale: {x: 0.4, y: 0.4, z: 0.4}
+    HeldLocalPosition: {x: 0, y: 0, z: 0}
+    HeldLocalEuler: {x: 0, y: 0, z: 0}
+    VisualOverride: {fileID: 0}
+  WorldPrefab: {fileID: 0}
+  HandPrefab: {fileID: 0}
+  MaxStack: 8
+  Weight: 0
+  ScrapValue: 1
+  BaseValue: 15
+  Capabilities:
+  - rid: 8357564934323700002
+  references:
+    version: 2
+    RefIds:
+    - rid: 8357564934323700002
+      type: {class: HealingCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
+      data:
+        UseCooldownSeconds: 1
+        HealAmount: 5

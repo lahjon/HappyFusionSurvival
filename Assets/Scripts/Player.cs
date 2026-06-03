@@ -73,14 +73,6 @@ namespace Starter.Shooter
 		[Tooltip("Scraps (generic crafting currency) granted on spawn. Seeded once on state authority in Spawned(); not re-applied on respawn (Scraps survive death). Earned by scavenging items at a crafting bench.")]
 		public int StartingScraps = 0;
 
-		[Header("Hunger")]
-		[Tooltip("Maximum fullness value. Hunger starts here on spawn/respawn and is the cap restored by food.")]
-		public float MaxHunger = 100f;
-		[Tooltip("Hunger drained per 5 seconds passively (constant background tick). 1 means 1 hunger every 5s; at MaxHunger=100 that's ~8.3 minutes to starve at rest.")]
-		public float HungerDrainPer5Seconds = 1f;
-		[Tooltip("Extra hunger drained per point of stamina spent this tick (sprint/jump/climb). Small by design — the 'work makes you hungrier' nudge.")]
-		public float HungerPerStaminaPoint = 0.005f;
-
 		[Header("Climbing")]
 		[Tooltip("Surfaces on these layers can be climbed.")]
 		public LayerMask ClimbableMask;
@@ -233,15 +225,9 @@ namespace Starter.Shooter
 		public int Scraps { get; private set; }
 		[Networked, HideInInspector]
 		public float Stamina { get; private set; }
-		[Networked, HideInInspector]
-		public float Hunger { get; private set; }
 		/// <summary>True while the player is crouched. Replicated so proxies shrink the capsule and mirror posture.</summary>
 		[Networked, HideInInspector]
 		public NetworkBool IsCrouching { get; private set; }
-
-		/// <summary>Effective stamina ceiling. Hunger cap removed in the Purge × Stardew pivot — kept as a property
-		/// so callers don't need to change. Restore the <c>Mathf.Min(MaxStamina, Hunger)</c> form if survival ever returns.</summary>
-		public float EffectiveMaxStamina => MaxStamina;
 
 		/// <summary>Stable actor identity, decoupled from Fusion input authority. Equals <see cref="NetworkObject.InputAuthority"/>
 		/// for human players; for AI bots (no connection) it is a synthetic ref allocated by <see cref="GameManager"/>
@@ -343,6 +329,35 @@ namespace Starter.Shooter
 		private float _knockbackDuration { get; set; }
 		[Networked]
 		private TickTimer _knockbackTimer { get; set; }
+
+		// --- Grapple hook (gadget) ---
+		/// <summary>True while the grapple is reeling the player toward <see cref="GrappleAnchor"/>. Networked so
+		/// every peer renders the rope and the reel resolves identically on input + state authority.</summary>
+		[Networked]
+		public NetworkBool IsGrappling { get; private set; }
+		/// <summary>World point the active grapple reels toward. Valid only while <see cref="IsGrappling"/>.</summary>
+		[Networked]
+		public Vector3 GrappleAnchor { get; private set; }
+		[Networked]
+		private TickTimer _grappleCooldown { get; set; }
+		// Hard safety cap on a single reel, and a stall watchdog that detaches when the player stops closing on
+		// the anchor (e.g. an obstacle is wedged between them and it). Networked so they survive prediction
+		// rollback like the rest of the grapple state. _grappleBestDistance is the closest we've come so far.
+		[Networked]
+		private TickTimer _grappleTimeout { get; set; }
+		[Networked]
+		private TickTimer _grappleStallTimer { get; set; }
+		[Networked]
+		private float _grappleBestDistance { get; set; }
+		// Reel speed of the current grapple, re-derived each tick from the held gadget on every predicting peer,
+		// so it stays consistent without being networked itself.
+		private float _grappleReelSpeed;
+
+		// Detach if the player hasn't closed GrappleProgressEpsilon metres on the anchor within this many
+		// seconds — the quick "I'm blocked" exit, well before the hard MaxReelTime cap.
+		private const float GrappleStallSeconds   = 0.35f;
+		private const float GrappleProgressEpsilon = 0.05f;
+
 		[Networked, OnChangedRender(nameof(OnRagdollStateChanged))]
 		public ERagdollState RagdollState { get; private set; }
 		[Networked]
@@ -475,7 +490,6 @@ namespace Starter.Shooter
 
 			_moveVelocity = Vector3.zero;
 			Stamina = MaxStamina;
-			Hunger = MaxHunger;
 			_wasSprinting = false;
 			_airSprintCarry = false;
 			_staminaRegenTimer = default;
@@ -508,14 +522,6 @@ namespace Starter.Shooter
 			{
 				ActionInvoker.CancelCharge();
 			}
-		}
-
-		/// <summary>Restore hunger (fullness). Called by FoodConsumable.Apply on every predicting peer — state-authority-only mutation per Fusion conventions.</summary>
-		public void AddHunger(float amount)
-		{
-			if (HasStateAuthority == false) return;
-			if (amount <= 0f) return;
-			Hunger = Mathf.Min(MaxHunger, Hunger + amount);
 		}
 
 		/// <summary>Grant <paramref name="amount"/> money. State-authority only — callers running on every predicting peer are fine; remote peers no-op. Used by money pickups, loot rewards, sell prompts, quest completion.</summary>
@@ -569,6 +575,16 @@ namespace Starter.Shooter
 				Stamina = target;
 		}
 
+		/// <summary>Restore <paramref name="amount"/> stamina, clamped to <see cref="MaxStamina"/>. State-authority
+		/// only — remote peers no-op (the networked <see cref="Stamina"/> syncs back on its own). Used by the
+		/// energy-drink consumable (<c>StaminaCapability</c>).</summary>
+		public void RestoreStamina(float amount)
+		{
+			if (HasStateAuthority == false) return;
+			if (amount <= 0f) return;
+			Stamina = Mathf.Min(MaxStamina, Stamina + amount);
+		}
+
 		/// <summary>Grant <paramref name="amount"/> scraps. State-authority only — remote peers no-op. Used by the crafting bench when an item is scavenged.</summary>
 		public void AddScraps(int amount)
 		{
@@ -587,8 +603,17 @@ namespace Starter.Shooter
 			return true;
 		}
 
+		/// <summary>Client-safe roster of every spawned Player, maintained on ALL peers (authority and remotes).
+		/// Unlike <see cref="GameManager.Players"/> — which is only valid on the state authority — this is the roster
+		/// local presentation code (team panel, ally/enemy world markers) iterates. Registered in <see cref="Spawned"/>,
+		/// removed in <see cref="Despawned"/>.</summary>
+		public static readonly System.Collections.Generic.List<Player> All = new(32);
+
 		public override void Spawned()
 		{
+			if (All.Contains(this) == false)
+				All.Add(this);
+
 			// Player draws its own death visual via the ragdoll tilt — keep the body
 			// visible past death instead of letting Health.Render hide VisualRoot.
 			Health.SuppressDeathVisualSwap = true;
@@ -613,6 +638,13 @@ namespace Starter.Shooter
 			KCC.SetPosition(transform.position);
 			KCC.SetLookRotation(0f, 0f);
 
+			// Cap the KCC's walkable ground angle at the climb threshold so "steep" actually means
+			// non-walkable: surfaces steeper than ClimbForceAngle are treated as walls, not ground.
+			// The player then meets a steep face head-on (instead of strolling up it), and the grounded
+			// force-climb in ProcessInput can latch it — provided it's on the Climbable layer. Set on
+			// every peer so movement prediction stays consistent across clients.
+			KCC.SetMaxGroundAngle(ClimbForceAngle);
+
 			_standHeight = KCC.Settings.Height;
 			if (CameraPivot != null) _standCameraPivotLocalPos = CameraPivot.localPosition;
 
@@ -623,7 +655,6 @@ namespace Starter.Shooter
 					Owner = Object.InputAuthority;
 
 				Stamina = MaxStamina;
-				Hunger = MaxHunger;
 				Money = StartingMoney;
 				Scraps = StartingScraps;
 			}
@@ -670,6 +701,11 @@ namespace Starter.Shooter
 				// Look rotation is set manually in Render.
 				KCC.Settings.ForcePredictedLookRotation = true;
 			}
+		}
+
+		public override void Despawned(NetworkRunner runner, bool hasState)
+		{
+			All.Remove(this);
 		}
 
 		public override void FixedUpdateNetwork()
@@ -754,12 +790,8 @@ namespace Starter.Shooter
 
 			if (drainedThisTick == false && _staminaRegenTimer.ExpiredOrNotRunning(Runner))
 			{
-				Stamina = Mathf.Min(EffectiveMaxStamina, Stamina + StaminaRegenPerSecond * Runner.DeltaTime);
+				Stamina = Mathf.Min(MaxStamina, Stamina + StaminaRegenPerSecond * Runner.DeltaTime);
 			}
-
-			// Hunger system disabled in the Purge × Stardew pivot. Hunger stays at whatever it was last set to
-			// (MaxHunger on spawn/respawn) and no longer caps stamina. Drain + stamina-clamp block removed —
-			// see EffectiveMaxStamina and CLAUDE.md "What stays vs. what's out".
 
 			if (KCC.IsGrounded)
 			{
@@ -1198,6 +1230,19 @@ namespace Starter.Shooter
 				_moveVelocity = Vector3.zero;
 			}
 
+			// Steep-slope walk block: SetMaxGroundAngle stops a steep face from counting as ground, but the
+			// KCC's collision resolution can still let forward input creep the player up it. Strip the
+			// into-surface component from the desired velocity so a too-steep face can't be walked up — the
+			// player slides back down under gravity instead. Climbable steep faces never reach here (the
+			// grounded force-climb above already grabbed and returned); this catches the non-climbable ones.
+			if (!knockbackActive)
+			{
+				desiredMoveVelocity = BlockSteepSlopeMovement(desiredMoveVelocity);
+			}
+
+			// Refresh / detach the grapple before moving so the reel velocity applied below is current.
+			UpdateGrappleTick();
+
 			MovePlayer(desiredMoveVelocity, jumpImpulse);
 
 			// Update camera pivot so fire transform (CameraHandle) is correct
@@ -1235,6 +1280,24 @@ namespace Starter.Shooter
 				{
 					_inventory.TryUseSelectedConsumable();
 				}
+				return;
+			}
+
+			// Gadget in hand that claims LMB: route the press to the gadget instead of the weapon fire path.
+			// The grapple is networked (it reels the KCC) so it is handled here on the player; a purely-local
+			// gadget gets its OnUsePressed hook fired on the owning client. Passive gadgets (radar, UsesPrimary
+			// false) fall through to the no-op weapon path below. An item carrying both a weapon and a primary
+			// gadget can't sensibly share LMB; the gadget wins.
+			if (_inventory != null && _inventory.SelectedDefinition != null
+			    && _inventory.SelectedDefinition.TryGetCapability<GadgetCapability>(out var gadget)
+			    && gadget.UsesPrimary)
+			{
+				if (ActionInvoker != null && ActionInvoker.IsCharging) ActionInvoker.CancelCharge();
+
+				if (gadget is GrappleGadgetCapability grappleCfg)
+					ProcessGrappleInput(grappleCfg, input, previousButtons);
+				else if (HasInputAuthority && input.Buttons.WasPressed(previousButtons, EInputButton.Fire))
+					_inventory.UseSelectedGadgetLocal();
 				return;
 			}
 
@@ -1282,6 +1345,110 @@ namespace Starter.Shooter
 					Fire(action, charged, norm);
 				}
 			}
+		}
+
+		// Grapple gadget LMB handling. Runs on input + state authority like ProcessFireInput; the [Networked]
+		// writes (IsGrappling / GrappleAnchor / cooldown / charge spend) are predicted on the input authority
+		// and reconciled to proxies. A second press while reeling detaches.
+		private void ProcessGrappleInput(GrappleGadgetCapability cfg, GameplayInput input, NetworkButtons previousButtons)
+		{
+			if (input.Buttons.WasPressed(previousButtons, EInputButton.Fire) == false) return;
+
+			if (IsGrappling) { IsGrappling = false; return; }   // toggle off
+
+			if (_grappleCooldown.ExpiredOrNotRunning(Runner) == false) return;
+			if (RagdollState != ERagdollState.Normal || IsSleeping || IsClimbing) return;
+			if (_inventory == null || _inventory.ActiveCharges <= 0) return;
+
+			// Deterministic PhysX ray against the static world (no networked hitboxes involved), so the anchor
+			// resolves identically on IA and SA — the predicted reel matches the authoritative one without an RPC.
+			var physics = Runner.GetPhysicsScene();
+			if (physics.Raycast(CameraHandle.position, CameraHandle.forward, out var hit, cfg.Range, CombatAction.HitMask))
+			{
+				GrappleAnchor = hit.point;
+				IsGrappling = true;
+				_grappleReelSpeed = cfg.ReelSpeed;
+				_grappleCooldown = TickTimer.CreateFromSeconds(Runner, cfg.FireCooldown);
+				// Arm the exit watchdogs: a hard cap and a stall window seeded from the starting distance.
+				float maxReel = cfg.MaxReelTime > 0f ? cfg.MaxReelTime : 3f;
+				_grappleTimeout = TickTimer.CreateFromSeconds(Runner, maxReel);
+				_grappleStallTimer = TickTimer.CreateFromSeconds(Runner, GrappleStallSeconds);
+				_grappleBestDistance = Vector3.Distance(transform.position, GrappleAnchor);
+				_inventory.TryConsumeCharge();   // predicted via the networked Loaded write; spent forever
+			}
+		}
+
+		// Per-tick grapple maintenance: refresh the reel speed from the held gadget and detach on arrival or
+		// when the grapple is no longer usable (dropped / switched slots / knocked down / climbing). Called
+		// before MovePlayer so ComputeGrappleVelocity sees the up-to-date state.
+		private void UpdateGrappleTick()
+		{
+			if (IsGrappling == false) return;
+
+			var cfg = _inventory != null && _inventory.SelectedDefinition != null
+				? _inventory.SelectedDefinition.GetCapability<GrappleGadgetCapability>()
+				: null;
+
+			if (cfg == null || RagdollState != ERagdollState.Normal || IsSleeping || IsClimbing)
+			{
+				IsGrappling = false;
+				return;
+			}
+
+			_grappleReelSpeed = cfg.ReelSpeed;
+
+			float dist = Vector3.Distance(transform.position, GrappleAnchor);
+
+			// Arrived — clean stop.
+			if (dist <= cfg.ArrivalDistance) { IsGrappling = false; return; }
+
+			// Hard safety cap — never reel forever, whatever the cause.
+			if (_grappleTimeout.Expired(Runner)) { IsGrappling = false; return; }
+
+			// Stall watchdog: still closing in → keep going and refresh the window; otherwise, if we've made no
+			// real progress for GrappleStallSeconds (an obstacle wedged between us and the anchor), let go so the
+			// player can't get stuck grinding against it.
+			if (dist < _grappleBestDistance - GrappleProgressEpsilon)
+			{
+				_grappleBestDistance = dist;
+				_grappleStallTimer = TickTimer.CreateFromSeconds(Runner, GrappleStallSeconds);
+			}
+			else if (_grappleStallTimer.Expired(Runner))
+			{
+				IsGrappling = false;
+			}
+		}
+
+		// Reel velocity folded into KCC.Move (see MovePlayer), alongside knockback. Straight pull toward the
+		// anchor at the gadget's reel speed; zero unless actively grappling.
+		private Vector3 ComputeGrappleVelocity()
+		{
+			if (IsGrappling == false) return Vector3.zero;
+			Vector3 toAnchor = GrappleAnchor - transform.position;
+			float d = toAnchor.magnitude;
+			return d > 0.001f ? toAnchor / d * _grappleReelSpeed : Vector3.zero;
+		}
+
+		/// <summary>True if the local player is holding a grapple gadget (any charge state). Drives the HUD
+		/// reticle's visibility; pair with <see cref="IsGrappleTargetValid"/> for the in-range state.</summary>
+		public bool IsHoldingGrapple => _inventory != null && _inventory.SelectedDefinition != null
+			&& _inventory.SelectedDefinition.HasCapability<GrappleGadgetCapability>();
+
+		/// <summary>
+		/// Local HUD check for the grapple reticle: true when a grapple gadget with charges left is held and the
+		/// player is aiming at a surface within reel range. Cosmetic only — runs off the network tick on the
+		/// local client, using the same PhysX ray + range as the actual fire so the indicator matches what a
+		/// press would actually hit.
+		/// </summary>
+		public bool IsGrappleTargetValid()
+		{
+			if (_inventory == null || Runner == null || CameraHandle == null) return false;
+			var def = _inventory.SelectedDefinition;
+			var cfg = def != null ? def.GetCapability<GrappleGadgetCapability>() : null;
+			if (cfg == null || _inventory.ActiveCharges <= 0) return false;
+
+			return Runner.GetPhysicsScene()
+				.Raycast(CameraHandle.position, CameraHandle.forward, out _, cfg.Range, CombatAction.HitMask);
 		}
 
 		// Secondary (RMB) handling, driven by the held weapon's SecondaryMode:
@@ -1737,6 +1904,36 @@ namespace Starter.Shooter
 			return ChestBone != null ? ChestBone.position : transform.position + Vector3.up * 1.0f;
 		}
 
+		// Yaw-only forward probe for a surface too steep to walk (steeper than ClimbForceAngle). If the
+		// desired velocity drives into such a face, removes the into-surface horizontal component so the
+		// player can't creep up it. Unlike the climb probe this hits ALL geometry (not just ClimbableMask),
+		// so non-climbable steep faces become hard barriers. Gentle ramps (below ClimbForceAngle) and low
+		// steps (below the chest probe) pass through untouched.
+		private Vector3 BlockSteepSlopeMovement(Vector3 desiredVel)
+		{
+			Vector3 horizDir = desiredVel;
+			horizDir.y = 0f;
+			if (horizDir.sqrMagnitude < 0.0001f) return desiredVel;
+			horizDir.Normalize();
+
+			Vector3 origin = GetClimbProbeOrigin();
+			float probe = KCC.Settings.Radius + 0.2f;
+			int mask = Physics.DefaultRaycastLayers & ~(1 << gameObject.layer);
+			if (Physics.Raycast(origin, horizDir, out RaycastHit hit, probe, mask, QueryTriggerInteraction.Ignore) == false)
+				return desiredVel;
+
+			if (Vector3.Angle(hit.normal, Vector3.up) < ClimbForceAngle) return desiredVel;
+
+			Vector3 normalHoriz = hit.normal;
+			normalHoriz.y = 0f;
+			if (normalHoriz.sqrMagnitude < 0.0001f) return desiredVel; // near-vertical — KCC already walls it
+			normalHoriz.Normalize();
+
+			float into = Vector3.Dot(desiredVel, -normalHoriz);
+			if (into > 0f) desiredVel += normalHoriz * into; // cancel the into-surface component
+			return desiredVel;
+		}
+
 		// Drives the KCC capsule height from the networked IsCrouching state. Called from every path
 		// that touches IsCrouching so each peer's capsule matches the replicated state without an OnChangedRender.
 		// IsDowned overrides to a shorter DownedHeight so the body reads as flat on the floor.
@@ -1783,7 +1980,15 @@ namespace Starter.Shooter
 
 			_moveVelocity = Vector3.Lerp(_moveVelocity, desiredMoveVelocity, acceleration * Runner.DeltaTime);
 
-			KCC.Move(_moveVelocity + ComputeKnockbackVelocity() + ComputeRagdollRollVelocity(), jumpImpulse);
+			// While reeling, kill gravity so the pull tracks straight to the anchor (incl. upward) instead of
+			// sagging — the reel velocity is the sole vertical driver until arrival/detach. Suppressed while
+			// climbing/mantling, which call MovePlayer on their own path (no UpdateGrappleTick) — the grapple is
+			// detached on entering those states anyway, this just guards the one-tick overlap.
+			bool reeling = IsGrappling && IsClimbing == false;
+			if (reeling) KCC.SetGravity(0f);
+
+			Vector3 grappleVelocity = reeling ? ComputeGrappleVelocity() : Vector3.zero;
+			KCC.Move(_moveVelocity + ComputeKnockbackVelocity() + ComputeRagdollRollVelocity() + grappleVelocity, jumpImpulse);
 		}
 
 		// Rolling-body translation: while knocked out, derive a horizontal velocity from the
@@ -2193,6 +2398,21 @@ namespace Starter.Shooter
 		{
 			if (HasStateAuthority == false) return;
 			if (IsDowned == false) return;
+
+			// A downed player can still take a second lethal hit: Health.TakeHit drops HP straight to 0
+			// because OnLethalDamage declines the down-hook once we're already downed. That leaves us
+			// downed AND dead at once — the crawl early-return in FixedUpdateNetwork would keep running
+			// ProcessDownedTick on a corpse while RagdollState is Dead, so the body half-responds to input
+			// instead of dying cleanly. Clear the downed state so CheckDeathRagdoll's Dead transition wins
+			// and the normal frozen-corpse flow runs.
+			if (Health.IsAlive == false)
+			{
+				IsDowned = false;
+				DownedTimeRemaining = 0f;
+				ReviveCount = 0;
+				ReviveProgress = 0f;
+				return;
+			}
 
 			if (ReviveCount > 0)
 			{

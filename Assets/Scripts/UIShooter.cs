@@ -17,7 +17,7 @@ namespace Starter.Shooter
 		public Image HealthBar;
 		public float HealthLerpSpeed = 6f;
 		public Image StaminaBar;
-		public Image HungerBar;
+		public float StaminaLerpSpeed = 6f;
 		public CanvasGroup HitIndicator;
 		public TextMeshProUGUI DayTimeLabel;
 
@@ -59,6 +59,15 @@ namespace Starter.Shooter
 		[Tooltip("Seconds the banner takes to fade from opaque to gone.")]
 		public float EliminationFadeSeconds = 0.8f;
 
+		[Header("Damage Vignette (auto-built at runtime — no scene wiring)")]
+		[Tooltip("Colour of the red flash that pulses in from the screen edges when the local player takes damage.")]
+		public Color DamageVignetteColor = new Color(0.75f, 0f, 0f, 1f);
+		[Tooltip("Peak opacity of the vignette on a hit (0..1).")]
+		[Range(0f, 1f)]
+		public float DamageVignetteMaxAlpha = 0.7f;
+		[Tooltip("How fast the vignette fades back out after a hit (higher = quicker).")]
+		public float DamageVignetteFadeSpeed = 2.5f;
+
 		[Header("UI Sound Setup")]
 		public AudioSource AudioSource;
 		public AudioClip HitReceivedClip;
@@ -67,11 +76,17 @@ namespace Starter.Shooter
 		private int _lastMoney = -1;
 		private int _lastHealth = -1;
 		private float _displayedHealthFraction = 1f;
+		private float _displayedStaminaFraction = 1f;
 		private bool _wasAlive = true;
 		private TextMeshProUGUI _eventLabel;
 		private TextMeshProUGUI _armingLabel;
 		private TextMeshProUGUI _ammoLabel;
 		private TextMeshProUGUI _eliminationLabel;
+		private TextMeshProUGUI _duskLabel;
+		private bool _duskWarningActive;
+		private string _duskMessage;
+		private Image _damageVignette;
+		private float _damageVignetteAlpha;
 
 		[Header("Ammo Readout (auto-built at runtime from DayTimeLabel)")]
 		[Tooltip("Anchored offset of the magazine/reserve readout, relative to screen centre (near the crosshair).")]
@@ -89,17 +104,54 @@ namespace Starter.Shooter
 		[Tooltip("Centre-anchored offset of the arming prompt, in canvas units.")]
 		public Vector2 ArmingPromptOffset = new Vector2(0f, -120f);
 
+		[Header("Grapple Reticle (auto-built at runtime — no scene wiring)")]
+		[Tooltip("Ring colour when the aimed surface is in grapple range and a charge is available (can attach).")]
+		public Color GrappleReticleValidColor = new Color(0.55f, 1f, 0.6f, 0.95f);
+		[Tooltip("Ring colour when out of range or out of charges (can't attach).")]
+		public Color GrappleReticleInvalidColor = new Color(1f, 1f, 1f, 0.3f);
+		[Tooltip("Ring diameter (canvas px) when a valid anchor is in range — the reticle grows to this.")]
+		public float GrappleReticleValidSize = 92f;
+		[Tooltip("Ring diameter (canvas px) when out of range — the resting/small size.")]
+		public float GrappleReticleInvalidSize = 46f;
+		[Tooltip("How fast the ring eases between the small/large + colour states (higher = snappier).")]
+		public float GrappleReticleLerpSpeed = 14f;
+
+		private RectTransform _grappleReticle;
+		private Image _grappleReticleImg;
+		private float _grappleReticleSize;
+
+		[Header("Dusk Warning Banner (auto-built at runtime from DayTimeLabel)")]
+		[Tooltip("Shown when the town siren sounds at DuskWarning — the Purge is about to begin.")]
+		public Color DuskWarningColor = new Color(1f, 0.35f, 0.15f);
+		[Tooltip("Banner font size relative to DayTimeLabel.")]
+		public float DuskBannerFontScale = 1.5f;
+		[Tooltip("Top-centre anchored offset of the dusk banner, in canvas units.")]
+		public Vector2 DuskBannerOffset = new Vector2(0f, -130f);
+		[Tooltip("Speed of the attention-grabbing alpha pulse (0 = no pulse).")]
+		public float DuskBannerPulseSpeed = 3f;
+
 		private void Update()
 		{
 			// Fadeout hit indicator
 			HitIndicator.alpha = Mathf.Lerp(HitIndicator.alpha, 0f, Time.deltaTime * 2f);
 
+			// Fade the red damage vignette back out (triggered below when health drops).
+			if (_damageVignette != null)
+			{
+				_damageVignetteAlpha = Mathf.MoveTowards(_damageVignetteAlpha, 0f, Time.deltaTime * DamageVignetteFadeSpeed);
+				var vc = DamageVignetteColor;
+				vc.a = _damageVignetteAlpha;
+				_damageVignette.color = vc;
+			}
+
 			UpdateDayTimeLabel();
 			UpdateEventBanner();
 			UpdateArmingPrompt();
+			UpdateDuskWarningBanner();
 
 			var player = GameManager.LocalPlayer;
 			UpdateAmmoReadout(player);
+			UpdateGrappleReticle(player);
 			UpdateEliminationBanner(player);
 			if (player == null)
 			{
@@ -125,6 +177,7 @@ namespace Starter.Shooter
 				{
 					// Show hit received
 					HitIndicator.alpha = 1f;
+					_damageVignetteAlpha = DamageVignetteMaxAlpha;
 
 					var clip = isAlive ? HitReceivedClip : DeathClip;
 					AudioSource.PlayOneShot(clip);
@@ -161,15 +214,15 @@ namespace Starter.Shooter
 				}
 			}
 
+			// Snap (rather than sweep) the bars on respawn (dead → alive); shared by both bars below.
+			bool respawned = player.Health.IsAlive && _wasAlive == false;
+
 			if (HealthBar != null && player.Health.InitialHealth > 0)
 			{
 				float target = Mathf.Clamp01((float)player.Health.CurrentHealth / player.Health.InitialHealth);
 
-				// Snap on respawn (dead → alive) so the bar doesn't sweep up from 0 noticeably.
-				bool isAlive = player.Health.IsAlive;
-				if (isAlive && _wasAlive == false)
+				if (respawned)
 					_displayedHealthFraction = target;
-				_wasAlive = isAlive;
 
 				_displayedHealthFraction = Mathf.Lerp(_displayedHealthFraction, target, Time.deltaTime * HealthLerpSpeed);
 				HealthBar.fillAmount = _displayedHealthFraction;
@@ -177,25 +230,180 @@ namespace Starter.Shooter
 
 			if (StaminaBar != null && player.MaxStamina > 0f)
 			{
-				StaminaBar.fillAmount = Mathf.Clamp01(player.Stamina / player.MaxStamina);
+				float target = Mathf.Clamp01(player.Stamina / player.MaxStamina);
+
+				if (respawned)
+					_displayedStaminaFraction = target;
+
+				_displayedStaminaFraction = Mathf.Lerp(_displayedStaminaFraction, target, Time.deltaTime * StaminaLerpSpeed);
+				StaminaBar.fillAmount = _displayedStaminaFraction;
 			}
 
-			// Hunger bar disabled in the Purge × Stardew pivot — the GameObject is hidden in Awake, so the
-			// inspector reference stays valid but nothing renders. Restore the fill update if survival ever returns.
+			_wasAlive = player.Health.IsAlive;
 		}
 
 		private void Awake()
 		{
-			// Hide the legacy hunger bar regardless of whether it's wired in the scene/prefab.
-			if (HungerBar != null && HungerBar.gameObject != null)
-			{
-				HungerBar.gameObject.SetActive(false);
-			}
-
 			BuildEventBanner();
 			BuildArmingPrompt();
 			BuildAmmoReadout();
 			BuildEliminationBanner();
+			BuildDamageVignette();
+			BuildDuskWarningBanner();
+			BuildGrappleReticle();
+		}
+
+		private void OnEnable()
+		{
+			WorldSiren.WarningRaised  += OnDuskWarningRaised;
+			WorldSiren.WarningCleared += OnDuskWarningCleared;
+		}
+
+		private void OnDisable()
+		{
+			WorldSiren.WarningRaised  -= OnDuskWarningRaised;
+			WorldSiren.WarningCleared -= OnDuskWarningCleared;
+		}
+
+		// Build a full-screen red vignette overlay at runtime — no bespoke prefab or scene wiring, same
+		// trick as the event/ammo banners. The sprite is a radial gradient (clear centre → opaque edge),
+		// so the centre/crosshair stays readable and only the screen borders flush red on a hit.
+		private void BuildDamageVignette()
+		{
+			var canvas = CanvasGroup != null ? CanvasGroup.GetComponentInParent<Canvas>()
+				: (DayTimeLabel != null ? DayTimeLabel.GetComponentInParent<Canvas>() : null);
+			if (canvas == null) return;
+
+			var go = new GameObject("DamageVignette", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+			var rt = (RectTransform)go.transform;
+			rt.SetParent(canvas.transform, false);
+			rt.anchorMin = Vector2.zero;
+			rt.anchorMax = Vector2.one;
+			rt.offsetMin = Vector2.zero;
+			rt.offsetMax = Vector2.zero;
+			rt.SetAsLastSibling(); // on top of the HUD; the clear centre keeps the crosshair/readouts visible
+
+			_damageVignette = go.GetComponent<Image>();
+			_damageVignette.raycastTarget = false;
+			_damageVignette.sprite = BuildVignetteSprite();
+			var c = DamageVignetteColor;
+			c.a = 0f;
+			_damageVignette.color = c;
+		}
+
+		// Generate the radial-gradient sprite used by the damage vignette: white RGB (tinted red by the
+		// Image colour) with alpha ramping from 0 at the centre to 1 at the edges/corners.
+		private static Sprite BuildVignetteSprite()
+		{
+			const int size = 128;
+			var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+			{
+				wrapMode   = TextureWrapMode.Clamp,
+				filterMode = FilterMode.Bilinear,
+				name       = "DamageVignetteTex",
+			};
+
+			var pixels = new Color32[size * size];
+			for (int y = 0; y < size; y++)
+			{
+				for (int x = 0; x < size; x++)
+				{
+					float dx = (x / (float)(size - 1)) - 0.5f;
+					float dy = (y / (float)(size - 1)) - 0.5f;
+					float d  = Mathf.Sqrt(dx * dx + dy * dy) * 2f; // 0 centre → ~1 edge → ~1.41 corner
+					float a  = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.55f, 1.1f, d));
+					pixels[y * size + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255f));
+				}
+			}
+
+			tex.SetPixels32(pixels);
+			tex.Apply();
+
+			return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+		}
+
+		// Build the centre-screen grapple reticle at runtime — a ring that grows + turns the valid colour when
+		// the player is aiming at a surface within reel range, so they can see whether a press will attach.
+		// Same no-scene-wiring trick as the vignette; hidden unless a grapple gadget is held.
+		private void BuildGrappleReticle()
+		{
+			var canvas = CanvasGroup != null ? CanvasGroup.GetComponentInParent<Canvas>()
+				: (DayTimeLabel != null ? DayTimeLabel.GetComponentInParent<Canvas>() : null);
+			if (canvas == null) return;
+
+			var go = new GameObject("GrappleReticle", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+			var rt = (RectTransform)go.transform;
+			rt.SetParent(canvas.transform, false);
+			rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+			rt.pivot = new Vector2(0.5f, 0.5f);
+			rt.anchoredPosition = Vector2.zero;
+			rt.sizeDelta = new Vector2(GrappleReticleInvalidSize, GrappleReticleInvalidSize);
+
+			_grappleReticle = rt;
+			_grappleReticleImg = go.GetComponent<Image>();
+			_grappleReticleImg.raycastTarget = false;
+			_grappleReticleImg.sprite = BuildRingSprite();
+			_grappleReticleImg.color = GrappleReticleInvalidColor;
+			_grappleReticleSize = GrappleReticleInvalidSize;
+			go.SetActive(false);
+		}
+
+		// Show the reticle whenever a grapple is held; grow it + fade it to the valid colour when the aimed
+		// surface is in range (charge available), shrink + dim when not. Eased so the "snap" reads clearly.
+		private void UpdateGrappleReticle(Player player)
+		{
+			if (_grappleReticle == null) return;
+
+			bool holding = player != null && player.IsHoldingGrapple
+				&& player.Health != null && player.Health.IsAlive;
+
+			if (holding)
+			{
+				bool valid = player.IsGrappleTargetValid();
+				float targetSize  = valid ? GrappleReticleValidSize : GrappleReticleInvalidSize;
+				Color targetColor = valid ? GrappleReticleValidColor : GrappleReticleInvalidColor;
+
+				float t = Time.deltaTime * GrappleReticleLerpSpeed;
+				_grappleReticleSize = Mathf.Lerp(_grappleReticleSize, targetSize, t);
+				_grappleReticle.sizeDelta = new Vector2(_grappleReticleSize, _grappleReticleSize);
+				_grappleReticleImg.color = Color.Lerp(_grappleReticleImg.color, targetColor, t);
+			}
+
+			if (_grappleReticle.gameObject.activeSelf != holding)
+				_grappleReticle.gameObject.SetActive(holding);
+		}
+
+		// Soft-edged ring (annulus) sprite for the grapple reticle: white RGB tinted by the Image colour,
+		// alpha 1 in the ring band and 0 inside/outside, with a couple-pixel feather so it doesn't alias.
+		private static Sprite BuildRingSprite()
+		{
+			const int size = 128;
+			var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+			{
+				wrapMode   = TextureWrapMode.Clamp,
+				filterMode = FilterMode.Bilinear,
+				name       = "GrappleReticleTex",
+			};
+
+			var pixels = new Color32[size * size];
+			float center = (size - 1) * 0.5f;
+			float outer  = size * 0.5f * 0.95f;
+			float inner  = size * 0.5f * 0.66f;
+			for (int y = 0; y < size; y++)
+			{
+				for (int x = 0; x < size; x++)
+				{
+					float dx = x - center, dy = y - center;
+					float r  = Mathf.Sqrt(dx * dx + dy * dy);
+					float a  = (r < inner || r > outer) ? 0f : Mathf.Clamp01(Mathf.Min(r - inner, outer - r) / 2.5f);
+					pixels[y * size + x] = new Color32(255, 255, 255, (byte)(a * 255f));
+				}
+			}
+
+			tex.SetPixels32(pixels);
+			tex.Apply();
+
+			return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
 		}
 
 		// Clone the day/night label to make a big, centre-screen kill-confirmation banner — same
@@ -269,16 +477,20 @@ namespace Starter.Shooter
 			_ammoLabel.gameObject.SetActive(false);
 		}
 
-		// Show "loaded / reserve" (or "RELOADING") for the held magazine-fed weapon; hidden otherwise.
-		// Reads the networked Inventory each frame — no [Networked] state on the UI.
+		// Held magazine weapon → "loaded / reserve" (or "RELOADING"); held charge gadget (grapple) →
+		// "charges / max" (orange once spent). Hidden otherwise. Reads the networked Inventory each frame —
+		// no [Networked] state on the UI.
 		private void UpdateAmmoReadout(Player player)
 		{
 			if (_ammoLabel == null) return;
 
 			var inventory = player != null ? player.GetComponent<Inventory>() : null;
-			bool show = inventory != null && inventory.ActiveUsesMagazine && player.Health != null && player.Health.IsAlive;
+			bool alive    = player != null && player.Health != null && player.Health.IsAlive;
+			bool magazine = inventory != null && inventory.ActiveUsesMagazine;
+			bool charges  = inventory != null && inventory.ActiveUsesCharges;
+			bool show      = (magazine || charges) && alive;
 
-			if (show)
+			if (show && magazine)
 			{
 				if (inventory.IsReloading)
 				{
@@ -290,6 +502,12 @@ namespace Starter.Shooter
 					_ammoLabel.color = AmmoReadoutColor;
 					_ammoLabel.text = $"{inventory.ActiveLoaded} / {inventory.ActiveReserve}";
 				}
+			}
+			else if (show) // charge gadget
+			{
+				int max = inventory.ActiveGadget != null ? inventory.ActiveGadget.MaxCharges : 0;
+				_ammoLabel.color = inventory.ActiveCharges > 0 ? AmmoReadoutColor : AmmoReloadingColor;
+				_ammoLabel.text = $"{inventory.ActiveCharges} / {max}";
 			}
 
 			if (_ammoLabel.gameObject.activeSelf != show)
@@ -336,6 +554,70 @@ namespace Starter.Shooter
 
 			if (_armingLabel.gameObject.activeSelf != show)
 				_armingLabel.gameObject.SetActive(show);
+		}
+
+		// Clone the day/night label into a prominent top-centre alert shown while the dusk siren wails.
+		// Driven entirely by WorldSiren's static events — no scene wiring, same trick as the other banners.
+		private void BuildDuskWarningBanner()
+		{
+			if (DayTimeLabel == null) return;
+
+			_duskLabel = Instantiate(DayTimeLabel, DayTimeLabel.transform.parent);
+			_duskLabel.name = "DuskWarningBanner";
+
+			var rt = _duskLabel.rectTransform;
+			rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
+			rt.pivot = new Vector2(0.5f, 1f);
+			rt.anchoredPosition = DuskBannerOffset;
+
+			_duskLabel.fontSize = DayTimeLabel.fontSize * DuskBannerFontScale;
+			_duskLabel.alignment = TextAlignmentOptions.Top;
+			_duskLabel.fontStyle |= FontStyles.Bold;
+			_duskLabel.color = DuskWarningColor;
+			_duskLabel.gameObject.SetActive(false);
+		}
+
+		private void OnDuskWarningRaised(string message, float secondsUntilNight)
+		{
+			_duskWarningActive = true;
+			_duskMessage = message;
+		}
+
+		private void OnDuskWarningCleared()
+		{
+			_duskWarningActive = false;
+		}
+
+		// Show the dusk banner (message + live countdown) while the warning is active, pulsing for urgency.
+		// The countdown reads MatchManager's phase timer so it ticks in real time; falls back to the raised
+		// message alone if the match object isn't available. Self-heals if a WarningCleared was missed.
+		private void UpdateDuskWarningBanner()
+		{
+			if (_duskLabel == null) return;
+
+			var match = MatchManager.Instance;
+			bool show = _duskWarningActive && (match == null || match.Phase == MatchPhase.DuskWarning);
+
+			if (show)
+			{
+				string text = _duskMessage ?? string.Empty;
+				if (match != null)
+				{
+					int secs = Mathf.CeilToInt(Mathf.Max(0f, match.RemainingPhaseSeconds));
+					text = $"{_duskMessage}\n{secs / 60}:{secs % 60:D2}";
+				}
+				_duskLabel.text = text;
+
+				float alpha = DuskBannerPulseSpeed > 0f
+					? Mathf.Lerp(0.55f, 1f, Mathf.PingPong(Time.unscaledTime * DuskBannerPulseSpeed, 1f))
+					: 1f;
+				var color = DuskWarningColor;
+				color.a = alpha;
+				_duskLabel.color = color;
+			}
+
+			if (_duskLabel.gameObject.activeSelf != show)
+				_duskLabel.gameObject.SetActive(show);
 		}
 
 		// Clone the (already-wired) day/night label to get a banner with matching font/canvas membership,

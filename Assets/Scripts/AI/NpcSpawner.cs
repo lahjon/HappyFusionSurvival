@@ -29,6 +29,8 @@ namespace Starter.Shooter
 		public NpcMovementArea Area;
 		[Tooltip("Patrol path injected into every spawned NPC (Patrol behavior).")]
 		public NpcPatrolPath Path;
+		[Tooltip("Building this NPC belongs to. Injected on spawn — the NPC registers itself as a member and retreats/guards accordingly.")]
+		public NpcBuilding Building;
 
 		private readonly List<NpcAgent> _spawned = new List<NpcAgent>();
 		private bool _active;
@@ -76,7 +78,11 @@ namespace Starter.Shooter
 					(runner, obj) =>
 					{
 						var agent = obj.GetComponent<NpcAgent>();
-						if (agent != null) agent.Initialize(Definition, Area, Path);
+						if (agent != null)
+						{
+							agent.Initialize(Definition, Area, Path);
+							if (Building != null) agent.Building = Building;
+						}
 					});
 
 				if (npc != null) _spawned.Add(npc);

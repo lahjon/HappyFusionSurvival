@@ -44,7 +44,8 @@ namespace Starter.Common.Inventory
 				if (!s.IsEmpty) continue;
 
 				short add = (short)Mathf.Min(def.MaxStack, remaining);
-				arr.Set(i, new InventorySlot { ItemId = itemId, Count = add });
+				// Seed the slot's per-unit load (gadget charges). 0 for ordinary items / weapons.
+				arr.Set(i, new InventorySlot { ItemId = itemId, Count = add, Loaded = def.InitialLoaded() });
 				remaining -= add;
 			}
 

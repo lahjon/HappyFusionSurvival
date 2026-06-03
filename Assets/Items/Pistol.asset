@@ -34,6 +34,7 @@ MonoBehaviour:
   Weight: 0
   ScrapValue: 1
   BaseValue: 120
+  Floats: 1
   Capabilities:
   - rid: 8357564934323699985
   references:

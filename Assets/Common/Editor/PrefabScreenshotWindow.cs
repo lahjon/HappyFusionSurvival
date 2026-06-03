@@ -1,4 +1,5 @@
 using System.IO;
+using Starter.Common.Inventory;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -14,6 +15,7 @@ namespace Starter.Common.EditorTools
 		private const string DefaultSaveFolder = "Assets/Screenshots";
 
 		[SerializeField] private GameObject _prefab;
+		[SerializeField] private ItemDefinition _itemDefinition;
 		[SerializeField] private int _width = 256;
 		[SerializeField] private int _height = 256;
 		[SerializeField] private Color _backgroundColor = Color.white;
@@ -38,6 +40,9 @@ namespace Starter.Common.EditorTools
 		{
 			EditorGUILayout.LabelField("Source", EditorStyles.boldLabel);
 			_prefab = (GameObject)EditorGUILayout.ObjectField("Prefab", _prefab, typeof(GameObject), false);
+			_itemDefinition = (ItemDefinition)EditorGUILayout.ObjectField("Item Definition", _itemDefinition, typeof(ItemDefinition), false);
+			if (_itemDefinition != null)
+				EditorGUILayout.HelpBox("Save will import the screenshot as a Sprite and assign it to this item's Icon.", MessageType.Info);
 
 			EditorGUILayout.Space();
 			EditorGUILayout.LabelField("Output", EditorStyles.boldLabel);
@@ -247,13 +252,63 @@ namespace Starter.Common.EditorTools
 				return;
 
 			Directory.CreateDirectory(_saveFolder);
-			var baseName = string.IsNullOrEmpty(_previewPrefabName) ? "Screenshot" : _previewPrefabName;
+			var baseName = _itemDefinition != null
+				? _itemDefinition.name
+				: (string.IsNullOrEmpty(_previewPrefabName) ? "Screenshot" : _previewPrefabName);
 			var fileName = $"{baseName}_{System.DateTime.Now:yyyyMMdd_HHmmss}.png";
 			var path = Path.Combine(_saveFolder, fileName).Replace('\\', '/');
 			File.WriteAllBytes(path, _preview.EncodeToPNG());
-			AssetDatabase.ImportAsset(path);
+			AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
 			_lastSavedPath = path;
+
+			if (_itemDefinition != null)
+				AssignSpriteToItem(path);
+
 			Repaint();
+		}
+
+		private void AssignSpriteToItem(string path)
+		{
+			// Re-import as a Sprite so it can be referenced by ItemDefinition.Icon. The PNG was
+			// just imported synchronously, so the importer is guaranteed available here.
+			var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+			if (importer == null)
+			{
+				Debug.LogWarning($"[PrefabScreenshot] No TextureImporter at '{path}'; cannot assign Icon to '{_itemDefinition.name}'.");
+				return;
+			}
+
+			importer.textureType = TextureImporterType.Sprite;
+			importer.spriteImportMode = SpriteImportMode.Single;
+			importer.alphaIsTransparency = _transparentBackground;
+			importer.SaveAndReimport();
+
+			var sprite = LoadSpriteAtPath(path);
+			if (sprite == null)
+			{
+				Debug.LogWarning($"[PrefabScreenshot] Saved '{path}' but could not load it as a Sprite to assign to '{_itemDefinition.name}'.");
+				return;
+			}
+
+			Undo.RecordObject(_itemDefinition, "Assign Item Icon");
+			_itemDefinition.Icon = sprite;
+			EditorUtility.SetDirty(_itemDefinition);
+			AssetDatabase.SaveAssetIfDirty(_itemDefinition);
+		}
+
+		private static Sprite LoadSpriteAtPath(string path)
+		{
+			var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+			if (sprite != null)
+				return sprite;
+
+			// Fall back to scanning sub-assets — the main asset is the Texture2D.
+			foreach (var asset in AssetDatabase.LoadAllAssetsAtPath(path))
+			{
+				if (asset is Sprite found)
+					return found;
+			}
+			return null;
 		}
 
 		private static void CreateFillLight(Scene scene, string name, Quaternion rotation, float intensity)

@@ -48,6 +48,13 @@ namespace Starter.Shooter
 		[Tooltip("Fraction of angular velocity bled off per second while submerged, so things stop spinning in water.")]
 		[SerializeField] private float _angularDrag = 2f;
 
+		[Header("Self-righting (floating bodies)")]
+		[Tooltip("Angular acceleration that rolls a floating body's local up-axis back toward world up, so a " +
+		         "floater (e.g. the rubber duck) settles upright at the surface instead of tumbling. " +
+		         "Torque scales with how far it's tilted (zero when level) and how submerged it is; the " +
+		         "Angular drag above damps the settle so it doesn't oscillate. 0 = no self-righting.")]
+		[SerializeField] private float _uprightTorque = 8f;
+
 		private Collider _trigger;
 
 		// One entry per buoyant body currently overlapping the water, keyed by its Rigidbody.
@@ -112,6 +119,11 @@ namespace Starter.Shooter
 					continue;
 				}
 
+				// Settled at the surface and asleep: leave it. Re-applying buoyancy would just wake it and
+				// keep it (and its replicated transform) jittering forever. A collision or any force wakes it
+				// again automatically, and we resume buoyancy on the next tick. Keep it tracked, just skip.
+				if (rb.IsSleeping()) continue;
+
 				var b = tracked.Collider.bounds;
 				float objectBottom = b.min.y;
 				float objectHeight = Mathf.Max(b.size.y, 0.01f);
@@ -126,6 +138,16 @@ namespace Starter.Shooter
 				// Water resistance, scaled by how submerged the body is.
 				rb.AddForce(-rb.linearVelocity * (_linearDrag * submerged), ForceMode.Acceleration);
 				rb.angularVelocity *= Mathf.Clamp01(1f - _angularDrag * submerged * dt);
+
+				// Self-righting: a gentle torque that rolls a floating body upright (local up → world up)
+				// so the duck settles instead of spinning. Cross(up, worldUp) is the rotation axis and its
+				// magnitude is sin(tilt) — strong when capsized, fading to zero as it levels off. The
+				// angular drag above damps the swing so it eases in rather than oscillating.
+				if (tracked.Body.Floats && _uprightTorque > 0f)
+				{
+					Vector3 righting = Vector3.Cross(rb.transform.up, Vector3.up);
+					rb.AddTorque(righting * (_uprightTorque * submerged), ForceMode.Acceleration);
+				}
 			}
 
 			if (_stale.Count > 0)
