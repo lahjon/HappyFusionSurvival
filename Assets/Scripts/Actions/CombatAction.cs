@@ -39,6 +39,11 @@ namespace Starter.Shooter
 		[Tooltip("Distance (meters) the target is pushed away from the attacker. 0 = no knockback.")]
 		public float KnockbackDistance = 0f;
 
+		[Tooltip("If true, this action may fire during the peaceful Day phase (and any non-Night phase), bypassing " +
+			"the weapon PvP gate in Player. Damage is still blocked by Health's PvP rules — the action lands its " +
+			"knockback only, so players can shove each other in town. Used by the unarmed punch; leave false for real weapons.")]
+		public bool AllowInPeacePhase = false;
+
 		/// <summary>Shared layer mask for every combat action's hit query. All current actions (pistol, bat,
 		/// punch, peck, throwing knife) target the same set of layers — using a static keeps a forgotten
 		/// per-asset HitMask=0 from silently making projectiles pass through the world. Edit here if you

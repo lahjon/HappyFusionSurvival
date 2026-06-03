@@ -15,7 +15,8 @@ MonoBehaviour:
   Id: 18
   DisplayName: Grenade
   Icon: {fileID: 0}
-  Description: Cook it, lob it, take cover. Detonates 3 seconds after the throw, dealing the most damage at the blast centre.
+  Description: Cook it, lob it, take cover. Detonates 3 seconds after the throw,
+    dealing the most damage at the blast centre.
   Stats: []
   Visual:
     Mesh: {fileID: 0}
@@ -33,6 +34,7 @@ MonoBehaviour:
   MaxStack: 3
   Weight: 0.3
   ScrapValue: 2
+  BaseValue: 60
   Capabilities:
   - rid: 8357564999999999001
   references:
@@ -50,6 +52,8 @@ MonoBehaviour:
           FOVLerpSpeed: 10
           SwayMultiplier: 0.25
           RecoilMultiplier: 0.5
+          BreathHoldSwayMultiplier: 0
+          BreathDepletionRecoilScale: 0.6
         AmmoItem: {fileID: 0}
         MagazineSize: 0
         ReloadSeconds: 1.5
@@ -70,5 +74,6 @@ MonoBehaviour:
           AimRecoilPitchPerShot: 3.5
           AimRecoilHorizontalRandom: 1.5
           AimRecoilLerpSpeed: 18
+          AimRecoilRecoverySpeed: 6
           HasMuzzle: 0
           MuzzleLocalPosition: {x: 0, y: 0, z: 0}

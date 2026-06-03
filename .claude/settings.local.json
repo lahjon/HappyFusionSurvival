@@ -71,7 +71,24 @@
       "mcp__UnityMCP__manage_camera",
       "Bash(Get-ChildItem -Path \"C:\\\\Unity Projects\\\\HappyFusionSurvival\" -Directory)",
       "Bash(Get-ChildItem -Path \"C:\\\\Unity Projects\\\\HappyFusionSurvival\" -Recurse -Directory)",
-      "Bash(Select-Object -First 20)"
+      "Bash(Select-Object -First 20)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Unity Projects\\\\HappyFusionSurvival\" -Recurse -Include \"*.unity\")",
+      "Bash(Format-Table FullName)",
+      "Bash(grep -l \"MatchManager\" Assets/Scripts/Match/*.cs.meta)",
+      "Bash(grep guid: Assets/Scripts/Match/__TRACKED_VAR__.cs.meta)",
+      "Bash(Select-Object -ExpandProperty Name)",
+      "Bash(grep guid *)",
+      "Bash(grep -rl \"71bd13dc7c9a68e4e91e8dafb79988d6\" Assets --include=*.meta)",
+      "Bash(grep -rl \"PhysicsProp\\\\|m_Script.*PhysicsProp\" Assets --include=*.prefab)",
+      "Bash(cat \"Assets/Scripts/PhysicsProp.cs.meta\")",
+      "Bash(find Assets -name \"*.prefab\" -path \"*Prop*\")",
+      "Bash(xargs cat)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Unity Projects\\\\HappyFusionSurvival\" -Recurse -Directory -Filter \"Photon*\")",
+      "Bash(awk -v 'id=&__TRACKED_VAR__' '$0 ~ id{f=1} f{print} f&&/m_EditorClassIdentifier/{exit}' Assets/Scenes/00_MainMenu/00_MainMenu.unity)",
+      "Bash(awk '/&[0-9]+$/{anchor=$0} /guid: 5e12b3749b8e53a4fa7416ced95f5baf/{found=1} found&&/m_GameObject:/{print \"component anchor:\", anchor; print $0; exit}' Assets/03_Shooter/03_Shooter.unity)",
+      "Bash(awk '/guid: 5e12b3749b8e53a4fa7416ced95f5baf/{f=1} f&&/m_GameObject:/{match\\($0,/[0-9]+/\\);print substr\\($0,RSTART,RLENGTH\\);exit}' Assets/03_Shooter/03_Shooter.unity)",
+      "Bash(awk -v 'id=&__TRACKED_VAR__' '$0 ~ id\"$\"{f=1} f&&/m_Name:/{print;exit}' Assets/03_Shooter/03_Shooter.unity)",
+      "Bash(python3 -)"
     ]
   }
 }

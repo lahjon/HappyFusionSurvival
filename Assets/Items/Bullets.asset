@@ -33,6 +33,7 @@ MonoBehaviour:
   MaxStack: 60
   Weight: 0.02
   ScrapValue: 1
+  BaseValue: 2
   Capabilities: []
   references:
     version: 2

@@ -5,44 +5,38 @@ using UnityEngine.UI;
 namespace Starter.Shooter
 {
 	/// <summary>
-	/// Local-only radar device. Lives on the Scanner's HandPrefab — Inventory instantiates one
-	/// per player when the Scanner slot is selected, destroys it when deselected, so the
-	/// "active only while held" rule falls out for free.
+	/// Local-only radar device — the concrete <see cref="HeldGadget"/> for <see cref="RadarGadgetCapability"/>.
+	/// Attached to the held hand instance at equip (see <c>Inventory.RefreshHeldItem</c>) and destroyed on
+	/// deselect, so "active only while held" falls out for free.
 	///
-	/// Builds the world-space radar UI procedurally (no sprite/material asset deps). The sweep
-	/// line spins on every viewer's instance; only the input-authority's instance scans players
-	/// and emits pings — remote viewers of someone else's device just see the sweep with no
-	/// dots, which matches the "you only know what your own radar saw" gameplay rule.
+	/// Builds the world-space radar UI procedurally (no sprite/material asset deps). The sweep line spins on
+	/// every viewer's instance (<see cref="OnRender"/>); only the input-authority's instance scans players and
+	/// emits pings (<see cref="OnOwnerTick"/>) — remote viewers of someone else's device just see the sweep with
+	/// no dots, which matches the "you only know what your own radar saw" gameplay rule.
+	///
+	/// All tuning is supplied by <see cref="RadarGadgetCapability"/> via <see cref="Initialize"/>; this component
+	/// holds only per-instance runtime state.
 	/// </summary>
-	public sealed class HandScanner : MonoBehaviour
+	public sealed class HandScanner : HeldGadget
 	{
-		[Header("Scan")]
-		[Tooltip("Horizontal radius (m) the radar covers. Targets outside are ignored.")]
-		public float ScanRange = 10f;
-		[Tooltip("Seconds for one full 360° sweep.")]
-		public float SweepDuration = 10f;
-		[Tooltip("Seconds a ping stays visible after being triggered (alpha lerps to 0 over this).")]
-		public float PingLifetime = 3f;
-		[Tooltip("If false, same-team players are filtered out (TeamManager.SameTeam). Default off — radar pings only show enemies.")]
-		public bool IncludeTeammates = false;
+		// Tuning copied from the RadarGadgetCapability on the item asset at equip (see Initialize).
+		private float _scanRange = 10f;
+		private float _sweepDuration = 10f;
+		private float _pingLifetime = 3f;
+		private bool _includeTeammates;
 
-		[Header("Visual")]
-		[Tooltip("Local-space position of the radar canvas relative to the HandPrefab root.")]
-		public Vector3 RadarLocalOffset = new(0f, 0.5f, 0.2f);
-		[Tooltip("Local-space euler rotation of the radar disc (degrees). Default flips it 180° on Y so the front face points back at the camera.")]
-		public Vector3 RadarLocalEuler = new(50f, 180f, 0f);
-		[Tooltip("Uniform local scale of the radar canvas. The canvas is 256 logical pixels wide; final world size = 256 * scale * parent.lossyScale.")]
-		public float RadarLocalScale = 0.004f;
+		private Vector3 _radarLocalOffset = new(0f, 0.5f, 0.2f);
+		private Vector3 _radarLocalEuler = new(50f, 180f, 0f);
+		private float _radarLocalScale = 0.004f;
 
-		[Header("Colors")]
-		public Color DiscColor = new(0f, 0.18f, 0f, 0.85f);
-		public Color RingColor = new(0.4f, 1f, 0.4f, 0.9f);
-		public Color SweepColor = new(0.4f, 1f, 0.4f, 0.9f);
-		public Color SelfColor = new(0.85f, 1f, 0.85f, 1f);
-		public Color PingColor = new(1f, 0.15f, 0.15f, 1f);
+		private Color _discColor = new(0f, 0.18f, 0f, 0.85f);
+		private Color _ringColor = new(0.4f, 1f, 0.4f, 0.9f);
+		private Color _sweepColor = new(0.4f, 1f, 0.4f, 0.9f);
+		private Color _selfColor = new(0.85f, 1f, 0.85f, 1f);
+		private Color _pingColor = new(1f, 0.15f, 0.15f, 1f);
 
 		// One static texture set shared by every Scanner instance — cheap and avoids reallocating
-		// per held-equip. Generated once on the first Awake.
+		// per held-equip. Generated once on first activation.
 		private static Texture2D s_discTex;
 		private static Texture2D s_ringTex;
 		private static Texture2D s_sweepTex;
@@ -50,9 +44,6 @@ namespace Starter.Shooter
 
 		private const int CanvasPx = 256;
 		private const float RadarRadiusPx = 120f;
-
-		private Player _ownerPlayer;
-		private Inventory _ownerInventory;
 
 		private RectTransform _root;
 		private RectTransform _sweep;
@@ -69,27 +60,38 @@ namespace Starter.Shooter
 		private readonly List<float> _pingExpiry = new(16);
 		private readonly List<bool> _pingAlive = new(16);
 
-		private void Awake()
+		/// <summary>
+		/// Seed this scanner from its authoring data and bring it online. Called by
+		/// <see cref="RadarGadgetCapability.CreateRuntime"/> immediately after AddComponent, before the first
+		/// Update — so the canvas is built with the final tuning, not the defaults.
+		/// </summary>
+		public void Initialize(RadarGadgetCapability cap)
+		{
+			if (cap != null)
+			{
+				_scanRange = cap.ScanRange;
+				_sweepDuration = cap.SweepDuration;
+				_pingLifetime = cap.PingLifetime;
+				_includeTeammates = cap.IncludeTeammates;
+
+				_radarLocalOffset = cap.RadarLocalOffset;
+				_radarLocalEuler = cap.RadarLocalEuler;
+				_radarLocalScale = cap.RadarLocalScale;
+
+				_discColor = cap.DiscColor;
+				_ringColor = cap.RingColor;
+				_sweepColor = cap.SweepColor;
+				_selfColor = cap.SelfColor;
+				_pingColor = cap.PingColor;
+			}
+
+			Activate();
+		}
+
+		protected override void OnActivated()
 		{
 			EnsureTextures();
 			BuildCanvas();
-			ResolveOwner();
-		}
-
-		// Walk up parents to find the Inventory that instantiated us. The HandPrefab lives under
-		// HandAnchor → CameraHandle → CameraPivot → Player; Inventory is on the Player root.
-		private void ResolveOwner()
-		{
-			var t = transform.parent;
-			while (t != null)
-			{
-				if (t.TryGetComponent<Inventory>(out _ownerInventory))
-				{
-					_ownerPlayer = _ownerInventory.GetComponent<Player>();
-					return;
-				}
-				t = t.parent;
-			}
 		}
 
 		private static void EnsureTextures()
@@ -146,9 +148,9 @@ namespace Starter.Shooter
 		{
 			var canvasGO = new GameObject("ScannerRadarCanvas");
 			canvasGO.transform.SetParent(transform, false);
-			canvasGO.transform.localPosition = RadarLocalOffset;
-			canvasGO.transform.localEulerAngles = RadarLocalEuler;
-			canvasGO.transform.localScale = Vector3.one * RadarLocalScale;
+			canvasGO.transform.localPosition = _radarLocalOffset;
+			canvasGO.transform.localEulerAngles = _radarLocalEuler;
+			canvasGO.transform.localScale = Vector3.one * _radarLocalScale;
 
 			var canvas = canvasGO.AddComponent<Canvas>();
 			canvas.renderMode = RenderMode.WorldSpace;
@@ -157,15 +159,15 @@ namespace Starter.Shooter
 			_root = canvasGO.GetComponent<RectTransform>();
 			_root.sizeDelta = new Vector2(CanvasPx, CanvasPx);
 
-			CreateRawImage("Disc", _root, s_discTex, DiscColor, new Vector2(RadarRadiusPx * 2f, RadarRadiusPx * 2f));
-			CreateRawImage("Ring", _root, s_ringTex, RingColor, new Vector2(RadarRadiusPx * 2f, RadarRadiusPx * 2f));
+			CreateRawImage("Disc", _root, s_discTex, _discColor, new Vector2(RadarRadiusPx * 2f, RadarRadiusPx * 2f));
+			CreateRawImage("Ring", _root, s_ringTex, _ringColor, new Vector2(RadarRadiusPx * 2f, RadarRadiusPx * 2f));
 
 			// Cardinal ticks at N/E/S/W on the rim.
 			for (int i = 0; i < 4; i++)
 			{
 				float ang = i * 90f * Mathf.Deg2Rad;
 				Vector2 p = new(Mathf.Sin(ang) * RadarRadiusPx, Mathf.Cos(ang) * RadarRadiusPx);
-				var tick = CreateRawImage($"Tick{i}", _root, s_dotTex, RingColor, new Vector2(6f, 6f));
+				var tick = CreateRawImage($"Tick{i}", _root, s_dotTex, _ringColor, new Vector2(6f, 6f));
 				tick.rectTransform.anchoredPosition = p;
 			}
 
@@ -180,10 +182,10 @@ namespace Starter.Shooter
 			_sweep.anchoredPosition = Vector2.zero;
 			var sweepImg = sweepGO.GetComponent<RawImage>();
 			sweepImg.texture = s_sweepTex;
-			sweepImg.color = SweepColor;
+			sweepImg.color = _sweepColor;
 			sweepImg.raycastTarget = false;
 
-			CreateRawImage("Self", _root, s_dotTex, SelfColor, new Vector2(10f, 10f));
+			CreateRawImage("Self", _root, s_dotTex, _selfColor, new Vector2(10f, 10f));
 
 			var ppGO = new GameObject("Pings", typeof(RectTransform));
 			ppGO.transform.SetParent(_root, false);
@@ -208,19 +210,19 @@ namespace Starter.Shooter
 			return img;
 		}
 
-		private void Update()
+		protected override void OnRender()
 		{
 			_prevSweepAngleDeg = _sweepAngleDeg;
-			float deltaDeg = SweepDuration > 0f ? Time.deltaTime * 360f / SweepDuration : 0f;
+			float deltaDeg = _sweepDuration > 0f ? Time.deltaTime * 360f / _sweepDuration : 0f;
 			_sweepAngleDeg = (_sweepAngleDeg + deltaDeg) % 360f;
 			if (_sweep != null) _sweep.localRotation = Quaternion.Euler(0f, 0f, -_sweepAngleDeg);
 
 			FadePings();
+		}
 
-			// Only the input-authority's instance scans for enemies. Remote viewers of someone
-			// else's Scanner just see the sweep with no pings.
-			if (_ownerPlayer == null || _ownerInventory == null || _ownerInventory.HasInputAuthority == false)
-				return;
+		protected override void OnOwnerTick()
+		{
+			if (OwnerPlayer == null) return;
 
 			if (Time.unscaledTime >= _nextPlayerRefreshTime)
 			{
@@ -234,37 +236,37 @@ namespace Starter.Shooter
 		private void RefreshPlayerCache()
 		{
 			_playerCache.Clear();
-			var all = FindObjectsByType<Player>(FindObjectsInactive.Exclude);
+			var all = FindObjectsByType<Player>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
 			for (int i = 0; i < all.Length; i++)
 			{
 				var p = all[i];
-				if (p == null || p == _ownerPlayer) continue;
+				if (p == null || p == OwnerPlayer) continue;
 				_playerCache.Add(p);
 			}
 		}
 
 		private void ScanAndPing()
 		{
-			Vector3 selfPos = _ownerPlayer.transform.position;
-			Vector3 selfFwd = _ownerPlayer.transform.forward; selfFwd.y = 0f;
+			Vector3 selfPos = OwnerPlayer.transform.position;
+			Vector3 selfFwd = OwnerPlayer.transform.forward; selfFwd.y = 0f;
 			if (selfFwd.sqrMagnitude < 1e-4f) selfFwd = Vector3.forward; else selfFwd.Normalize();
 			// 90° clockwise from selfFwd in the horizontal plane.
 			Vector3 selfRight = new(selfFwd.z, 0f, -selfFwd.x);
 
 			var tm = TeamManager.Instance;
-			var selfRef = _ownerPlayer.Object != null ? _ownerPlayer.Object.InputAuthority : default;
+			var selfRef = OwnerPlayer.Object != null ? OwnerPlayer.Object.InputAuthority : default;
 
 			for (int i = 0; i < _playerCache.Count; i++)
 			{
 				var p = _playerCache[i];
 				if (p == null || p.Object == null || p.Object.IsValid == false) continue;
 				if (p.Health != null && p.Health.IsAlive == false) continue;
-				if (IncludeTeammates == false && tm != null && tm.SameTeam(selfRef, p.Object.InputAuthority)) continue;
+				if (_includeTeammates == false && tm != null && tm.SameTeam(selfRef, p.Object.InputAuthority)) continue;
 
 				Vector3 delta = p.transform.position - selfPos;
 				delta.y = 0f;
 				float dist = delta.magnitude;
-				if (dist > ScanRange || dist < 1e-4f) continue;
+				if (dist > _scanRange || dist < 1e-4f) continue;
 
 				// Bearing: 0° = directly forward, increasing clockwise to match the sweep direction.
 				float bearing = Mathf.Atan2(Vector3.Dot(delta, selfRight), Vector3.Dot(delta, selfFwd)) * Mathf.Rad2Deg;
@@ -289,7 +291,7 @@ namespace Starter.Shooter
 
 		private void SpawnPing(float bearingDeg, float dist)
 		{
-			float radial = (dist / Mathf.Max(0.001f, ScanRange)) * RadarRadiusPx;
+			float radial = (dist / Mathf.Max(0.001f, _scanRange)) * RadarRadiusPx;
 			float rad = bearingDeg * Mathf.Deg2Rad;
 			Vector2 pos = new(Mathf.Sin(rad) * radial, Mathf.Cos(rad) * radial);
 
@@ -300,7 +302,7 @@ namespace Starter.Shooter
 			}
 			if (slot < 0)
 			{
-				var img = CreateRawImage($"Ping{_pingRects.Count}", _pingParent, s_dotTex, PingColor, new Vector2(12f, 12f));
+				var img = CreateRawImage($"Ping{_pingRects.Count}", _pingParent, s_dotTex, _pingColor, new Vector2(12f, 12f));
 				_pingRects.Add(img.rectTransform);
 				_pingImages.Add(img);
 				_pingExpiry.Add(0f);
@@ -309,9 +311,9 @@ namespace Starter.Shooter
 			}
 
 			_pingRects[slot].anchoredPosition = pos;
-			_pingImages[slot].color = PingColor;
+			_pingImages[slot].color = _pingColor;
 			_pingImages[slot].gameObject.SetActive(true);
-			_pingExpiry[slot] = Time.time + PingLifetime;
+			_pingExpiry[slot] = Time.time + _pingLifetime;
 			_pingAlive[slot] = true;
 		}
 
@@ -330,8 +332,8 @@ namespace Starter.Shooter
 				}
 				if (_pingImages[i] != null)
 				{
-					Color c = PingColor;
-					c.a *= Mathf.Clamp01(remaining / Mathf.Max(0.01f, PingLifetime));
+					Color c = _pingColor;
+					c.a *= Mathf.Clamp01(remaining / Mathf.Max(0.01f, _pingLifetime));
 					_pingImages[i].color = c;
 				}
 			}

@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9ad956235355ed4ab9163e99fd3c210, type: 3}
+  m_Name: Loot_Weapons
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.LootTable
+  DisplayName: Weapons
+  Entries:
+  - Item: {fileID: 11400000, guid: a4b8c9d1e2f34a5b67890c1d2e3f4a50, type: 2}
+    Weight: 4
+    Count: 1
+  - Item: {fileID: 11400000, guid: 5af45a9c3773d1a4a8a2ef4c07d3d4e0, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: 9c7ea7f0acf6bd34caf768554297e98f, type: 2}
+    Weight: 5
+    Count: 1
+  - Item: {fileID: 11400000, guid: 6b81b0cd1e2a3b4c5d6e7f8091a2b3c4, type: 2}
+    Weight: 3
+    Count: 1
+  - Item: {fileID: 11400000, guid: b53ee48c43a719543a74caa9bd789046, type: 2}
+    Weight: 4
+    Count: 1
+  - Item: {fileID: 11400000, guid: 0fedcba987654321fedcba9876543210, type: 2}
+    Weight: 2
+    Count: 1

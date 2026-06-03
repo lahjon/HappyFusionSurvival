@@ -30,10 +30,26 @@ MonoBehaviour:
     HeldLocalEuler: {x: 0, y: 0, z: 0}
     VisualOverride: {fileID: 0}
   WorldPrefab: {fileID: 0}
-  HandPrefab: {fileID: 5500001000000001, guid: 2b1c3d4e5f60718293a4b5c6d7e8f901, type: 3}
+  HandPrefab: {fileID: 0}
   MaxStack: 1
   Weight: 0.5
-  Capabilities: []
+  Capabilities:
+  - rid: 7700000000000000007
   references:
     version: 2
-    RefIds: []
+    RefIds:
+    - rid: 7700000000000000007
+      type: {class: RadarGadgetCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
+      data:
+        ScanRange: 10
+        SweepDuration: 10
+        PingLifetime: 3
+        IncludeTeammates: 0
+        RadarLocalOffset: {x: 0, y: 0.5, z: 0.2}
+        RadarLocalEuler: {x: 50, y: 180, z: 0}
+        RadarLocalScale: 0.004
+        DiscColor: {r: 0, g: 0.18, b: 0, a: 0.85}
+        RingColor: {r: 0.4, g: 1, b: 0.4, a: 0.9}
+        SweepColor: {r: 0.4, g: 1, b: 0.4, a: 0.9}
+        SelfColor: {r: 0.85, g: 1, b: 0.85, a: 1}
+        PingColor: {r: 1, g: 0.15, b: 0.15, a: 1}

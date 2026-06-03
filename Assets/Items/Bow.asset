@@ -34,6 +34,7 @@ MonoBehaviour:
   MaxStack: 1
   Weight: 1
   ScrapValue: 1
+  BaseValue: 90
   Capabilities:
   - rid: 8357564934323699992
   references:
@@ -44,6 +45,18 @@ MonoBehaviour:
       data:
         Actions:
         - {fileID: 11400000, guid: 5c72a1bc0d1e2a3b4c5d6e7f8091a2b3, type: 2}
+        SecondaryMode: 0
+        SecondaryAction: {fileID: 0}
+        Aim:
+          FOVReduction: 18
+          FOVLerpSpeed: 10
+          SwayMultiplier: 0.25
+          RecoilMultiplier: 0.5
+          BreathHoldSwayMultiplier: 0
+          BreathDepletionRecoilScale: 0.6
+        AmmoItem: {fileID: 0}
+        MagazineSize: 0
+        ReloadSeconds: 1.5
         Rig:
           SwingArcEuler: {x: -80, y: 0, z: 0}
           SwingDuration: 0.28
@@ -61,5 +74,6 @@ MonoBehaviour:
           AimRecoilPitchPerShot: 3.5
           AimRecoilHorizontalRandom: 1.5
           AimRecoilLerpSpeed: 18
+          AimRecoilRecoverySpeed: 6
           HasMuzzle: 0
           MuzzleLocalPosition: {x: 0, y: 0, z: 0}

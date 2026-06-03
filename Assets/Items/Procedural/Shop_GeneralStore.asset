@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4227af1ea73a5624c8a9b4d3b1d79453, type: 3}
+  m_Name: Shop_GeneralStore
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.LootTableSet
+  DisplayName: General Store
+  Tables:
+  - Table: {fileID: 11400000, guid: abed687fc5ee4584fbc3dc79836bcdf3, type: 2}
+    Weight: 1
+  - Table: {fileID: 11400000, guid: 2c51aa8629216f14d9d1185f50a39550, type: 2}
+    Weight: 3

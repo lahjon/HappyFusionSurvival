@@ -13,8 +13,13 @@ namespace Starter.Common.Inventory
 	/// remote clients read the networked position so they see the same arc.
 	/// </summary>
 	[RequireComponent(typeof(NetworkObject))]
-	public sealed class PickupableItem : NetworkBehaviour, IInteractable, IKnockbackable
+	public sealed class PickupableItem : NetworkBehaviour, IInteractable, IKnockbackable, IBuoyantBody
 	{
+		[Header("Water")]
+		[Tooltip("ON: this dropped item floats in any WaterVolume (e.g. a cork, a bottle). " +
+		         "OFF (default): it sinks. See WaterVolume / IBuoyantBody.")]
+		[SerializeField] private bool _floats = false;
+
 		[Header("Authoring (scene-placed pickups)")]
 		[Tooltip("Used when a pickup is placed in the scene. Programmatic spawns call Initialize() instead.")]
 		[SerializeField] private ItemDefinition _initialItem;
@@ -309,6 +314,11 @@ namespace Starter.Common.Inventory
 				transform.SetPositionAndRotation(NetPosition, NetRotation);
 			}
 		}
+
+		// --- IBuoyantBody: WaterVolume reads these to apply buoyancy on the host ---
+
+		Rigidbody IBuoyantBody.Body => _rb;
+		bool IBuoyantBody.Floats => _floats;
 
 		// --- IKnockbackable ---
 

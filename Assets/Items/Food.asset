@@ -17,10 +17,23 @@ MonoBehaviour:
   Icon: {fileID: 0}
   Description: A crunchy red apple. Restores hunger.
   Stats: []
+  Visual:
+    Mesh: {fileID: 0}
+    Material: {fileID: 0}
+    WorldScale: {x: 0.3, y: 0.3, z: 0.3}
+    WorldBob: 0
+    WorldRotate: 0
+    PromptOffset: {x: 0, y: 0, z: 0}
+    HeldScale: {x: 1, y: 1, z: 1}
+    HeldLocalPosition: {x: 0, y: 0, z: 0}
+    HeldLocalEuler: {x: 0, y: 0, z: 0}
+    VisualOverride: {fileID: 0}
   WorldPrefab: {fileID: 0}
   HandPrefab: {fileID: 0}
   MaxStack: 8
   Weight: 0
+  ScrapValue: 1
+  BaseValue: 15
   Capabilities:
   - rid: 8357564934323699988
   references:

@@ -51,14 +51,14 @@ namespace Starter.Shooter
 					}
 				}
 
-				ApplyHit(closest, damage, knockback, ctx.AttackerPosition, ctx.IgnoreAuthority, ref result);
+				ApplyHit(closest, damage, knockback, ctx.AttackerPosition, ctx.IgnoreAuthority, AllowInPeacePhase, ref result);
 			}
 			else
 			{
 				for (int i = 0; i < count; i++)
 				{
 					var health = ResolveHealth(_buffer[i], ctx.AttackerRoot);
-					ApplyHit(health, damage, knockback, ctx.AttackerPosition, ctx.IgnoreAuthority, ref result);
+					ApplyHit(health, damage, knockback, ctx.AttackerPosition, ctx.IgnoreAuthority, AllowInPeacePhase, ref result);
 				}
 			}
 
@@ -93,16 +93,22 @@ namespace Starter.Shooter
 			return health;
 		}
 
-		private static void ApplyHit(Health health, int damage, float knockback, Vector3 from, PlayerRef attacker, ref ActionHit result)
+		private static void ApplyHit(Health health, int damage, float knockback, Vector3 from, PlayerRef attacker, bool shoveWhenUndamaged, ref ActionHit result)
 		{
 			if (health == null) return;
-			if (health.TakeHit(damage, attacker) == false) return;
 
-			if (knockback > 0f)
+			bool damaged = health.TakeHit(damage, attacker);
+
+			// Knockback normally rides on a landed hit. When the action is flagged to shove even with no damage
+			// (the peace-phase punch — see CombatAction.AllowInPeacePhase), still push a living, vulnerable target:
+			// the daytime PvP gate in Health.TakeHit blocks the damage but the punch should still nudge people.
+			if (knockback > 0f && (damaged || (shoveWhenUndamaged && health.IsAlive && health.IsInvulnerable == false)))
 			{
 				var knockable = health.GetComponentInParent<IKnockbackable>();
 				knockable?.ApplyKnockback(from, knockback);
 			}
+
+			if (damaged == false) return;
 
 			// First hit becomes the "representative" hit for FX replication.
 			if (result.DidHit == false)

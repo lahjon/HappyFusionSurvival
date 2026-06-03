@@ -33,6 +33,7 @@ MonoBehaviour:
   MaxStack: 5
   Weight: 0
   ScrapValue: 1
+  BaseValue: 50
   Capabilities:
   - rid: 8357564934323699986
   references:

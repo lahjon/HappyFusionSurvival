@@ -47,6 +47,18 @@ namespace Starter.Shooter
 		[Tooltip("Banner font size relative to DayTimeLabel.")]
 		public float EventBannerFontScale = 1.4f;
 
+		[Header("Elimination Banner (auto-built at runtime from DayTimeLabel)")]
+		[Tooltip("Colour of the big centre-screen \"Eliminated <name>\" confirmation.")]
+		public Color EliminationColor = new Color(1f, 0.25f, 0.2f);
+		[Tooltip("Banner font size relative to DayTimeLabel — large, centre-screen kill confirm.")]
+		public float EliminationFontScale = 2.2f;
+		[Tooltip("Centre-anchored offset of the elimination banner, in canvas units (above the crosshair).")]
+		public Vector2 EliminationOffset = new Vector2(0f, 140f);
+		[Tooltip("Seconds the banner stays fully opaque before it begins to fade.")]
+		public float EliminationHoldSeconds = 0.6f;
+		[Tooltip("Seconds the banner takes to fade from opaque to gone.")]
+		public float EliminationFadeSeconds = 0.8f;
+
 		[Header("UI Sound Setup")]
 		public AudioSource AudioSource;
 		public AudioClip HitReceivedClip;
@@ -59,6 +71,7 @@ namespace Starter.Shooter
 		private TextMeshProUGUI _eventLabel;
 		private TextMeshProUGUI _armingLabel;
 		private TextMeshProUGUI _ammoLabel;
+		private TextMeshProUGUI _eliminationLabel;
 
 		[Header("Ammo Readout (auto-built at runtime from DayTimeLabel)")]
 		[Tooltip("Anchored offset of the magazine/reserve readout, relative to screen centre (near the crosshair).")]
@@ -87,6 +100,7 @@ namespace Starter.Shooter
 
 			var player = GameManager.LocalPlayer;
 			UpdateAmmoReadout(player);
+			UpdateEliminationBanner(player);
 			if (player == null)
 			{
 				CanvasGroup.alpha = 0f;
@@ -181,6 +195,58 @@ namespace Starter.Shooter
 			BuildEventBanner();
 			BuildArmingPrompt();
 			BuildAmmoReadout();
+			BuildEliminationBanner();
+		}
+
+		// Clone the day/night label to make a big, centre-screen kill-confirmation banner — same
+		// no-bespoke-prefab trick as the event banner. Driven by the local player's networked-RPC-fed
+		// LastEliminatedName / LastEliminationTime stamps.
+		private void BuildEliminationBanner()
+		{
+			if (DayTimeLabel == null) return;
+
+			_eliminationLabel = Instantiate(DayTimeLabel, DayTimeLabel.transform.parent);
+			_eliminationLabel.name = "EliminationBanner";
+
+			var rt = _eliminationLabel.rectTransform;
+			rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+			rt.pivot = new Vector2(0.5f, 0.5f);
+			rt.anchoredPosition = EliminationOffset;
+
+			_eliminationLabel.fontSize = DayTimeLabel.fontSize * EliminationFontScale;
+			_eliminationLabel.alignment = TextAlignmentOptions.Center;
+			_eliminationLabel.fontStyle |= FontStyles.Bold;
+			_eliminationLabel.color = EliminationColor;
+			_eliminationLabel.gameObject.SetActive(false);
+		}
+
+		// Flash "Eliminated <name>" centre-screen when the local player gets a kill, then fade out fast.
+		// The kill event arrives via Player.RPC_NotifyElimination (host → killer); here we only render the
+		// hold-then-fade from the local timestamp. Hidden when there's nothing recent to show.
+		private void UpdateEliminationBanner(Player player)
+		{
+			if (_eliminationLabel == null) return;
+
+			float elapsed = player != null ? Time.unscaledTime - player.LastEliminationTime : 999f;
+			bool show = player != null
+				&& string.IsNullOrEmpty(player.LastEliminatedName) == false
+				&& elapsed >= 0f
+				&& elapsed < EliminationHoldSeconds + EliminationFadeSeconds;
+
+			if (show)
+			{
+				float alpha = elapsed < EliminationHoldSeconds
+					? 1f
+					: 1f - Mathf.Clamp01((elapsed - EliminationHoldSeconds) / Mathf.Max(0.01f, EliminationFadeSeconds));
+
+				var color = EliminationColor;
+				color.a = alpha;
+				_eliminationLabel.color = color;
+				_eliminationLabel.text = $"Eliminated {player.LastEliminatedName}";
+			}
+
+			if (_eliminationLabel.gameObject.activeSelf != show)
+				_eliminationLabel.gameObject.SetActive(show);
 		}
 
 		// Clone the day/night label to make a crosshair-adjacent ammo readout — no bespoke prefab needed,

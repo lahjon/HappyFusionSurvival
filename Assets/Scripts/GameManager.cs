@@ -83,6 +83,15 @@ namespace Starter.Shooter
 				NetworkedWorldSeed = WorldGen.Seed;
 			else
 				WorldGen.Seed = NetworkedWorldSeed;
+
+			if (HasStateAuthority)
+			{
+				// Players were already connected in the lobby scene before this game scene loaded, so IPlayerJoined
+				// does not fire for them here — spawn for every active player now. EnsurePlayerSpawned is idempotent,
+				// so genuine late joins still arrive through PlayerJoined without double-spawning.
+				foreach (var playerRef in Runner.ActivePlayers)
+					EnsurePlayerSpawned(playerRef);
+			}
 		}
 
 		public override void FixedUpdateNetwork()
@@ -223,16 +232,27 @@ namespace Starter.Shooter
 
 		public void PlayerJoined(PlayerRef playerRef)
 		{
-			Debug.Log($"[SPAWNDBG] PlayerJoined ref={playerRef} hasStateAuth={HasStateAuthority} prefab={(PlayerPrefab == null ? "NULL" : PlayerPrefab.name)} spawnPoints={(_spawnPoints == null ? -1 : _spawnPoints.Length)}");
+			EnsurePlayerSpawned(playerRef);
+		}
 
+		/// <summary>Host-only, idempotent: spawn a <see cref="Player"/> for <paramref name="playerRef"/> if one does not
+		/// already exist. Called both when the game scene first loads (for everyone already connected in the lobby) and
+		/// from <see cref="PlayerJoined"/> for genuine late joins; the <see cref="NetworkRunner.GetPlayerObject"/> guard
+		/// keeps the two paths from double-spawning.</summary>
+		private void EnsurePlayerSpawned(PlayerRef playerRef)
+		{
 			if (HasStateAuthority == false)
+				return;
+			if (Runner.GetPlayerObject(playerRef) != null)
 				return;
 
 			var pos = GetSpawnPositionForPlayer(playerRef);
-			Debug.Log($"[SPAWNDBG] spawning at {pos}");
 			var player = Runner.Spawn(PlayerPrefab, pos, Quaternion.identity, playerRef);
-			Debug.Log($"[SPAWNDBG] Runner.Spawn returned {(player == null ? "NULL" : player.name)}");
 			Runner.SetPlayerObject(playerRef, player.Object);
+
+			// Confine this player to their spawn area until the round begins (everyone loaded in). Late joiners into an
+			// already-started round still get an anchor, but MatchManager.RoundStarted is already true so it never bites.
+			player.InitSpawnConfinement(pos);
 
 			// This list is state authority only,
 			// so it is valid to have this list non-networked

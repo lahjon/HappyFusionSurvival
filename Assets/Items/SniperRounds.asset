@@ -30,9 +30,10 @@ MonoBehaviour:
     VisualOverride: {fileID: 0}
   WorldPrefab: {fileID: 0}
   HandPrefab: {fileID: 0}
-  MaxStack: 20
+  MaxStack: 12
   Weight: 0.05
   ScrapValue: 2
+  BaseValue: 8
   Capabilities: []
   references:
     version: 2
