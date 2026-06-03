@@ -33,6 +33,8 @@ MonoBehaviour:
   HandPrefab: {fileID: 0}
   MaxStack: 32
   Weight: 0.05
+  ScrapValue: 1
+  BaseValue: 3
   Capabilities: []
   references:
     version: 2

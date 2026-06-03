@@ -140,7 +140,7 @@ namespace Starter.Shooter
 
 			if (IsAlive == false)
 			{
-				bool isPlayerTarget = TryGetComponent<Player>(out _);
+				bool isPlayerTarget = TryGetComponent<Player>(out var victimPlayer);
 
 				// Give the host-side owner a chance to absorb the lethal blow (Player uses this
 				// to enter the downed state). If the hook handles it, clamp HP back to 1 so the
@@ -167,6 +167,15 @@ namespace Starter.Shooter
 					&& MatchManager.Instance.Phase == MatchPhase.Night)
 				{
 					TeamManager.Instance?.RegisterKill(attacker);
+
+					// Flash an "Eliminated <name>" banner on the killer's own screen. Routed as a host → owner
+					// RPC on the attacker's Player object so it lands only on that client; harmless no-op for
+					// bot attackers (their synthetic Owner ref is never registered as a player object).
+					var attackerObj = Runner.GetPlayerObject(attacker);
+					if (attackerObj != null && attackerObj.TryGetComponent<Player>(out var attackerPlayer))
+					{
+						attackerPlayer.RPC_NotifyElimination(victimPlayer != null ? victimPlayer.Nickname : string.Empty);
+					}
 				}
 			}
 

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Fusion;
 using Starter.Common.Input;
 using Starter.Common.Inventory;
@@ -831,6 +832,88 @@ namespace Starter.Shooter
 			AuthorityGiveItem(itemId, count);
 		}
 
+		/// <summary>
+		/// State-authority debug entry: refill ammo for every weapon currently in the hotbar. For each
+		/// weapon found, gathers the ammo type(s) it draws from — the magazine <see cref="WeaponCapability.AmmoItem"/>
+		/// plus the ammo of any projectile/grenade actions it owns — and tops that ammo's reserve up to the
+		/// ammo item's MaxStack (a full stack). Finally tops every magazine-fed weapon's loaded magazine off
+		/// to its full MagazineSize. Returns the number of distinct ammo types refilled.
+		/// </summary>
+		public int AuthorityRefillAmmo()
+		{
+			if (HasStateAuthority == false || ItemDatabase.Instance == null) return 0;
+
+			var seen = new HashSet<short>();
+			int refilled = 0;
+
+			// Pass 1: top each weapon's ammo type(s) up to a full reserve stack.
+			for (int i = 0; i < Slots.Length; i++)
+			{
+				var s = Slots[i];
+				if (s.IsEmpty) continue;
+				var def = ItemDatabase.Instance.GetById(s.ItemId);
+				var weapon = def != null ? def.GetCapability<WeaponCapability>() : null;
+				if (weapon == null) continue;
+
+				if (TopUpAmmoReserve(weapon.AmmoItem, seen)) refilled++;
+				if (weapon.Actions != null)
+					for (int a = 0; a < weapon.Actions.Count; a++)
+						if (TopUpAmmoReserve(AmmoOf(weapon.Actions[a]), seen)) refilled++;
+				if (TopUpAmmoReserve(AmmoOf(weapon.SecondaryAction), seen)) refilled++;
+			}
+
+			// Pass 2: refill loaded magazines now that reserves are full (debug grant — magazine fill
+			// is direct, it doesn't draw down the reserve we just topped up).
+			for (int i = 0; i < Slots.Length; i++)
+			{
+				var s = Slots[i];
+				if (s.IsEmpty) continue;
+				var def = ItemDatabase.Instance.GetById(s.ItemId);
+				var weapon = def != null ? def.GetCapability<WeaponCapability>() : null;
+				if (weapon == null || weapon.UsesMagazine == false) continue;
+				if (s.Loaded < weapon.MagazineSize)
+				{
+					s.Loaded = (short)weapon.MagazineSize;
+					Slots.Set(i, s);
+				}
+			}
+
+			return refilled;
+		}
+
+		/// <summary>Ammo item a combat action draws from (projectile/grenade actions), or null.</summary>
+		private static ItemDefinition AmmoOf(CombatAction action)
+		{
+			return action switch
+			{
+				ProjectileAction p => p.AmmoItem,
+				GrenadeAction g    => g.AmmoItem,
+				_                  => null,
+			};
+		}
+
+		/// <summary>
+		/// State-authority: bring the reserve of <paramref name="ammo"/> up to its MaxStack, adding the
+		/// shortfall via <see cref="TryAdd"/>. No-op (returns false) for null ammo or a type already handled
+		/// this refill — <paramref name="seen"/> dedupes weapons that share an ammo type.
+		/// </summary>
+		private bool TopUpAmmoReserve(ItemDefinition ammo, HashSet<short> seen)
+		{
+			if (ammo == null || ammo.Id == 0) return false;
+			if (seen.Add(ammo.Id) == false) return false;
+
+			int max  = Mathf.Max(1, ammo.MaxStack);
+			int need = max - AmmoReserve(ammo.Id);
+			if (need > 0) TryAdd(ammo.Id, (short)need);
+			return true;
+		}
+
+		[Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
+		public void RPC_DebugRefillAmmo()
+		{
+			AuthorityRefillAmmo();
+		}
+
 		public void SelectSlot(int idx)
 		{
 			if (idx < 0 || idx >= SlotCount) return;
@@ -918,6 +1001,12 @@ namespace Starter.Shooter
 			// rest-pose reset and overlay-layer sweep so the attached mesh inherits the overlay layer.
 			if (heldDef != null && _heldInstance.TryGetComponent<HeldWeapon>(out var rig))
 				rig.Configure(heldDef.Visual, heldDef.GetCapability<WeaponCapability>());
+
+			// Gadget items (radar/scanner, …) attach their HeldGadget module to the hand instance from the
+			// item's GadgetCapability — no bespoke HandPrefab needed. Done before the overlay-layer sweep so
+			// the gadget's world-space canvas inherits the FirstPersonOverlay layer like the rest of the rig.
+			if (heldDef != null && heldDef.TryGetCapability<GadgetCapability>(out var gadget))
+				gadget.CreateRuntime(_heldInstance);
 
 			_heldInstance.transform.localPosition = Vector3.zero;
 			_heldInstance.transform.localRotation = Quaternion.identity;

@@ -33,6 +33,7 @@ MonoBehaviour:
   MaxStack: 1
   Weight: 6
   ScrapValue: 5
+  BaseValue: 250
   Capabilities:
   - rid: 8357564954676298356
   references:
@@ -51,6 +52,7 @@ MonoBehaviour:
           SwayMultiplier: 0.15
           RecoilMultiplier: 0.4
           BreathHoldSwayMultiplier: 0.2
+          BreathDepletionRecoilScale: 0.6
         AmmoItem: {fileID: 11400000, guid: 52a2a8b5972b3554db5159e35dac5bee, type: 2}
         MagazineSize: 5
         ReloadSeconds: 3
@@ -71,5 +73,6 @@ MonoBehaviour:
           AimRecoilPitchPerShot: 9
           AimRecoilHorizontalRandom: 2.5
           AimRecoilLerpSpeed: 18
+          AimRecoilRecoverySpeed: 6
           HasMuzzle: 1
           MuzzleLocalPosition: {x: -0.001, y: 0.121, z: 0.713}

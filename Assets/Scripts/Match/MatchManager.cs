@@ -1,6 +1,8 @@
 using System;
+using System.Linq;
 using Fusion;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace Starter.Shooter
 {
@@ -30,8 +32,12 @@ namespace Starter.Shooter
 		[Tooltip("Maximum PvP duration. Round can end earlier when only one team has living members. Default: 15 minutes.")]
 		[Min(10f)] public float NightMaxDuration = 15f * 60f;
 
-		[Tooltip("Scoreboard display after match resolves before returning to Lobby. Default: 20s.")]
+		[Tooltip("Scoreboard display after match resolves before returning to the lobby scene. Default: 20s.")]
 		[Min(1f)] public float MatchOverDuration = 20f;
+
+		[Header("Scene")]
+		[Tooltip("Build index of the menu/lobby scene to return everyone to when the match is over. 00_MainMenu doubles as the lobby.")]
+		public int LobbySceneIndex = 0;
 
 		[Header("References (auto-found on Spawned if null)")]
 		public TeamManager TeamManager;
@@ -62,6 +68,18 @@ namespace Starter.Shooter
 		/// <summary>True while the <c>arm</c> debug override is active (PvP forced on regardless of phase).</summary>
 		public bool IsPvpForced => DebugArmForced;
 
+		/// <summary>Debug override (the <c>time_scale</c> console command): networked game speed applied to every peer's
+		/// local <see cref="Time.timeScale"/> via <see cref="OnTimeScaleChangedRender"/>. 1 = normal, 0 = paused, &gt;1 =
+		/// faster. Networked so all peers (and late-joiners, on Spawned) agree on the simulation speed. Default 1.</summary>
+		[Networked, OnChangedRender(nameof(OnTimeScaleChangedRender))]
+		public float DebugTimeScale { get; private set; }
+
+		/// <summary>True once the opening "wait for all players to load in" gate has passed and the round has begun
+		/// (any phase past <see cref="MatchPhase.Lobby"/>). While false — the game scene is still in Lobby, waiting for
+		/// everyone to spawn — freshly-spawned players are confined to their spawn area and cannot interact. Reads false
+		/// before this MatchManager exists (game scene still loading), which keeps players locked during that window too.</summary>
+		public static bool RoundStarted => Instance != null && Instance.Phase != MatchPhase.Lobby;
+
 		// =========================================================================
 		// Lifecycle
 		// =========================================================================
@@ -83,17 +101,33 @@ namespace Starter.Shooter
 				// Fresh boot: ensure clean Lobby state.
 				WinningTeamId = -1;
 			}
+
+			// Networked default is 0 (which would pause everything) — the authority seeds a sane 1×. Every peer then
+			// applies the replicated value locally here, since OnChangedRender may not fire for a late-joiner's
+			// initial state sync.
+			if (HasStateAuthority && DebugTimeScale <= 0f)
+				DebugTimeScale = 1f;
+			if (DebugTimeScale > 0f)
+				Time.timeScale = DebugTimeScale;
 		}
 
 		public override void Despawned(NetworkRunner runner, bool hasState)
 		{
 			if (Instance == this) Instance = null;
+
+			// Don't let a debug slow-mo / pause leak into the menu scene after the match object despawns.
+			Time.timeScale = 1f;
 		}
 
 		/// <summary>Set by the debug console (set_daytime / set_nighttime). While true the host stops auto-advancing
 		/// the phase machine — the forced phase holds indefinitely instead of expiring or resolving a winner.
 		/// Authority-only; the phase machine only runs on the authority so it need not be networked.</summary>
 		private bool _debugHoldPhase;
+
+		// Cached on the host for the auto-begin readiness scan.
+		private GameManager _gameManager;
+		// One-shot guard so the MatchOver→lobby scene load isn't re-issued every tick while the load is in flight.
+		private bool _returningToLobbyScene;
 
 		public override void FixedUpdateNetwork()
 		{
@@ -103,7 +137,8 @@ namespace Starter.Shooter
 			switch (Phase)
 			{
 				case MatchPhase.Lobby:
-					// No timer — host advances explicitly via BeginMatch().
+					// The game scene boots in Lobby with no UI; auto-begin the round once everyone has loaded in.
+					TryAutoBegin();
 					break;
 
 				case MatchPhase.Day:
@@ -124,9 +159,52 @@ namespace Starter.Shooter
 
 				case MatchPhase.MatchOver:
 					if (PhaseTimer.Expired(Runner))
-						EnterPhase(MatchPhase.Lobby);
+						ReturnEveryoneToLobbyScene();
 					break;
 			}
+		}
+
+		/// <summary>
+		/// Host-only readiness gate. The game scene starts in <see cref="MatchPhase.Lobby"/>; once every connected
+		/// player has finished loading and spawned a <see cref="Player"/>, lock in the lobby's team-size choice and
+		/// kick off the round. ("Ready" == "finished loading" — there is no explicit per-player ready toggle.)
+		/// </summary>
+		private void TryAutoBegin()
+		{
+			if (_gameManager == null)
+				_gameManager = FindAnyObjectByType<GameManager>();
+			if (_gameManager == null) return;
+
+			int expected = Runner.ActivePlayers.Count();
+			if (expected <= 0) return; // no humans connected yet
+
+			int spawnedHumans = 0;
+			var players = _gameManager.Players;
+			for (int i = 0; i < players.Count; i++)
+			{
+				var p = players[i];
+				if (p == null || p.Object == null || p.IsBot) continue;
+				spawnedHumans++;
+			}
+			if (spawnedHumans < expected) return; // still waiting for everyone to load in
+
+			if (TeamManager != null)
+				TeamManager.SetTeamSize(MatchBootstrap.PendingTeamSize);
+
+			BeginMatch();
+		}
+
+		/// <summary>Host-only: clear team data and send everyone back to the lobby scene. Clients follow the host's
+		/// scene change automatically; this MatchManager despawns with the game scene.</summary>
+		private void ReturnEveryoneToLobbyScene()
+		{
+			if (_returningToLobbyScene) return;
+			_returningToLobbyScene = true;
+
+			if (TeamManager != null)
+				TeamManager.ClearAssignments();
+
+			Runner.LoadScene(SceneRef.FromIndex(LobbySceneIndex), LoadSceneMode.Single, LocalPhysicsMode.None, true);
 		}
 
 		// =========================================================================
@@ -152,14 +230,12 @@ namespace Starter.Shooter
 			EnterPhase(MatchPhase.Day);
 		}
 
-		/// <summary>Force-resets to Lobby (debug / admin). State-authority only.</summary>
+		/// <summary>Force-returns everyone to the lobby scene (debug / admin). State-authority only.</summary>
 		public void ReturnToLobby()
 		{
 			if (HasStateAuthority == false) return;
-			if (TeamManager != null)
-				TeamManager.ClearAssignments();
 			WinningTeamId = -1;
-			EnterPhase(MatchPhase.Lobby);
+			ReturnEveryoneToLobbyScene();
 		}
 
 		/// <summary>Called from <see cref="TeamManager"/> (or anywhere a kill resolves) when only one team should remain.</summary>
@@ -197,6 +273,16 @@ namespace Starter.Shooter
 		{
 			if (HasStateAuthority == false) return;
 			DebugArmForced = on;
+		}
+
+		/// <summary>Debug-only: set the networked game speed from any peer. Routes to the state authority, which writes
+		/// <see cref="DebugTimeScale"/>; every peer then applies it to its local <see cref="Time.timeScale"/> via
+		/// <see cref="OnTimeScaleChangedRender"/>. Clamped to ≥ 0 (0 = paused).</summary>
+		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+		public void RPC_DebugSetTimeScale(float scale)
+		{
+			if (HasStateAuthority == false) return;
+			DebugTimeScale = Mathf.Max(0f, scale);
 		}
 
 		/// <summary>Debug-only: end the round NOW in favour of <paramref name="winner"/>'s team — that team wins,
@@ -279,6 +365,12 @@ namespace Starter.Shooter
 		private void OnPhaseChangedRender()
 		{
 			PhaseChanged?.Invoke(Phase);
+		}
+
+		/// <summary>Applies the replicated <see cref="DebugTimeScale"/> to this peer's local game speed.</summary>
+		private void OnTimeScaleChangedRender()
+		{
+			Time.timeScale = Mathf.Max(0f, DebugTimeScale);
 		}
 
 		// =========================================================================

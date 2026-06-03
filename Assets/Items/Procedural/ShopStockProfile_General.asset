@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f3fc2d626a56b5440ba8722106173a29, type: 3}
+  m_Name: ShopStockProfile_General
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ShopStockProfile
+  TableSet: {fileID: 11400000, guid: f91450169fb653b4a8b9eb94e13335d8, type: 2}
+  MinOffers: 3
+  MaxOffers: 4
+  UniqueItems: 1
+  StockRange: {x: 3, y: 8}
+  BuyMarkupPercent: 120

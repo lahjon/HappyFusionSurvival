@@ -30,8 +30,13 @@ namespace Starter.Shooter
 	[RequireComponent(typeof(NetworkObject))]
 	[RequireComponent(typeof(Rigidbody))]
 	[RequireComponent(typeof(NetworkTransform))]
-	public sealed class PhysicsProp : NetworkBehaviour, IKnockbackable
+	public sealed class PhysicsProp : NetworkBehaviour, IKnockbackable, IBuoyantBody
 	{
+		[Header("Water")]
+		[Tooltip("ON: this prop floats to the surface of any WaterVolume it's dropped in and bobs there. " +
+		         "OFF (default): it sinks. See WaterVolume / IBuoyantBody.")]
+		[SerializeField] private bool _floats = false;
+
 		[Header("Hit Response (shoot / melee / explosion)")]
 		[Tooltip("Multiplier converting a CombatAction's KnockbackDistance (meters) into a horizontal impulse. " +
 		         "Because it's an impulse, a heavier Mass produces less velocity — tune this against your prop masses.")]
@@ -80,6 +85,11 @@ namespace Starter.Shooter
 			ApplyPlayerPush();
 			// Pose is replicated by NetworkTransform; nothing else to write here.
 		}
+
+		// --- IBuoyantBody: WaterVolume reads these to apply buoyancy on the host ---
+
+		Rigidbody IBuoyantBody.Body => _rb;
+		bool IBuoyantBody.Floats => _floats;
 
 		// --- IKnockbackable: shooting, melee and explosions all route here ---
 

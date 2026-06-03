@@ -50,6 +50,11 @@ namespace Starter.Common.Inventory
 		[Min(0)]
 		public int ScrapValue = 1;
 
+		[Tooltip("Base economic value (money). A procedurally-stocked shop sets its buy price to BaseValue " +
+		         "scaled by the shop's markup; the sell price is a percentage of that buy price.")]
+		[Min(0)]
+		public int BaseValue = 10;
+
 		[Header("Capabilities")]
 		[Tooltip("Composable behavior modules. Add a WeaponCapability to make this item a weapon, a " +
 		         "PlaceableCapability to make it placeable, a ConsumableCapability to make it usable, etc. " +

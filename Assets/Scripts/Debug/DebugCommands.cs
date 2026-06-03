@@ -10,7 +10,7 @@ namespace Starter.Shooter
 	/// <list type="bullet">
 	/// <item><c>add_money &lt;int&gt;</c> — grant money to the local player (state-authority replicated).</item>
 	/// <item><c>add_scraps &lt;int&gt;</c> — grant crafting scraps to the local player (state-authority replicated).</item>
-	/// <item><c>set_time &lt;int&gt;</c> — set <see cref="Time.timeScale"/> (local game speed; not networked).</item>
+	/// <item><c>time_scale &lt;float&gt;</c> — set the game speed on every peer (networked via the state authority).</item>
 	/// <item><c>set_daytime</c> / <c>set_nighttime</c> — force the match phase AND visual day/night cycle.</item>
 	/// <item><c>trigger_victory</c> — (Night only) instant-win for the local player's team; everyone else loses.</item>
 	/// </list>
@@ -39,6 +39,18 @@ namespace Starter.Shooter
 			return $"add_scraps: requested +{amount} for local player.";
 		}
 
+		[Command("set_stamina", "Sets the local player's stamina. Negative value maxes it out (9999). Replicated via the state authority.")]
+		private static string SetStamina(int value)
+		{
+			var player = FindLocalPlayer();
+			if (player == null) return "set_stamina: no local player found (not in a match?).";
+
+			player.RPC_DebugSetStamina(value);
+			return value < 0
+				? "set_stamina: requested max stamina (9999) for the local player."
+				: $"set_stamina: requested stamina = {value} for the local player.";
+		}
+
 		[Command("add_item", "Gives the named item to the local player — fills the hotbar first, drops any overflow in front. Name auto-completes from the item database.")]
 		private static string AddItem([ItemName] string itemName, int count = 1)
 		{
@@ -58,6 +70,19 @@ namespace Starter.Shooter
 			short amount = (short)Mathf.Clamp(count, 1, 999);
 			inventory.RPC_DebugGiveItem(def.Id, amount);
 			return $"add_item: requested {amount}× '{def.DisplayName}' (id {def.Id}) for the local player.";
+		}
+
+		[Command("refill_ammo", "Refills ammo for every weapon in the local player's hotbar — tops each ammo type up to a full stack and reloads all magazines. Replicated via the state authority.")]
+		private static string RefillAmmo()
+		{
+			var player = FindLocalPlayer();
+			if (player == null) return "refill_ammo: no local player found (not in a match?).";
+
+			var inventory = player.GetComponent<Inventory>();
+			if (inventory == null) return "refill_ammo: local player has no Inventory component.";
+
+			inventory.RPC_DebugRefillAmmo();
+			return "refill_ammo: requested an ammo refill for the local player's weapons.";
 		}
 
 		/// <summary>Resolve a typed name to an item: DisplayName first (what autocomplete offers), then asset name; case-insensitive.</summary>
@@ -105,12 +130,16 @@ namespace Starter.Shooter
 			return "clear_bots: requested removal of all bots on the host.";
 		}
 
-		[Command("set_time", "Sets Time.timeScale (local game speed). 1 = normal, 0 = paused, >1 = faster. Not networked.")]
-		private static string SetTime(int timeScale)
+		[Command("time_scale", "Sets the networked game speed (Time.timeScale) on every peer. 1 = normal, 0 = paused, >1 = faster. Replicated via the state authority.")]
+		private static string TimeScale(float scale = 1f)
 		{
-			if (timeScale < 0) return $"set_time: timeScale can't be negative (got {timeScale}).";
-			Time.timeScale = timeScale;
-			return $"set_time: Time.timeScale = {timeScale}";
+			if (scale < 0f) return $"time_scale: scale can't be negative (got {scale}).";
+
+			var match = MatchManager.Instance;
+			if (match == null) return "time_scale: no MatchManager found (not in a match?).";
+
+			match.RPC_DebugSetTimeScale(scale);
+			return $"time_scale: requested Time.timeScale = {scale:0.##} on every peer.";
 		}
 
 		[Command("force_hunt", "Forces The Hunt event NOW (must be Night). -1 = auto-pick the most passive team as hunter. Replicated.")]

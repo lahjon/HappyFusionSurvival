@@ -26,7 +26,7 @@ namespace Starter
 		[Header("Debug")]
 		[Tooltip("For debug purposes it is possible to force single-player game (starts faster)")]
 		public bool ForceSinglePlayer;
-		[Tooltip("Auto-invoke StartGame() on scene load so you don't have to click Start every iteration. Only fires once per app session, so explicit Disconnect still works.")]
+		[Tooltip("Auto-invoke StartGame() on scene load so you don't have to click Start every iteration. Only fires once per app session, so explicit Disconnect still works. Ignored when the game scene was entered from the menu/lobby (a persistent NetworkLauncher already owns the connection) — it only kicks in when the game scene is loaded directly with no launcher (dev press-Play).")]
 		public bool AutoStart = true;
 
 		[Header("UI Setup")]
@@ -45,6 +45,15 @@ namespace Starter
 		// if Instance changes, and to detect whether we have wired up yet (subscription is done lazily in
 		// Update because the manager bootstraps AfterSceneLoad and may not exist during our OnEnable).
 		private MenuManager _menu;
+
+		/// <summary>Whether a session is live — either a runner this menu created itself (direct press-Play of the
+		/// game scene, no launcher) or the persistent <see cref="NetworkLauncher"/> that owns the connection when the
+		/// scene was entered from the menu/lobby.</summary>
+		private bool Connected => _runnerInstance != null || NetworkLauncher.IsConnected;
+
+		/// <summary>True when this menu owns the runner it created (legacy single-scene / direct press-Play path),
+		/// rather than deferring to the persistent launcher.</summary>
+		private bool OwnsRunner => _runnerInstance != null;
 
 		string IMenuScreen.MenuName => "Pause";
 		bool IMenuScreen.DismissOnEscape => true;
@@ -69,6 +78,9 @@ namespace Starter
 			// Add listener for shutdowns so we can handle unexpected shutdowns
 			var events = _runnerInstance.GetComponent<NetworkEvents>();
 			events.OnShutdown.AddListener(OnShutdown);
+
+			// Same animated loading overlay used by the menu/lobby flow, so the direct press-Play path is covered too.
+			LoadingScreen.BindRunner(_runnerInstance);
 
 			var sceneInfo = new NetworkSceneInfo();
 			sceneInfo.AddSceneRef(SceneRef.FromIndex(SceneManager.GetActiveScene().buildIndex));
@@ -112,21 +124,31 @@ namespace Starter
 
 		public async void DisconnectClicked()
 		{
-			await Disconnect();
+			if (OwnsRunner)
+			{
+				await Disconnect();
+				return;
+			}
+			// Connection is owned by the persistent launcher: it shuts the runner down and returns to the main menu.
+			NetworkLauncher.Instance?.Disconnect();
 		}
 
 		public async void BackToMenu()
 		{
-			await Disconnect();
-
-			SceneManager.LoadScene(0);
+			if (OwnsRunner)
+			{
+				await Disconnect();
+				SceneManager.LoadScene(0);
+				return;
+			}
+			NetworkLauncher.Instance?.Disconnect();
 		}
 
 		public void TogglePanelVisibility()
 		{
 			if (PanelGroup.gameObject.activeSelf)
 			{
-				if (_runnerInstance == null)
+				if (!Connected)
 					return; // Panel cannot be hidden if the game is not running
 
 				HidePause();
@@ -169,7 +191,9 @@ namespace Starter
 			StatusText.text = _shutdownStatus != null ? _shutdownStatus : string.Empty;
 			_shutdownStatus = null;
 
-			if (AutoStart && !_autoStartConsumed)
+			// Only self-connect when the game scene was loaded directly with no persistent launcher (dev press-Play).
+			// In the normal menu → lobby → game flow the launcher already owns the connection, so we skip this.
+			if (AutoStart && !_autoStartConsumed && NetworkLauncher.Instance == null)
 			{
 				_autoStartConsumed = true;
 				PanelGroup.gameObject.SetActive(false);
@@ -191,10 +215,11 @@ namespace Starter
 
 			if (PanelGroup.gameObject.activeSelf)
 			{
-				StartGroup.SetActive(_runnerInstance == null);
-				DisconnectGroup.SetActive(_runnerInstance != null);
-				RoomText.interactable = _runnerInstance == null;
-				NicknameText.interactable = _runnerInstance == null;
+				bool connected = Connected;
+				StartGroup.SetActive(!connected);
+				DisconnectGroup.SetActive(connected);
+				RoomText.interactable = !connected;
+				NicknameText.interactable = !connected;
 
 				Cursor.lockState = CursorLockMode.None;
 				Cursor.visible = true;

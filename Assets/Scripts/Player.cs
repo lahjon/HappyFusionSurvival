@@ -110,8 +110,12 @@ namespace Starter.Shooter
 		public float ClimbWallProbeDistance = 0.55f;
 		[Tooltip("Distance to keep the player away from the wall surface while anchored.")]
 		public float ClimbStickRange = 0.4f;
-		[Tooltip("Minimum surface angle (degrees from horizontal) to count as a wall. Below this it's treated as a floor/ramp and rejected.")]
+		[Tooltip("Minimum surface angle (degrees from horizontal) for a deliberate mid-air grab to latch a wall. Below this it's treated as a floor/ramp and rejected.")]
 		public float MaxClimbSurfaceAngle = 80f;
+		[Tooltip("Grounded: pushing forward into a climbable surface steeper than this (degrees from horizontal) is too steep to walk and auto-engages a climb. Set just above the KCC's max walkable ground angle so gentle ramps stay walkable and only steep faces force a climb.")]
+		public float ClimbForceAngle = 55f;
+		[Tooltip("Climb stamina drain multiplier at a vertical (90°) wall. Drain scales from 1x at ClimbForceAngle up to this at vertical, so steeper surfaces cost more stamina. 1 = no angle scaling.")]
+		public float ClimbSteepStaminaMultiplier = 2f;
 		[Tooltip("Duration of the mantle animation onto a ledge.")]
 		public float MantleDuration = 0.6f;
 		[Tooltip("How far forward (beyond the wall normal) the mantle ends.")]
@@ -418,6 +422,49 @@ namespace Starter.Shooter
 		// Toggled off while seated so the driver doesn't see their own torso/legs floating in the cab.
 		private Renderer[] _localBodyRenderers;
 
+		[Header("Spawn confinement (pre-round)")]
+		[Tooltip("While waiting for all players to load in (before the round starts), the player is confined to a circle " +
+			"of this radius around their spawn point and cannot interact. Once the round begins, movement is free.")]
+		public float SpawnConfineRadius = 6f;
+
+		/// <summary>Where this player spawned. Used to confine them to their spawn area during the pre-round wait.
+		/// Written by the host once via <see cref="InitSpawnConfinement"/>; replicated so the input authority clamps
+		/// to the same centre when predicting movement.</summary>
+		[Networked] public Vector3 SpawnAnchor { get; private set; }
+
+		/// <summary>True once <see cref="SpawnAnchor"/> has been set (host has spawned this player). Bots leave this
+		/// false so they are never confined.</summary>
+		[Networked] public NetworkBool SpawnAnchorSet { get; private set; }
+
+		/// <summary>Host-only: record the spawn position so the player can be held in their spawn area until the round
+		/// begins. Called by <see cref="GameManager.EnsurePlayerSpawned"/> right after the player is spawned.</summary>
+		public void InitSpawnConfinement(Vector3 anchor)
+		{
+			if (HasStateAuthority == false) return;
+			SpawnAnchor = anchor;
+			SpawnAnchorSet = true;
+		}
+
+		// While the round hasn't begun (still waiting for everyone to load in), clamp the player's horizontal position
+		// to a circle around their spawn anchor. Runs on both the state authority and the input authority's prediction,
+		// off the same networked anchor + shared radius, so they agree. No-op once MatchManager.RoundStarted is true.
+		private void ApplySpawnConfinement()
+		{
+			if (SpawnAnchorSet == false) return;
+			if (MatchManager.RoundStarted) return;
+
+			Vector3 pos = KCC.Position;
+			Vector3 flat = pos - SpawnAnchor;
+			flat.y = 0f;
+
+			float maxSq = SpawnConfineRadius * SpawnConfineRadius;
+			if (flat.sqrMagnitude <= maxSq) return;
+
+			Vector3 clamped = SpawnAnchor + flat.normalized * SpawnConfineRadius;
+			clamped.y = pos.y;
+			KCC.SetPosition(clamped);
+		}
+
 		public void Respawn(Vector3 position)
 		{
 			Health.Revive();
@@ -505,6 +552,21 @@ namespace Starter.Shooter
 		public void RPC_DebugAddScraps(int amount)
 		{
 			AddScraps(amount);
+		}
+
+		/// <summary>Debug-only: sets both the player's max stamina (<see cref="MaxStamina"/>) and current
+		/// <see cref="Stamina"/> for debug-console tools (Quantum Console <c>set_stamina</c>). A negative value is
+		/// treated as "max it out" (9999). Called on the local player (input authority); broadcast to every peer so
+		/// the non-networked <see cref="MaxStamina"/> field (and the stamina bar that reads it) refresh everywhere —
+		/// the state authority additionally writes the networked <see cref="Stamina"/>, which syncs back on its own.</summary>
+		[Rpc(RpcSources.InputAuthority, RpcTargets.All)]
+		public void RPC_DebugSetStamina(int value)
+		{
+			float target = value < 0 ? 9999f : value;
+			MaxStamina = target;
+			_staminaRegenTimer = default;
+			if (HasStateAuthority)
+				Stamina = target;
 		}
 
 		/// <summary>Grant <paramref name="amount"/> scraps. State-authority only — remote peers no-op. Used by the crafting bench when an item is scavenged.</summary>
@@ -704,6 +766,9 @@ namespace Starter.Shooter
 				// Stop jumping
 				_isJumping = false;
 			}
+
+			// Pre-round lockdown: keep the player inside their spawn area until the round begins (everyone loaded in).
+			ApplySpawnConfinement();
 
 			// Disable hits when dead so the corpse can't be hit again, but keep the KCC
 			// active during the Dead ragdoll so gravity + collision keep the body falling
@@ -1079,7 +1144,7 @@ namespace Starter.Shooter
 			// tries to latch onto a climbable surface. The grounded jump-press path below never attempts
 			// to grab, so a vertical jump is always preserved when standing next to a wall.
 			bool wantsMidAirGrab = !KCC.IsGrounded && (jumpPressed || input.MoveDirection.y > 0.5f);
-			if (wantsMidAirGrab && TryEnterClimb())
+			if (wantsMidAirGrab && TryEnterClimb(MaxClimbSurfaceAngle))
 			{
 				// Climb engaged. Cancel any in-progress melee charge — it's nonsensical mid-grab,
 				// and we wouldn't process the release anyway (climbing routes to ProcessClimbInput).
@@ -1090,6 +1155,25 @@ namespace Starter.Shooter
 				// Bypass the rest of normal movement this tick — TryEnterClimb already snapped
 				// the KCC to the anchor; no further MovePlayer call is needed. ProcessClimbInput
 				// takes over from the next tick.
+				_wasSprinting = false;
+				return drained;
+			}
+
+			// Grounded force-climb: pushing forward into a climbable surface that's too steep to walk
+			// (steeper than ClimbForceAngle) auto-engages a climb instead of stalling against it. The
+			// Stamina > 0 gate stops an instant re-grab right after a depleted slide drops you to the
+			// ground; gentle ramps fall below ClimbForceAngle and stay walkable by the KCC.
+			bool wantsGroundForceClimb = KCC.IsGrounded
+				&& CanClimb
+				&& Stamina > 0f
+				&& !IsCrouching
+				&& input.MoveDirection.y > 0.5f;
+			if (wantsGroundForceClimb && TryEnterClimb(ClimbForceAngle))
+			{
+				if (ActionInvoker != null && ActionInvoker.IsCharging)
+				{
+					ActionInvoker.CancelCharge();
+				}
 				_wasSprinting = false;
 				return drained;
 			}
@@ -1154,19 +1238,21 @@ namespace Starter.Shooter
 				return;
 			}
 
-			// PvP arming gate (weapons only — placeables/consumables above still work in town): no weapon fires
-			// outside Night, and during Night only after the player has reached their team zone (see ZoneManager).
-			// Drop any in-progress charge so it can't release once disarmed.
-			if (CanFireWeaponNow() == false)
-			{
-				if (ActionInvoker != null && ActionInvoker.IsCharging) ActionInvoker.CancelCharge();
-				return;
-			}
-
 			var action = GetActiveAction();
 			if (action == null)
 			{
 				// Nothing to fire with — drop any stale charge so it doesn't bleed into the next held item.
+				if (ActionInvoker != null && ActionInvoker.IsCharging) ActionInvoker.CancelCharge();
+				return;
+			}
+
+			// PvP arming gate (weapons only — placeables/consumables above still work in town): no weapon fires
+			// outside Night, and during Night only after the player has reached their team zone (see ZoneManager).
+			// Exception: actions flagged AllowInPeacePhase (the unarmed punch) fire in any phase — the shove still
+			// lands, but Health.TakeHit's PvP gate keeps it damage-free during the day. Drop any in-progress charge
+			// so a real weapon can't release once disarmed.
+			if (action.AllowInPeacePhase == false && CanFireWeaponNow() == false)
+			{
 				if (ActionInvoker != null && ActionInvoker.IsCharging) ActionInvoker.CancelCharge();
 				return;
 			}
@@ -1266,7 +1352,7 @@ namespace Starter.Shooter
 		// from the chest. If a steep enough surface is hit on the ClimbableMask, snap the KCC to the anchor distance and
 		// flip IsClimbing on. Caller (ProcessInput) decides whether to suppress the normal jump impulse.
 		// State-authority-only via the mutation of [Networked] fields below — proxies see the change replicate.
-		private bool TryEnterClimb()
+		private bool TryEnterClimb(float minSurfaceAngle)
 		{
 			if (CanClimb == false) return false;
 			// Crouch can't survive a wall-grab — the climb basis assumes a normal-height capsule.
@@ -1286,8 +1372,10 @@ namespace Starter.Shooter
 			if (Physics.Raycast(origin, forwardYaw, out RaycastHit hit, ClimbWallProbeDistance, ClimbableMask, QueryTriggerInteraction.Ignore) == false)
 				return false;
 
-			// Reject too-horizontal surfaces (floors, gentle ramps).
-			if (Vector3.Angle(hit.normal, Vector3.up) < MaxClimbSurfaceAngle) return false;
+			// Reject too-horizontal surfaces (floors, gentle ramps). Threshold is supplied by the
+			// caller: the deliberate mid-air grab demands a near-vertical wall (MaxClimbSurfaceAngle),
+			// while the grounded force-climb engages on anything too steep to walk (ClimbForceAngle).
+			if (Vector3.Angle(hit.normal, Vector3.up) < minSurfaceAngle) return false;
 
 			_climbWallNormal = hit.normal;
 			IsClimbing = true;
@@ -1496,7 +1584,15 @@ namespace Starter.Shooter
 			}
 
 			// Stamina drain: idle drain still ticks (BOTW does this), move drain is the dominant cost.
-			float drainRate = isMoving ? ClimbStaminaMoveDrain : ClimbStaminaIdleDrain;
+			// Steeper walls cost more — scale the drain from 1x at ClimbForceAngle up to
+			// ClimbSteepStaminaMultiplier at a vertical (90°) face, so hauling up an overhang-y wall
+			// burns faster than a barely-too-steep ramp.
+			float wallAngle = Vector3.Angle(_climbWallNormal, Vector3.up);
+			float steepT = ClimbForceAngle < 90f
+				? Mathf.Clamp01(Mathf.InverseLerp(ClimbForceAngle, 90f, wallAngle))
+				: 0f;
+			float angleMultiplier = Mathf.Lerp(1f, ClimbSteepStaminaMultiplier, steepT);
+			float drainRate = (isMoving ? ClimbStaminaMoveDrain : ClimbStaminaIdleDrain) * angleMultiplier;
 			Stamina = Mathf.Max(0f, Stamina - drainRate * Runner.DeltaTime);
 			_staminaRegenTimer = TickTimer.CreateFromSeconds(Runner, StaminaRegenDelay);
 
@@ -1846,7 +1942,9 @@ namespace Starter.Shooter
 		private void Fire(CombatAction action, bool charged, float chargeNormalized = 0f)
 		{
 			if (action == null || ActionInvoker == null) return;
-			if (CanFireWeaponNow() == false) return; // authoritative safety net behind the input gate
+			// Authoritative safety net behind the input gate. AllowInPeacePhase actions (the punch) skip it so
+			// they fire in town; their damage is still gated by Health's PvP rules, only the shove lands.
+			if (action.AllowInPeacePhase == false && CanFireWeaponNow() == false) return;
 
 			// Magazine gate (hitscan guns): a dry or reloading magazine produces a click, no shot.
 			// Checked on every predicting peer — Slots.Loaded / IsReloading are networked so IA and SA
@@ -2063,6 +2161,27 @@ namespace Starter.Shooter
 			Nickname = nickname;
 		}
 
+		// ---------------- Elimination banner (local view) ----------------
+
+		/// <summary>Display name of the most recent player this client eliminated. Set by
+		/// <see cref="RPC_NotifyElimination"/> (host → killer), read by <see cref="UIShooter"/> to flash a
+		/// centre-screen "Eliminated &lt;name&gt;" banner. Local-only view state — never networked.</summary>
+		[System.NonSerialized] public string LastEliminatedName;
+
+		/// <summary>Unscaled time the last elimination banner was triggered. UIShooter holds then fades the
+		/// banner from this stamp. Large negative sentinel = nothing to show yet.</summary>
+		[System.NonSerialized] public float LastEliminationTime = -999f;
+
+		/// <summary>Host → killer notification that the local player just eliminated another player. Fired from
+		/// <see cref="Health.TakeHit"/> on the state authority against the attacker's Player object, so it lands
+		/// only on the killer's client. Stamps local banner state — no networked mutation here.</summary>
+		[Rpc(RpcSources.StateAuthority, RpcTargets.InputAuthority)]
+		public void RPC_NotifyElimination(string victimName)
+		{
+			LastEliminatedName = victimName;
+			LastEliminationTime = Time.unscaledTime;
+		}
+
 		// ---------------- Downed / revive ----------------
 
 		/// <summary>State-authority-only: bleed-out + revive accrual for an already-downed player.
@@ -2248,7 +2367,10 @@ namespace Starter.Shooter
 
 		// --- IInteractionGate ---
 
-		bool IInteractionGate.AllowInteractions => IsDowned == false;
+		// Block all interaction while downed, and during the pre-round wait (game scene still in Lobby, waiting for
+		// every player to load in). Players can move within their spawn area during that wait but can't interact until
+		// the round actually begins. See MatchManager.RoundStarted and ApplySpawnConfinement.
+		bool IInteractionGate.AllowInteractions => IsDowned == false && MatchManager.RoundStarted;
 
 		// ---------------- Sleep state ----------------
 

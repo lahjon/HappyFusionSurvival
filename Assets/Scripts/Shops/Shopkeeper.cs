@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using Fusion;
+using Starter.Common;
 using Starter.Common.Interactions;
 using Starter.Common.Inventory;
 using UnityEngine;
@@ -37,7 +39,11 @@ namespace Starter.Shooter
 		public const int MaxOffers = 4;
 
 		[Header("Shop")]
-		[Tooltip("Items this shopkeeper sells. Capped at MaxOffers — extras are ignored.")]
+		[Tooltip("Optional procedural-stock profile. When assigned, the shop rolls its offers from the " +
+		         "profile's loot tables at spawn (state authority) instead of using the authored Offers list.")]
+		[SerializeField] private ShopStockProfile _stockProfile;
+
+		[Tooltip("Hand-authored fallback offers. Used only when no Stock Profile is assigned. Capped at MaxOffers.")]
 		public ShopOffer[] Offers;
 
 		[Tooltip("Percent of an offer's buy price that the shopkeeper pays when the player sells the matching item. 50 = half price. Items not in the offer list are not bought (0).")]
@@ -50,6 +56,22 @@ namespace Starter.Shooter
 		[Networked, Capacity(MaxOffers), OnChangedRender(nameof(OnStockChangedRender))]
 		public NetworkArray<int> RemainingStock => default;
 
+		/// <summary>
+		/// Resolved item id per offer slot (0 = empty). State authority writes this at spawn from
+		/// either the rolled profile or the authored <see cref="Offers"/> list, so every peer reads
+		/// the same stock through one networked source. Resolved to an ItemDefinition via ItemDatabase.
+		/// </summary>
+		[Networked, Capacity(MaxOffers)]
+		public NetworkArray<short> OfferItemId => default;
+
+		/// <summary>Buy price per offer slot, paired with <see cref="OfferItemId"/>.</summary>
+		[Networked, Capacity(MaxOffers)]
+		public NetworkArray<int> OfferBuyPrice => default;
+
+		/// <summary>Number of live offer slots (≤ <see cref="MaxOffers"/>). UI iterates [0, OfferCount).</summary>
+		[Networked, OnChangedRender(nameof(OnStockChangedRender))]
+		public int OfferCountNet { get; private set; }
+
 		public event System.Action StockChanged;
 
 		public override bool CanInteract => IsAvailablePhase();
@@ -59,14 +81,76 @@ namespace Starter.Shooter
 		{
 			base.Spawned();
 
-			if (HasStateAuthority && Offers != null)
+			if (!HasStateAuthority) return;
+
+			if (_stockProfile != null && _stockProfile.TableSet != null)
+				GenerateStock();
+			else
+				SeedAuthoredStock();
+		}
+
+		/// <summary>
+		/// Rolls offers from the assigned <see cref="ShopStockProfile"/> using a deterministic,
+		/// position-seeded RNG (state authority only). Writes the resolved item id, buy price and
+		/// starting stock into the networked arrays so clients replicate the same shelf.
+		/// </summary>
+		private void GenerateStock()
+		{
+			var rng = WorldGen.RngFor(transform.position);
+
+			int min = Mathf.Clamp(_stockProfile.MinOffers, 0, MaxOffers);
+			int max = Mathf.Clamp(_stockProfile.MaxOffers, min, MaxOffers);
+			int target = max > min ? min + rng.Next(max - min + 1) : min;
+
+			var usedIds = _stockProfile.UniqueItems ? new HashSet<short>() : null;
+			int written = 0;
+
+			// Bounded attempts so a small/duplicate-heavy table can't spin forever.
+			int attempts = 0;
+			int maxAttempts = target * 8 + 16;
+			while (written < target && attempts < maxAttempts)
 			{
-				int count = Mathf.Min(Offers.Length, MaxOffers);
-				for (int i = 0; i < count; i++)
-				{
-					RemainingStock.Set(i, Mathf.Max(0, Offers[i].StartingStock));
-				}
+				attempts++;
+				if (!_stockProfile.TableSet.TryRoll(rng, out var entry) || entry.Item == null) continue;
+
+				short id = entry.Item.Id;
+				if (id == 0) continue;
+				if (usedIds != null && !usedIds.Add(id)) continue;
+
+				int stock = RollStock(rng);
+				OfferItemId.Set(written, id);
+				OfferBuyPrice.Set(written, _stockProfile.BuyPriceFor(entry.Item));
+				RemainingStock.Set(written, stock);
+				written++;
 			}
+
+			OfferCountNet = written;
+		}
+
+		private int RollStock(System.Random rng)
+		{
+			int lo = Mathf.Max(0, _stockProfile.StockRange.x);
+			int hi = Mathf.Max(lo, _stockProfile.StockRange.y);
+			return hi > lo ? lo + rng.Next(hi - lo + 1) : lo;
+		}
+
+		/// <summary>Copies the hand-authored <see cref="Offers"/> into the networked arrays (fallback path).</summary>
+		private void SeedAuthoredStock()
+		{
+			if (Offers == null) { OfferCountNet = 0; return; }
+
+			int count = Mathf.Min(Offers.Length, MaxOffers);
+			int written = 0;
+			for (int i = 0; i < count; i++)
+			{
+				var o = Offers[i];
+				if (o.Item == null || o.Item.Id == 0) continue;
+				OfferItemId.Set(written, o.Item.Id);
+				OfferBuyPrice.Set(written, Mathf.Max(0, o.BuyPrice));
+				RemainingStock.Set(written, Mathf.Max(0, o.StartingStock));
+				written++;
+			}
+			OfferCountNet = written;
 		}
 
 		protected override void OnInteract(InteractionScanner scanner)
@@ -88,13 +172,27 @@ namespace Starter.Shooter
 			session?.TryOpen(this);
 		}
 
-		/// <summary>Number of authored offer slots (capped at <see cref="MaxOffers"/>). UI iterates [0, OfferCount).</summary>
-		public int OfferCount => Offers == null ? 0 : Mathf.Min(Offers.Length, MaxOffers);
+		/// <summary>Number of live offer slots (capped at <see cref="MaxOffers"/>). UI iterates [0, OfferCount).</summary>
+		public int OfferCount => Mathf.Clamp(OfferCountNet, 0, MaxOffers);
 
+		/// <summary>
+		/// Resolves offer <paramref name="index"/> from the networked arrays into a <see cref="ShopOffer"/>
+		/// (Item via ItemDatabase, current buy price, current remaining stock). Same return shape the UI
+		/// already consumes, so authored and procedural stock read identically.
+		/// </summary>
 		public ShopOffer GetOffer(int index)
 		{
-			if (Offers == null || index < 0 || index >= Offers.Length || index >= MaxOffers) return default;
-			return Offers[index];
+			if (index < 0 || index >= OfferCount) return default;
+			short id = OfferItemId[index];
+			if (id == 0) return default;
+
+			var db = ItemDatabase.Instance;
+			return new ShopOffer
+			{
+				Item = db != null ? db.GetById(id) : null,
+				BuyPrice = OfferBuyPrice[index],
+				StartingStock = RemainingStock[index],
+			};
 		}
 
 		/// <summary>
@@ -103,14 +201,13 @@ namespace Starter.Shooter
 		/// </summary>
 		public int GetSellPrice(short itemId)
 		{
-			if (itemId == 0 || Offers == null) return 0;
+			if (itemId == 0) return 0;
 			int count = OfferCount;
 			for (int i = 0; i < count; i++)
 			{
-				var o = Offers[i];
-				if (o.Item != null && o.Item.Id == itemId)
+				if (OfferItemId[i] == itemId)
 				{
-					return Mathf.Max(0, (o.BuyPrice * SellPriceMultiplierPercent) / 100);
+					return Mathf.Max(0, (OfferBuyPrice[i] * SellPriceMultiplierPercent) / 100);
 				}
 			}
 			return 0;

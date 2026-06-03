@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using Fusion;
+using Starter.Common;
 using Starter.Common.Crafting;
 using Starter.Common.Interactions;
 using Starter.Common.Inventory;
@@ -22,7 +24,14 @@ namespace Starter.Shooter
 		public const int MaxOffers = 8;
 
 		[Header("Quests")]
-		[Tooltip("Offers this giver exposes. Capped at MaxOffers — extras are ignored. Drop more givers for bigger boards.")]
+		[Tooltip("Optional procedural quest pool. When assigned, the giver rolls distinct quests from it " +
+		         "at spawn (state authority) instead of using the authored Offers list.")]
+		[SerializeField] private QuestPool _questPool;
+
+		[Tooltip("How many quests to roll from the pool at spawn (clamped to MaxOffers).")]
+		[SerializeField, Min(0)] private int _generateCount = 4;
+
+		[Tooltip("Hand-authored fallback offers. Used only when no Quest Pool is assigned. Capped at MaxOffers.")]
 		public QuestDefinition[] Offers;
 
 		/// <summary>
@@ -32,10 +41,72 @@ namespace Starter.Shooter
 		[Networked, Capacity(MaxOffers), OnChangedRender(nameof(OnCompletedChangedRender))]
 		public NetworkArray<PlayerRef> CompletedBy => default;
 
+		/// <summary>
+		/// Resolved quest id per offer slot (0 = empty). State authority writes this at spawn from
+		/// either the rolled pool or the authored <see cref="Offers"/> list; every peer resolves the
+		/// QuestDefinition back via <see cref="QuestDatabase"/>.
+		/// </summary>
+		[Networked, Capacity(MaxOffers)]
+		public NetworkArray<int> OfferQuestId => default;
+
+		/// <summary>Number of live offer slots (≤ <see cref="MaxOffers"/>). UI iterates [0, OfferCount).</summary>
+		[Networked]
+		public int OfferCountNet { get; private set; }
+
 		public event System.Action CompletedChanged;
 
 		public override bool CanInteract => IsAvailablePhase();
 		public override string LockedReason => IsAvailablePhase() ? string.Empty : $"{DisplayName} is closed";
+
+		public override void Spawned()
+		{
+			base.Spawned();
+
+			if (!HasStateAuthority) return;
+
+			if (_questPool != null)
+				GenerateOffers();
+			else
+				SeedAuthoredOffers();
+		}
+
+		/// <summary>
+		/// Rolls distinct quests from the assigned <see cref="QuestPool"/> using a deterministic,
+		/// position-seeded RNG (state authority only) and writes their ids into the networked array.
+		/// </summary>
+		private void GenerateOffers()
+		{
+			var rng = WorldGen.RngFor(transform.position);
+			int target = Mathf.Clamp(_generateCount, 0, MaxOffers);
+
+			var rolled = new List<QuestDefinition>(target);
+			_questPool.RollUnique(rng, target, rolled);
+
+			int written = 0;
+			for (int i = 0; i < rolled.Count && written < MaxOffers; i++)
+			{
+				if (rolled[i] == null || rolled[i].Id == 0) continue;
+				OfferQuestId.Set(written, rolled[i].Id);
+				written++;
+			}
+			OfferCountNet = written;
+		}
+
+		/// <summary>Copies the hand-authored <see cref="Offers"/> ids into the networked array (fallback path).</summary>
+		private void SeedAuthoredOffers()
+		{
+			if (Offers == null) { OfferCountNet = 0; return; }
+
+			int count = Mathf.Min(Offers.Length, MaxOffers);
+			int written = 0;
+			for (int i = 0; i < count; i++)
+			{
+				if (Offers[i] == null || Offers[i].Id == 0) continue;
+				OfferQuestId.Set(written, Offers[i].Id);
+				written++;
+			}
+			OfferCountNet = written;
+		}
 
 		protected override void OnInteract(InteractionScanner scanner)
 		{
@@ -57,14 +128,17 @@ namespace Starter.Shooter
 		}
 
 		/// <summary>
-		/// Number of authored offer slots (capped at <see cref="MaxOffers"/>). UI iterates [0, OfferCount).
+		/// Number of live offer slots (capped at <see cref="MaxOffers"/>). UI iterates [0, OfferCount).
 		/// </summary>
-		public int OfferCount => Offers == null ? 0 : Mathf.Min(Offers.Length, MaxOffers);
+		public int OfferCount => Mathf.Clamp(OfferCountNet, 0, MaxOffers);
 
 		public QuestDefinition GetOffer(int index)
 		{
-			if (Offers == null || index < 0 || index >= Offers.Length || index >= MaxOffers) return null;
-			return Offers[index];
+			if (index < 0 || index >= OfferCount) return null;
+			int id = OfferQuestId[index];
+			if (id == 0) return null;
+			var db = QuestDatabase.Instance;
+			return db != null ? db.GetById(id) : null;
 		}
 
 		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]

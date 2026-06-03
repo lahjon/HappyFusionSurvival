@@ -91,38 +91,19 @@ namespace Starter.Common.Inventory
 			int n = Mathf.Min(_itemCount, Slots.Length);
 			for (int i = 0; i < n; i++)
 			{
-				var entry = _randomize ? PickWeighted(_lootTable, rng) : _lootTable[i % _lootTable.Count];
+				LootEntry entry;
+				if (_randomize)
+				{
+					if (!LootRoll.TryPickWeighted(_lootTable, rng, out entry)) continue;
+				}
+				else
+				{
+					entry = _lootTable[i % _lootTable.Count];
+				}
 				if (entry.Item == null) continue;
 				short count = entry.Count > 0 ? entry.Count : (short)1;
 				InventoryOps.TryAdd(Slots, entry.Item.Id, count);
 			}
-		}
-
-		private static LootEntry PickWeighted(List<LootEntry> entries, System.Random rng)
-		{
-			float total = 0f;
-			for (int i = 0; i < entries.Count; i++)
-			{
-				if (entries[i].Item == null) continue;
-				if (entries[i].Weight > 0f) total += entries[i].Weight;
-			}
-
-			if (total <= 0f)
-			{
-				for (int i = 0; i < entries.Count; i++)
-					if (entries[i].Item != null) return entries[i];
-				return default;
-			}
-
-			float pick = (float)(rng.NextDouble() * total);
-			float acc = 0f;
-			for (int i = 0; i < entries.Count; i++)
-			{
-				if (entries[i].Item == null || entries[i].Weight <= 0f) continue;
-				acc += entries[i].Weight;
-				if (pick <= acc) return entries[i];
-			}
-			return entries[entries.Count - 1];
 		}
 
 		public override void FixedUpdateNetwork()

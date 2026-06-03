@@ -15,6 +15,7 @@ MonoBehaviour:
   Damage: 1
   Cooldown: 0.5
   KnockbackDistance: 1
+  AllowInPeacePhase: 1
   Style: 1
   AttackClip: {fileID: 0}
   AttackVolume: 1
