@@ -98,7 +98,7 @@ namespace Starter.Shooter
 		}
 
 		/// <summary>
-		/// Equip-time setup for the generic hand rig: build the held mesh from <paramref name="visual"/>
+		/// Equip-time setup for the generic hand rig: instantiate the held model from <paramref name="visual"/>
 		/// and copy the swing/recoil/sway tuning + muzzle from the held item's <paramref name="weapon"/>
 		/// capability. Called by Inventory.RefreshHeldItem right after instantiation. A null
 		/// <paramref name="weapon"/> (non-weapon held item) leaves the rig at rest with no muzzle.
@@ -107,21 +107,14 @@ namespace Starter.Shooter
 		{
 			if (_meshChild != null && visual != null)
 			{
-				if (visual.VisualOverride != null)
-				{
-					Instantiate(visual.VisualOverride, _meshChild);
-					if (_meshChild.TryGetComponent<MeshRenderer>(out var pr)) pr.enabled = false;
-				}
-				else
-				{
-					if (visual.Mesh != null && _meshChild.TryGetComponent<MeshFilter>(out var mf))
-						mf.sharedMesh = visual.Mesh;
-					if (_meshChild.TryGetComponent<MeshRenderer>(out var mr))
-					{
-						if (visual.Material != null) mr.sharedMaterial = visual.Material;
-						mr.enabled = true;
-					}
-				}
+				if (visual.Prefab != null)
+					Instantiate(visual.Prefab, _meshChild);
+				// The generic prefab's _meshChild carries a baked placeholder mesh; the held model is
+				// always the instantiated Prefab, so disable that primitive renderer unconditionally
+				// (a visual-less held item then shows nothing extra in hand).
+				if (_meshChild.TryGetComponent<MeshRenderer>(out var mr))
+					mr.enabled = false;
+
 				_meshChild.localScale = visual.HeldScale;
 				_meshChild.localPosition = visual.HeldLocalPosition;
 				_meshChild.localRotation = Quaternion.Euler(visual.HeldLocalEuler);

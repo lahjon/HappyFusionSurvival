@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 509420b894f053c4c80220f05c530bfa, type: 3}
+  m_Name: Action_Shotgun
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.HitscanAction
+  Damage: 3
+  Cooldown: 0.8
+  KnockbackDistance: 1
+  AllowInPeacePhase: 0
+  Style: 0
+  AttackClip: {fileID: 8300000, guid: 4bf4f7f783a5af94fbc3dce27a76d5f9, type: 3}
+  AttackVolume: 0.5
+  ImpactEffect: {fileID: 921809749201012083, guid: be541cd476314eb7b66d9f7a643f3885, type: 3}
+  Charge:
+    Enabled: 0
+    ThresholdSeconds: 2
+    DamageMultiplier: 2
+    KnockbackMultiplier: 2
+  Range: 200
+  HitOptions: 9
+  PelletCount: 6
+  HipSpreadDegrees: 9
+  AimSpreadMultiplier: 0.5
+  FalloffStartDistance: 6
+  FalloffEndDistance: 25
+  MinDamageMultiplier: 0.34

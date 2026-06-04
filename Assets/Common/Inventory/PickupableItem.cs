@@ -26,8 +26,8 @@ namespace Starter.Common.Inventory
 		[SerializeField] private bool _randomize = true;
 
 		[Header("Generic visual")]
-		[Tooltip("Child whose MeshFilter/MeshRenderer/ItemView is configured from the item's ItemVisual " +
-		         "(mesh/material/scale) at spawn. Set on Pickup_Generic; null on bespoke prefabs that bake their own model.")]
+		[Tooltip("Child the item's ItemVisual.Prefab is instantiated under (and whose scale/ItemView flair " +
+		         "is set) at spawn. Set on Pickup_Generic; null on bespoke prefabs that bake their own model.")]
 		[SerializeField] private Transform _visualRoot;
 
 		[Header("Interaction")]
@@ -132,7 +132,8 @@ namespace Starter.Common.Inventory
 
 		/// <summary>
 		/// Configure the generic pickup's Visual child from the item's <see cref="ItemVisual"/>:
-		/// mesh/material/scale + ItemView flair, or instantiate <see cref="ItemVisual.VisualOverride"/>.
+		/// instantiate its <see cref="ItemVisual.Prefab"/> as the model + apply world scale / ItemView
+		/// flair. When the item has no Prefab the generic primitive renderer stays on as a placeholder.
 		/// No-op on bespoke prefabs (those leave <c>_visualRoot</c> null and bake their own visual).
 		/// </summary>
 		private void ConfigureVisual()
@@ -143,23 +144,14 @@ namespace Starter.Common.Inventory
 			var v = def != null ? def.Visual : null;
 			if (v == null) return;
 
-			if (v.VisualOverride != null)
-			{
-				if (_visualOverrideInstance == null)
-					_visualOverrideInstance = Instantiate(v.VisualOverride, _visualRoot);
-				if (_visualRoot.TryGetComponent<MeshRenderer>(out var primRenderer))
-					primRenderer.enabled = false;
-				_visualRoot.localScale = v.WorldScale;
-				return;
-			}
+			bool hasPrefab = v.Prefab != null;
+			if (hasPrefab && _visualOverrideInstance == null)
+				_visualOverrideInstance = Instantiate(v.Prefab, _visualRoot);
 
-			if (v.Mesh != null && _visualRoot.TryGetComponent<MeshFilter>(out var mf))
-				mf.sharedMesh = v.Mesh;
+			// The generic primitive renderer is only the fallback placeholder shown when no Prefab is set.
 			if (_visualRoot.TryGetComponent<MeshRenderer>(out var mr))
-			{
-				if (v.Material != null) mr.sharedMaterial = v.Material;
-				mr.enabled = true;
-			}
+				mr.enabled = !hasPrefab;
+
 			_visualRoot.localScale = v.WorldScale;
 			if (_visualRoot.TryGetComponent<ItemView>(out var view))
 			{

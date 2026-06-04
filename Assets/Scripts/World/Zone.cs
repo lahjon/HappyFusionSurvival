@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace Starter.Shooter
@@ -5,83 +7,133 @@ namespace Starter.Shooter
 	/// <summary>
 	/// A named staging area in the town. Each team is assigned one distinct <see cref="Zone"/> at match start
 	/// (see <see cref="ZoneManager"/>); a player can only arm their PvP weapons during Night once they stand
-	/// inside their team's zone. All <see cref="SpawnPoint"/>s should sit inside a zone (tag them via
-	/// <see cref="SpawnPoint.ZoneId"/>).
+	/// inside their team's zone. Players spawn at one of the <see cref="SpawnPoints"/> that fall inside this zone —
+	/// the spawn points are tied to a zone by containment, gathered by <see cref="ZoneManager"/> on init (no manual
+	/// tagging).
 	///
-	/// Pure scene geometry — identical on every peer, so this is a plain <see cref="MonoBehaviour"/> with no
-	/// networked state. The containment test is horizontal (XZ) with a generous vertical band so standing on
-	/// uneven terrain inside the footprint still counts.
+	/// The footprint (Box / Circle / Polygon), containment test and vertical band all come from
+	/// <see cref="WorldArea"/>; this class only adds the zone identity used by <see cref="ZoneManager"/>.
 	/// </summary>
-	public sealed class Zone : MonoBehaviour
+	public sealed class Zone : WorldArea
 	{
-		[Tooltip("Stable id for this zone. Teams are mapped to a ZoneId at match start; SpawnPoints reference it.")]
+		[Header("Zone")]
+		[Tooltip("Stable, unique id for this zone (teams are mapped to a ZoneId at match start). Auto-managed in the " +
+			"editor: a new or duplicated zone is given the smallest free id, and collisions/negatives self-heal. You " +
+			"can still set it by hand to control team→zone order; duplicates just get bumped.")]
 		public int ZoneId;
 
-		[Header("Footprint")]
-		[Tooltip("If assigned (or found on this object), the box's local XZ extents define the footprint. " +
-		         "Otherwise the Radius below is used as a horizontal circle around the transform.")]
-		public BoxCollider Box;
+		[Header("Spawn Points")]
+		[Tooltip("Spawn points sitting inside this zone. Auto-gathered by ZoneManager on init at runtime; use the " +
+			"Gather button to populate/preview the list in the editor. A team assigned this zone spawns at one of these.")]
+		[SerializeField] private List<SpawnPoint> _spawnPoints = new();
 
-		[Tooltip("Horizontal radius used when no Box is assigned.")]
-		[Min(0.5f)] public float Radius = 8f;
+		/// <summary>The <see cref="SpawnPoint"/>s sitting inside this zone (by footprint containment). Rebuilt at
+		/// runtime by <see cref="ZoneManager"/> on init; a team assigned this zone spawns at one of these (see
+		/// <see cref="GameManager"/>).</summary>
+		public IReadOnlyList<SpawnPoint> SpawnPoints => _spawnPoints;
 
-		[Tooltip("Half-height of the vertical band (metres above/below the footprint) a player may stand in and still count as inside.")]
-		[Min(0.5f)] public float VerticalLeniency = 6f;
+		/// <summary>Clears the cached spawn points. Called by <see cref="ZoneManager"/> before a fresh distribution.</summary>
+		public void ClearSpawnPoints() => _spawnPoints.Clear();
 
-		private void Reset()
+		/// <summary>Adds <paramref name="spawnPoint"/> to this zone if it sits inside the footprint. Returns true when
+		/// claimed, so the distributing pass can stop at the first containing zone.</summary>
+		public bool TryClaimSpawnPoint(SpawnPoint spawnPoint)
 		{
-			Box = GetComponent<BoxCollider>();
+			if (spawnPoint == null) return false;
+			if (Contains(spawnPoint.transform.position) == false) return false;
+			_spawnPoints.Add(spawnPoint);
+			return true;
 		}
 
-		private void Awake()
+#if UNITY_EDITOR
+		// Edit-time preview of the same containment gather ZoneManager runs on init, so the list is visible/editable
+		// in the Inspector without entering Play mode.
+		[Button("Gather Spawn Points In Zone"), PropertyOrder(-1)]
+		private void EditorGatherSpawnPoints()
 		{
-			if (Box == null)
-				Box = GetComponent<BoxCollider>();
+			_spawnPoints.Clear();
+			var all = FindObjectsByType<SpawnPoint>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+			for (int i = 0; i < all.Length; i++)
+				if (all[i] != null && Contains(all[i].transform.position))
+					_spawnPoints.Add(all[i]);
+			UnityEditor.EditorUtility.SetDirty(this);
 		}
 
-		/// <summary>True when <paramref name="worldPos"/> is within the zone footprint (XZ) and vertical band.</summary>
-		public bool Contains(Vector3 worldPos)
+		// ── Auto-managed ZoneId ───────────────────────────────────────────────────
+		// Reset runs when the component is first added; OnValidate runs on edit and (crucially) right after a
+		// Ctrl+D duplicate, which copies the source's ZoneId. Both schedule a single coalesced scene-wide pass
+		// that gives every zone a unique id, so creating zones can never silently collide (ZoneManager would
+		// otherwise drop the duplicate). Power users can still hand-set ids to order team→zone; only genuine
+		// collisions and negative ids are rewritten.
+
+		private static bool _idFixupScheduled;
+
+		private void Reset()      => ScheduleIdFixup();
+		private void OnValidate() => ScheduleIdFixup();
+
+		private static void ScheduleIdFixup()
 		{
-			if (Box != null)
+			if (_idFixupScheduled) return;
+			_idFixupScheduled = true;
+			UnityEditor.EditorApplication.delayCall += FixupAllZoneIds;
+		}
+
+		private static void FixupAllZoneIds()
+		{
+			_idFixupScheduled = false;
+			if (Application.isPlaying) return;
+
+			var zones = FindObjectsByType<Zone>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+			// Stable order: by current id, then instance id — so the first holder of an id keeps it and later
+			// duplicates are the ones bumped, giving a deterministic, churn-free result.
+			System.Array.Sort(zones, (a, b) =>
 			{
-				// Test in the box's local space so a rotated zone still works. Ignore Y within the configured band.
-				Vector3 local = Box.transform.InverseTransformPoint(worldPos) - Box.center;
-				Vector3 ext = Box.size * 0.5f;
-				if (Mathf.Abs(local.x) > ext.x) return false;
-				if (Mathf.Abs(local.z) > ext.z) return false;
-				return Mathf.Abs(local.y) <= ext.y + VerticalLeniency;
-			}
+				int c = a.ZoneId.CompareTo(b.ZoneId);
+				return c != 0 ? c : a.GetInstanceID().CompareTo(b.GetInstanceID());
+			});
 
-			Vector3 d = worldPos - transform.position;
-			if (Mathf.Abs(d.y) > VerticalLeniency) return false;
-			d.y = 0f;
-			return d.sqrMagnitude <= Radius * Radius;
+			var used = new HashSet<int>();
+			for (int i = 0; i < zones.Length; i++)
+			{
+				var z = zones[i];
+				if (z == null) continue;
+
+				int id = z.ZoneId;
+				if (id < 0 || used.Contains(id))
+				{
+					id = 0;
+					while (used.Contains(id)) id++;
+				}
+				if (z.ZoneId != id)
+				{
+					z.ZoneId = id;
+					UnityEditor.EditorUtility.SetDirty(z);
+				}
+				used.Add(id);
+			}
 		}
+
+		[Button("Renumber All Zone Ids (0..n)"), PropertyOrder(-1)]
+		private void EditorRenumberAllZoneIds()
+		{
+			// Compact, predictable renumber by name — use when ids have drifted and you want a clean 0..n set.
+			var zones = FindObjectsByType<Zone>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+			System.Array.Sort(zones, (a, b) => string.CompareOrdinal(a.name, b.name));
+			for (int i = 0; i < zones.Length; i++)
+			{
+				if (zones[i] == null || zones[i].ZoneId == i) continue;
+				zones[i].ZoneId = i;
+				UnityEditor.EditorUtility.SetDirty(zones[i]);
+			}
+		}
+#endif
 
 		private void OnDrawGizmos()
 		{
 			Color c = ColorForId(ZoneId);
-			c.a = 0.18f;
-			Gizmos.color = c;
-
-			var box = Box != null ? Box : GetComponent<BoxCollider>();
-			if (box != null)
-			{
-				Matrix4x4 prev = Gizmos.matrix;
-				Gizmos.matrix = box.transform.localToWorldMatrix;
-				Gizmos.DrawCube(box.center, box.size);
-				c.a = 0.9f;
-				Gizmos.color = c;
-				Gizmos.DrawWireCube(box.center, box.size);
-				Gizmos.matrix = prev;
-			}
-			else
-			{
-				Gizmos.DrawSphere(transform.position, Radius);
-				c.a = 0.9f;
-				Gizmos.color = c;
-				Gizmos.DrawWireSphere(transform.position, Radius);
-			}
+			Color fill = c; fill.a = 0.18f;
+			Color line = c; line.a = 0.9f;
+			DrawFootprintGizmo(fill, line);
 		}
 
 		/// <summary>Stable, readable gizmo colour per zone id so designers can tell zones apart at a glance.</summary>

@@ -269,6 +269,17 @@ namespace Starter.Shooter
 		[Networked, OnChangedRender(nameof(OnIsDownedChanged))]
 		public NetworkBool IsDowned { get; private set; }
 
+		/// <summary>Yaw (degrees) the player should be looking toward on (re)spawn — taken from the spawn point's facing
+		/// (the SpawnPoint arrow direction). Set by the state authority in <see cref="Respawn"/>; the input authority
+		/// reacts to <see cref="SpawnLookVersion"/> changes and seeds its accumulated look input so the spawn actually
+		/// faces this way instead of the input pipeline snapping back to world +Z on the first tick.</summary>
+		[Networked]
+		public float SpawnLookYaw { get; private set; }
+
+		/// <summary>Bumped on every (re)spawn so <see cref="OnSpawnLookChanged"/> fires even when two spawns share the same yaw.</summary>
+		[Networked, OnChangedRender(nameof(OnSpawnLookChanged))]
+		private int SpawnLookVersion { get; set; }
+
 		/// <summary>Seconds remaining on the bleed-out countdown while <see cref="IsDowned"/>. Counted down on state authority each tick when <see cref="ReviveCount"/> is zero — when a reviver is active the timer pauses. Hits 0 → real death.</summary>
 		[Networked]
 		public float DownedTimeRemaining { get; private set; }
@@ -480,13 +491,18 @@ namespace Starter.Shooter
 			KCC.SetPosition(clamped);
 		}
 
-		public void Respawn(Vector3 position)
+		public void Respawn(Vector3 position, float yaw = 0f)
 		{
 			Health.Revive();
 
 			KCC.SetActive(true);
 			KCC.SetPosition(position);
-			KCC.SetLookRotation(0f, 0f);
+			KCC.SetLookRotation(0f, yaw);
+
+			// Replicate the spawn facing to the input authority so its accumulated look input is re-seeded
+			// (KCC.SetLookRotation above only sticks until that player's next input tick overrides it).
+			SpawnLookYaw = yaw;
+			SpawnLookVersion++;
 
 			_moveVelocity = Vector3.zero;
 			Stamina = MaxStamina;
@@ -636,7 +652,9 @@ namespace Starter.Shooter
 			// instead of the spawn point and tunnel the player through the floor.
 			KCC.SetActive(true);
 			KCC.SetPosition(transform.position);
-			KCC.SetLookRotation(0f, 0f);
+			// Face the spawn point's yaw (replicated via the spawn rotation) instead of always world +Z,
+			// so the player looks the way the SpawnPoint arrow gizmo points.
+			KCC.SetLookRotation(0f, transform.rotation.eulerAngles.y);
 
 			// Cap the KCC's walkable ground angle at the climb threshold so "steep" actually means
 			// non-walkable: surfaces steeper than ClimbForceAngle are treated as walls, not ground.
@@ -2314,6 +2332,18 @@ namespace Starter.Shooter
 			{
 				ScalingRoot.localScale = _isJumping ? new Vector3(0.5f, 1.5f, 0.5f) : new Vector3(1.25f, 0.75f, 1.25f);
 			}
+		}
+
+		// Fires on every peer when the host bumps SpawnLookVersion (each Respawn). Only the input authority needs to
+		// act: re-seed its accumulated look INPUT so the next ticks aim at the spawn yaw (without this, the input
+		// pipeline overrides the host's KCC look on tick 1), plus set the KCC look now to avoid a one-frame flash.
+		private void OnSpawnLookChanged()
+		{
+			if (HasInputAuthority == false)
+				return;
+
+			KCC.SetLookRotation(0f, SpawnLookYaw);
+			GetComponent<PlayerInput>()?.SetLookRotation(new Vector2(0f, SpawnLookYaw));
 		}
 
 		private void OnNicknameChanged()

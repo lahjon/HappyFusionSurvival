@@ -38,7 +38,7 @@ namespace Starter.Common.Interactions
 	/// Add a sibling <see cref="IInteractableState"/> to override consume/cooldown with networked state.
 	/// </summary>
 	[DisallowMultipleComponent]
-	public sealed class BaseInteractable : MonoBehaviour, IInteractable
+	public sealed class BaseInteractable : MonoBehaviour, IInteractable, IInteractionPromptAnchor
 	{
 		[Header("Authoring")]
 		[Tooltip("Max distance from the local player at which this can be interacted with.")]
@@ -52,6 +52,9 @@ namespace Starter.Common.Interactions
 
 		[Tooltip("Optional offset (local space) for the point the scanner uses for range + line-of-sight checks. Leave zero to use transform.position.")]
 		public Vector3 InteractionPointOffset = Vector3.zero;
+
+		[Tooltip("Optional transform the on-screen prompt indicator should follow. Leave unset to anchor the indicator to this object's transform.")]
+		public Transform OverrideTransform;
 
 		[Header("State")]
 		[Tooltip("Toggle at runtime to enable/disable this interactable without removing the component.")]
@@ -107,6 +110,7 @@ namespace Starter.Common.Interactions
 			}
 		}
 		Vector3 IInteractable.InteractionPoint => transform.TransformPoint(InteractionPointOffset);
+		Transform IInteractionPromptAnchor.PromptAnchor => OverrideTransform;
 		string IInteractable.LockedReason => LockedReasonText;
 		string IInteractable.InteractLabel => InteractLabelText;
 

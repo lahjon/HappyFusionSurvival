@@ -156,7 +156,7 @@ namespace Starter.Shooter
 		}
 
 		// Revive + reposition every roster member at the start of a round (Lobby/MatchOver → Day). Teams are
-		// already assigned by MatchManager.BeginMatch before the phase flips, so GetSpawnPositionForPlayer
+		// already assigned by MatchManager.BeginMatch before the phase flips, so GetSpawnPoseForPlayer
 		// places each player in their team zone.
 		private void ResetPlayersForNewRound()
 		{
@@ -164,7 +164,8 @@ namespace Starter.Shooter
 			{
 				var player = _players[i];
 				if (player == null || player.Object == null) continue;
-				player.Respawn(GetSpawnPositionForPlayer(player.Owner));
+				GetSpawnPoseForPlayer(player.Owner, out var pos, out var rot);
+				player.Respawn(pos, rot.eulerAngles.y);
 			}
 		}
 
@@ -274,8 +275,8 @@ namespace Starter.Shooter
 			if (Runner.GetPlayerObject(playerRef) != null)
 				return;
 
-			var pos = GetSpawnPositionForPlayer(playerRef);
-			var player = Runner.Spawn(PlayerPrefab, pos, Quaternion.identity, playerRef);
+			GetSpawnPoseForPlayer(playerRef, out var pos, out var rot);
+			var player = Runner.Spawn(PlayerPrefab, pos, rot, playerRef);
 			Runner.SetPlayerObject(playerRef, player.Object);
 
 			// Confine this player to their spawn area until the round begins (everyone loaded in). Late joiners into an
@@ -331,7 +332,8 @@ namespace Starter.Shooter
 				var owner = PlayerRef.FromIndex(BotRefBase + _nextBotIndex);
 				_nextBotIndex++;
 
-				var bot = Runner.Spawn(PlayerPrefab, GetSpawnPosition(), Quaternion.identity, null,
+				GetSpawnPose(out var botPos, out var botRot);
+				var bot = Runner.Spawn(PlayerPrefab, botPos, botRot, null,
 					(runner, obj) =>
 					{
 						var player = obj.GetComponent<Player>();
@@ -387,52 +389,52 @@ namespace Starter.Shooter
 			if (HasStateAuthority) ClearBots();
 		}
 
-		/// <summary>Spawn position inside the player's team zone when one is assigned (Day start / Night respawn),
-		/// otherwise a random spawn (Lobby joins with no team yet).</summary>
-		private Vector3 GetSpawnPositionForPlayer(PlayerRef player)
+		/// <summary>Spawn pose inside the player's team zone when one is assigned (Day start / Night respawn),
+		/// otherwise a random spawn (Lobby joins with no team yet). The rotation is the spawn point's yaw — the
+		/// direction the player will be looking on spawn (visualized by the SpawnPoint arrow gizmo).</summary>
+		private void GetSpawnPoseForPlayer(PlayerRef player, out Vector3 position, out Quaternion rotation)
 		{
 			int zoneId = ZoneManager.Instance != null ? ZoneManager.Instance.ZoneIdOfPlayer(player) : -1;
-			return GetSpawnPosition(zoneId);
+			GetSpawnPose(zoneId, out position, out rotation);
 		}
 
-		private Vector3 GetSpawnPosition() => GetSpawnPosition(-1);
+		private void GetSpawnPose(out Vector3 position, out Quaternion rotation) => GetSpawnPose(-1, out position, out rotation);
 
-		private Vector3 GetSpawnPosition(int zoneId)
+		private void GetSpawnPose(int zoneId, out Vector3 position, out Quaternion rotation)
 		{
 			var spawnPoint = PickSpawnPoint(zoneId);
 			var randomPositionOffset = Random.insideUnitCircle * spawnPoint.Radius;
-			Vector3 position = spawnPoint.transform.position + new Vector3(randomPositionOffset.x, 0f, randomPositionOffset.y);
+			position = spawnPoint.transform.position + new Vector3(randomPositionOffset.x, 0f, randomPositionOffset.y);
 
-			// Snap to the floor: cast down from a few meters above so a misplaced spawn
-			// point (e.g. below the ground plane) can't drop the player past the y<-15
-			// kill plane checked in FixedUpdateNetwork.
-			Vector3 castOrigin = position + Vector3.up * 5f;
+			// Snap to the floor: cast down from just above the spawn point. Keep the origin
+			// low (below any ceiling) so an indoor spawn point can't have its downward ray
+			// hit the roof and snap the player onto it. The small lift still clears a spawn
+			// point sitting flush with or just under the floor surface.
+			Vector3 castOrigin = position + Vector3.up * 0.5f;
 			if (Physics.Raycast(castOrigin, Vector3.down, out RaycastHit hit, 25f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
 			{
 				position.y = hit.point.y + 0.5f;
 			}
-			return position;
+
+			// Face the way the spawn point's arrow gizmo points. Derive yaw from the world-space forward
+			// projected onto the horizontal plane (NOT eulerAngles.y, which diverges from the actual
+			// forward direction whenever the spawn point or a parent has any pitch/roll) so the player's
+			// facing matches the drawn arrow exactly, regardless of parent transforms.
+			Vector3 forward = spawnPoint.transform.forward;
+			forward.y = 0f;
+			float yaw = forward.sqrMagnitude > 0.0001f ? Mathf.Atan2(forward.x, forward.z) * Mathf.Rad2Deg : 0f;
+			rotation = Quaternion.Euler(0f, yaw, 0f);
 		}
 
-		// Random spawn point tagged with the requested zone; falls back to any spawn point when zoneId is
-		// negative or no spawn carries that tag. Reservoir-style pick avoids allocating a filtered list.
+		// Random spawn point belonging to the requested zone (spawn points are tied to zones by containment via
+		// ZoneManager); falls back to any spawn point in the scene when zoneId is negative or the zone has none.
 		private SpawnPoint PickSpawnPoint(int zoneId)
 		{
-			if (zoneId >= 0 && _spawnPoints != null)
+			if (zoneId >= 0 && ZoneManager.Instance != null)
 			{
-				int count = 0;
-				for (int i = 0; i < _spawnPoints.Length; i++)
-					if (_spawnPoints[i] != null && _spawnPoints[i].ZoneId == zoneId) count++;
-
-				if (count > 0)
-				{
-					int pick = Random.Range(0, count);
-					for (int i = 0; i < _spawnPoints.Length; i++)
-					{
-						if (_spawnPoints[i] == null || _spawnPoints[i].ZoneId != zoneId) continue;
-						if (pick-- == 0) return _spawnPoints[i];
-					}
-				}
+				var zone = ZoneManager.Instance.ZoneById(zoneId);
+				if (zone != null && zone.SpawnPoints.Count > 0)
+					return zone.SpawnPoints[Random.Range(0, zone.SpawnPoints.Count)];
 			}
 			return _spawnPoints[Random.Range(0, _spawnPoints.Length)];
 		}

@@ -22,12 +22,23 @@ namespace Starter.Shooter
 		/// fire on late-joiners replaying the current phase.</summary>
 		public static event Action<MatchPhase> PhaseChanged;
 
+		/// <summary>Fires on every peer when <see cref="IsPreNight"/> toggles: <c>true</c> = cut every light and sound
+		/// dark/silent for the final beat before the Purge; <c>false</c> = restore (Night is starting, or DuskWarning was
+		/// left). Subscribers (street lights, audio) must be idempotent — this can replay on late-joiners.</summary>
+		public static event Action<bool> PreNightChanged;
+
 		[Header("Phase durations (seconds)")]
 		[Tooltip("Town / prep window. Vendors open, PvP off. Default: 15 minutes.")]
 		[Min(10f)] public float DayDuration = 15f * 60f;
 
-		[Tooltip("Brief transition between Day and Night. Lights flicker, vendors close, music distorts. Default: 30s.")]
-		[Min(1f)] public float DuskWarningDuration = 30f;
+		[Tooltip("Transition window between Day and Night. The town siren sounds (once at the start, once 10s before " +
+			"Night), vendors close, and NPCs retreat home. Default: 60s (1 min).")]
+		[Min(1f)] public float DuskWarningDuration = 60f;
+
+		[Tooltip("Final stretch of DuskWarning, this many seconds before Night, that fires the PreNight beat — every " +
+			"light and sound cuts out, then snaps back when the Purge begins. Must be shorter than DuskWarningDuration. " +
+			"Default: 5s.")]
+		[Min(0.5f)] public float PreNightLeadSeconds = 5f;
 
 		[Tooltip("Maximum PvP duration. Round can end earlier when only one team has living members. Default: 15 minutes.")]
 		[Min(10f)] public float NightMaxDuration = 15f * 60f;
@@ -55,6 +66,13 @@ namespace Starter.Shooter
 
 		/// <summary>Incremented on every Lobby → Day transition. Used for telemetry / rematch labelling.</summary>
 		[Networked] public int RoundIndex { get; private set; }
+
+		/// <summary>True only during the final <see cref="PreNightLeadSeconds"/> of <see cref="MatchPhase.DuskWarning"/> —
+		/// the "everything goes dark and silent" beat right before the Purge. The state authority sets it as the dusk
+		/// timer runs down and clears it on every phase transition (so Night, which immediately follows, restores the
+		/// lights). Networked + OnChangedRender so every peer blacks out in lockstep, never off a local clock.</summary>
+		[Networked, OnChangedRender(nameof(OnPreNightChangedRender))]
+		public NetworkBool IsPreNight { get; private set; }
 
 		/// <summary>Set when a winner is found. -1 = no winner yet (or draw). Read by UI on MatchOver.</summary>
 		[Networked] public int WinningTeamId { get; private set; } = -1;
@@ -93,8 +111,9 @@ namespace Starter.Shooter
 			if (TeamManager == null)
 				TeamManager = FindAnyObjectByType<TeamManager>();
 
-			// Late-joiners replay the current phase locally so subscribers get a chance to set up.
+			// Late-joiners replay the current phase (and PreNight state) locally so subscribers get a chance to set up.
 			PhaseChanged?.Invoke(Phase);
+			PreNightChanged?.Invoke(IsPreNight);
 
 			if (HasStateAuthority && Phase == MatchPhase.Lobby)
 			{
@@ -143,6 +162,10 @@ namespace Starter.Shooter
 
 				case MatchPhase.Day:
 				case MatchPhase.DuskWarning:
+					// Final beat of dusk: cut everything dark/silent just before the Purge. Night (next) clears it.
+					if (Phase == MatchPhase.DuskWarning && IsPreNight == false
+						&& RemainingPhaseSeconds <= PreNightLeadSeconds)
+						IsPreNight = true;
 					if (PhaseTimer.Expired(Runner))
 						AdvanceNextPhase();
 					break;
@@ -264,6 +287,25 @@ namespace Starter.Shooter
 			EnterPhase(phase);
 		}
 
+		/// <summary>Debug-only: fast-forward the <see cref="MatchPhase.Day"/> phase so only <paramref name="leadSeconds"/>
+		/// remain before <see cref="MatchPhase.DuskWarning"/> (the first siren). Crucially leaves the phase machine
+		/// <em>running</em> (clears any <c>set_dusk</c>/<c>set_nighttime</c> hold) so it advances into DuskWarning on its own
+		/// — letting you watch the siren sound and NPCs retreat home in real time, instead of snapping straight to the phase.
+		/// If not currently in Day, forces Day first so the countdown is meaningful. Routes to the state authority.</summary>
+		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+		public void RPC_DebugSkipToDusk(float leadSeconds)
+		{
+			if (HasStateAuthority == false) return;
+
+			_debugHoldPhase = false; // let the machine auto-advance Day → DuskWarning naturally
+			if (Phase != MatchPhase.Day)
+			{
+				WinningTeamId = -1;
+				EnterPhase(MatchPhase.Day);
+			}
+			PhaseTimer = TickTimer.CreateFromSeconds(Runner, Mathf.Max(0.1f, leadSeconds));
+		}
+
 		/// <summary>Debug-only: force-enable PvP regardless of phase (override the no-combat-during-Day gate) so you
 		/// can playtest combat in the Day/Lobby. Stays on until disarmed (<paramref name="on"/> = false) — no timer.
 		/// Routes to the state authority so the networked <see cref="DebugArmForced"/> replicates to every peer's
@@ -336,6 +378,8 @@ namespace Starter.Shooter
 
 		private void EnterPhase(MatchPhase next)
 		{
+			// Every transition clears the PreNight beat — entering Night this way is what brings the lights back on.
+			IsPreNight = false;
 			Phase = next;
 			PhaseTimer = next switch
 			{
@@ -365,6 +409,11 @@ namespace Starter.Shooter
 		private void OnPhaseChangedRender()
 		{
 			PhaseChanged?.Invoke(Phase);
+		}
+
+		private void OnPreNightChangedRender()
+		{
+			PreNightChanged?.Invoke(IsPreNight);
 		}
 
 		/// <summary>Applies the replicated <see cref="DebugTimeScale"/> to this peer's local game speed.</summary>

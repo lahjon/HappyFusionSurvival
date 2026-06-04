@@ -47,6 +47,11 @@ namespace Starter.Shooter
 		private float _zonePower     = 1f;
 		private float _displayedPower = 1f;
 
+		// Current phase + the PreNight "cut to black" beat, tracked separately so either changing re-derives the look
+		// regardless of which networked OnChangedRender fires first (phase flip vs. PreNight clear at Night start).
+		private MatchPhase _phase = MatchPhase.Lobby;
+		private bool       _preNight;
+
 		private void Reset()
 		{
 			_light   = GetComponent<Light>();
@@ -58,21 +63,24 @@ namespace Starter.Shooter
 			if (_light == null)   _light   = GetComponent<Light>();
 			if (_flicker == null) _flicker = GetComponent<LightFlicker>();
 
-			MatchManager.PhaseChanged += Apply;
-			LightGrid.PowerChanged    += OnPowerChanged;
+			MatchManager.PhaseChanged    += Apply;
+			MatchManager.PreNightChanged += OnPreNightChanged;
+			LightGrid.PowerChanged       += OnPowerChanged;
 
 			// Snap to the current grid power so a light that spawns in an already-dark zone doesn't fade in from lit.
 			_zonePower = _displayedPower = ReadZonePower();
 
-			// Apply the current phase right away — covers being enabled after MatchManager has already spawned,
-			// and late-joiners (MatchManager re-fires PhaseChanged on Spawned, but Instance may already exist here).
+			// Apply the current phase + PreNight state right away — covers being enabled after MatchManager has already
+			// spawned, and late-joiners (MatchManager re-fires both on Spawned, but Instance may already exist here).
+			_preNight = MatchManager.Instance != null && MatchManager.Instance.IsPreNight;
 			Apply(MatchManager.Instance != null ? MatchManager.Instance.Phase : MatchPhase.Lobby);
 		}
 
 		private void OnDisable()
 		{
-			MatchManager.PhaseChanged -= Apply;
-			LightGrid.PowerChanged    -= OnPowerChanged;
+			MatchManager.PhaseChanged    -= Apply;
+			MatchManager.PreNightChanged -= OnPreNightChanged;
+			LightGrid.PowerChanged       -= OnPowerChanged;
 		}
 
 		private void Update()
@@ -98,17 +106,32 @@ namespace Starter.Shooter
 
 		private void Apply(MatchPhase phase)
 		{
-			switch (phase)
+			_phase = phase;
+			RefreshLook();
+		}
+
+		/// <summary>The PreNight beat (final seconds of dusk) cuts every light out; clearing it — which happens as Night
+		/// begins — brings them back on. Re-derives the look so the change lands whichever networked signal arrives first.</summary>
+		private void OnPreNightChanged(bool active)
+		{
+			_preNight = active;
+			RefreshLook();
+		}
+
+		private void RefreshLook()
+		{
+			switch (_phase)
 			{
 				case MatchPhase.DuskWarning:
-					// Red is already creeping in and the bulbs are giving out.
-					SetPhaseLook(_nightColor, _nightIntensity);
-					SetFlicker(_flickerOnDusk);
+					// Street lights switch on as dusk begins, showing their normal warm colour — the scary beat is the
+					// PreNight blackout, not a red shift. Flicker still allowed (intensity-only) for nervous bulbs.
+					SetPhaseLook(_dayColor, _dayIntensity);
+					SetFlicker(!_preNight && _flickerOnDusk);
 					break;
 
 				case MatchPhase.Night:
 					SetPhaseLook(_nightColor, _nightIntensity);
-					SetFlicker(_flickerAtNight);
+					SetFlicker(!_preNight && _flickerAtNight);
 					break;
 
 				case MatchPhase.MatchOver:
@@ -116,7 +139,8 @@ namespace Starter.Shooter
 					break;
 
 				default: // Lobby, Day
-					SetPhaseLook(_dayColor, _dayIntensity);
+					// Daylight: street lights are off. They switch on at DuskWarning (the warm look above).
+					SetPhaseLook(_dayColor, 0f);
 					SetFlicker(false);
 					break;
 			}
@@ -137,7 +161,8 @@ namespace Starter.Shooter
 			if (_light != null)
 				_light.color = _phaseColor;
 
-			float intensity = _phaseIntensity * _displayedPower;
+			// PreNight forces the light fully dark regardless of phase/zone power; Night clears PreNight and it returns.
+			float intensity = _preNight ? 0f : _phaseIntensity * _displayedPower;
 
 			// LightFlicker owns intensity each frame, so route brightness through it when present.
 			if (_flicker != null)

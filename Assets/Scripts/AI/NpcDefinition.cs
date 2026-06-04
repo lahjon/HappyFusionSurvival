@@ -44,6 +44,16 @@ namespace Starter.Shooter
 		[Tooltip("Maximum seconds spent idling between random wander destinations.")]
 		[Min(0f)] public float WanderIdleMax = 3f;
 
+		[Header("Personal space")]
+		[Tooltip("When a player comes within this distance the NPC stops dead and stands idle until they step back out, instead of walking into / through them. 0 disables.")]
+		[Min(0f)] public float PersonalSpaceRadius = 2f;
+
+		[Header("Pushable")]
+		[Tooltip("While stopped for a nearby player, the NPC can still be physically shoved by players within this distance (stays in its idle pose while pushed). Should exceed NPC radius + player radius (~0.8m). 0 disables.")]
+		[Min(0f)] public float PushRadius = 1.2f;
+		[Tooltip("How fast a player shoves the NPC, m/s at full contact.")]
+		[Min(0f)] public float PushStrength = 3.5f;
+
 		[Header("Patrol")]
 		public PatrolMode PatrolMode = PatrolMode.Loop;
 		[Tooltip("Seconds the NPC pauses at each waypoint before moving on.")]

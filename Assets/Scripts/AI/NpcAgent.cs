@@ -45,6 +45,18 @@ namespace Starter.Shooter
 		[Tooltip("Maximum seconds paused between wander destinations.")]
 		[Min(0f)] public float WanderIdleMax = 3f;
 
+		// ── Personal space ────────────────────────────────────────────────────
+		[Header("Personal space")]
+		[Tooltip("When a player comes within this distance the NPC stops dead and stands idle until they step back out, instead of walking into / through them. 0 disables.")]
+		[Min(0f)] public float PersonalSpaceRadius = 2f;
+
+		// ── Pushable ──────────────────────────────────────────────────────────
+		[Header("Pushable")]
+		[Tooltip("While stopped for a nearby player, the NPC can still be physically shoved by players within this distance — so you can ease it out of a doorway. Stays in its idle pose while pushed. Should exceed NPC radius + player radius (~0.8m). 0 disables pushing.")]
+		[Min(0f)] public float PushRadius = 1.2f;
+		[Tooltip("How fast a player shoves the NPC, m/s at full contact. Gentle so you ease it aside, not launch it.")]
+		[Min(0f)] public float PushStrength = 3.5f;
+
 		// ── Patrol ────────────────────────────────────────────────────────────
 		[Header("Patrol")]
 		public PatrolMode PatrolMode = PatrolMode.Loop;
@@ -88,13 +100,26 @@ namespace Starter.Shooter
 		/// </summary>
 		[Networked] public PlayerRef AttendedPlayer { get; set; }
 
+		/// <summary>
+		/// True while the NPC is holding still for a nearby player (stopped, but possibly being shoved
+		/// by a push). Replicated so EVERY peer forces the idle animation even as the push slides the
+		/// body — otherwise the position delta would read as "walking" on each client.
+		/// </summary>
+		[Networked] public NetworkBool Holding { get; set; }
+
 		private NavMeshAgent _agent;
 		private ActionInvoker _invoker;
 		private Animator _animator;
 		private Vector3 _home;
 		private RuntimeState _state;
 
+		// Close-range yielding (authority-local). Latched with hysteresis so the idle/walk state can't
+		// flicker while a player hovers right around the personal-space boundary.
+		private bool _crowdYielding;
+		private const float CrowdHysteresis = 0.75f;
+
 		private Vector3 _prevRenderPos;
+		private const float SpeedDampSeconds = 0.12f;
 		private static readonly int _hashSpeed       = Animator.StringToHash("Speed");
 		private static readonly int _hashMotionSpeed = Animator.StringToHash("MotionSpeed");
 		private static readonly int _hashGrounded    = Animator.StringToHash("Grounded");
@@ -148,6 +173,9 @@ namespace Starter.Shooter
 				WanderRadius       = definition.WanderRadius;
 				WanderIdleMin      = definition.WanderIdleMin;
 				WanderIdleMax      = definition.WanderIdleMax;
+				PersonalSpaceRadius= definition.PersonalSpaceRadius;
+				PushRadius         = definition.PushRadius;
+				PushStrength       = definition.PushStrength;
 				PatrolMode         = definition.PatrolMode;
 				WaypointWaitSeconds= definition.WaypointWaitSeconds;
 				Hostile            = definition.Hostile;
@@ -234,6 +262,10 @@ namespace Starter.Shooter
 
 			if (_agent.enabled == false || _agent.isOnNavMesh == false) return;
 
+			// Default to moving each tick; the passive crowd-yield re-stops us while a player is close.
+			_agent.isStopped = false;
+			Holding          = false;
+
 			Player target = (Hostile && Attack != null) ? FindClosestPlayerInAggro() : null;
 
 			switch (_state)
@@ -258,6 +290,9 @@ namespace Starter.Shooter
 		private void TickPassive(Player target)
 		{
 			if (target != null) { EnterChase(); return; }
+
+			// Townsfolk stop dead while a player is close instead of walking into / through them.
+			if (UpdateCrowdYield()) return;
 
 			switch (Behavior)
 			{
@@ -649,6 +684,108 @@ namespace Starter.Shooter
 			return closest;
 		}
 
+		/// <summary>
+		/// Single close-range behavior: while a player is inside <see cref="PersonalSpaceRadius"/> the NPC
+		/// stops dead and stands idle; it only resumes once they pass a slightly wider exit radius
+		/// (<see cref="CrowdHysteresis"/>). The hysteresis latch is what stops the idle↔walk flicker —
+		/// without it the NPC re-decides every tick at the exact boundary. Returns true while stopped so
+		/// the caller skips the normal state machine for the tick.
+		/// </summary>
+		private bool UpdateCrowdYield()
+		{
+			if (PersonalSpaceRadius <= 0f) { _crowdYielding = false; return false; }
+
+			// Wider radius to LEAVE the yield than to ENTER it — pure hysteresis, kills boundary flicker.
+			float radius   = _crowdYielding ? PersonalSpaceRadius + CrowdHysteresis : PersonalSpaceRadius;
+			_crowdYielding = FindNearbyPlayer(radius) != null;
+			if (_crowdYielding == false) return false;
+
+			// Player is close: hold still. Mark Holding so Render keeps the idle pose even though the push
+			// below may slide us. Clear the path, stop the agent, and zero velocity so it doesn't glide.
+			Holding = true;
+			if (_agent.enabled && _agent.isOnNavMesh)
+			{
+				if (_agent.hasPath) _agent.ResetPath();
+				_agent.isStopped = true;
+				_agent.velocity  = Vector3.zero;
+			}
+
+			// Stopped, but still shovable: let players physically ease us aside while we hold.
+			ApplyPlayerPush();
+
+			// Pause a beat after they leave rather than darting off, and don't strand a patrol mid-wait.
+			_idleTimer         = TickTimer.CreateFromSeconds(Runner, RandRange(WanderIdleMin, WanderIdleMax));
+			_waitingAtWaypoint = false;
+			if (LookAround)
+				transform.Rotate(0f, LookAroundSpeed * Runner.DeltaTime, 0f);
+			return true;
+		}
+
+		/// <summary>
+		/// Closest living player within <paramref name="radius"/> in any direction, or null. Used to make the
+		/// NPC stop and idle while a player crowds it, so it never tries to walk through them.
+		///
+		/// Iterates <see cref="Player.All"/> rather than a physics overlap: the player's only PhysX
+		/// collider is its SimpleKCC capsule on a dedicated (non-Default) layer, so an OverlapSphere
+		/// against the combat HitMask never sees it. The roster is the authoritative, layer-agnostic
+		/// source — and it includes bots.
+		/// </summary>
+		private Player FindNearbyPlayer(float radius)
+		{
+			float radiusSqr = radius * radius;
+			Player closest   = null;
+			float closestSqr = float.MaxValue;
+
+			var all = Player.All;
+			for (int i = 0; i < all.Count; i++)
+			{
+				var player = all[i];
+				if (player == null) continue;
+				if (player.Health != null && player.Health.IsAlive == false) continue;
+
+				Vector3 to = player.transform.position - transform.position;
+				to.y = 0f;
+				float sqr = to.sqrMagnitude;
+				if (sqr > radiusSqr) continue;
+				if (sqr < closestSqr) { closest = player; closestSqr = sqr; }
+			}
+			return closest;
+		}
+
+		/// <summary>
+		/// Physically eases the (already-stopped) NPC away from any player inside <see cref="PushRadius"/>,
+		/// summing an away-vector per player and applying it through <c>NavMeshAgent.Move</c> so the slide
+		/// stays on the navmesh. Called only while Holding, so the body slides but the animation stays idle.
+		/// Iterates <see cref="Player.All"/> for the same reason as <see cref="FindNearbyPlayer"/>.
+		/// </summary>
+		private void ApplyPlayerPush()
+		{
+			if (PushStrength <= 0f || PushRadius <= 0f) return;
+			if (_agent.enabled == false || _agent.isOnNavMesh == false) return;
+
+			float radiusSqr = PushRadius * PushRadius;
+			Vector3 push    = Vector3.zero;
+
+			var all = Player.All;
+			for (int i = 0; i < all.Count; i++)
+			{
+				var player = all[i];
+				if (player == null) continue;
+				if (player.Health != null && player.Health.IsAlive == false) continue;
+
+				Vector3 away = transform.position - player.transform.position;
+				away.y = 0f;
+				float sqr = away.sqrMagnitude;
+				if (sqr > radiusSqr || sqr < 0.0001f) continue;
+
+				float dist = Mathf.Sqrt(sqr);
+				push += (away / dist) * (1f - dist / PushRadius);
+			}
+
+			if (push.sqrMagnitude > 0.0001f)
+				_agent.Move(Vector3.ClampMagnitude(push, 1f) * PushStrength * Runner.DeltaTime);
+		}
+
 		private void TryAttack()
 		{
 			if (Attack == null || _invoker == null) return;
@@ -705,7 +842,12 @@ namespace Starter.Shooter
 			}
 			_prevRenderPos = transform.position;
 
-			_animator.SetFloat(_hashSpeed,       speed);
+			// While holding for a nearby player, force the idle pose even though a push may be sliding the
+			// body — otherwise the position delta reads as "walking" on every client.
+			if (Holding) speed = 0f;
+
+			// Damp the locomotion blend so a brief stop/start can't snap the animation between idle and walk.
+			_animator.SetFloat(_hashSpeed,       speed, SpeedDampSeconds, dt);
 			_animator.SetFloat(_hashMotionSpeed, 1f);
 			_animator.SetBool (_hashGrounded,    true);
 			_animator.SetBool (_hashFreeFall,    false);

@@ -29,6 +29,14 @@ namespace Starter.Common.Interactions
 		[Tooltip("Toast cooldown so locked-prompt messages don't spam.")]
 		public float ToastCooldown = 1f;
 
+		[Header("Feedback")]
+		[Tooltip("Seconds the prompt's scale-punch pop lasts when an interaction fires.")]
+		public float PunchDuration = 0.18f;
+		[Tooltip("Extra scale at the peak of the punch (0.18 = pops to 1.18x then settles back).")]
+		public float PunchScale = 0.18f;
+		[Tooltip("Seconds the prompt takes to fade in/out instead of instantly popping on/off.")]
+		public float FadeDuration = 0.1f;
+
 		public event Action<string> Toast;
 
 		/// <summary>Local-only singleton; set when the local player's scanner initializes.</summary>
@@ -98,6 +106,21 @@ namespace Starter.Common.Interactions
 		private Image _promptBox;
 		private Image _promptHoldFill;
 		private TextMeshProUGUI _promptCenterLabel;
+		private CanvasGroup _promptCanvasGroup;
+
+		// Scale-punch feedback: a quick pop the indicator graphic does when an interaction fires so
+		// the press reads as tactile. Only the Box/HoldFill scale — the CenterLabel text stays put.
+		// -1 = idle; otherwise the unscaled time the current punch began.
+		private float _punchStartTime = -1f;
+		private Vector3 _boxBaseScale = Vector3.one;
+		private Vector3 _holdFillBaseScale = Vector3.one;
+
+		// Cache for the prompt anchor's visual center. Renderer bounds are world-axis-aligned, so
+		// we store the center as a target-local offset once per target and re-transform each frame —
+		// keeps it correct as the object moves/rotates without re-walking renderers every frame.
+		private Transform _visualCenterTarget;
+		private Vector3 _visualCenterLocal;
+		private readonly List<Renderer> _rendererScratch = new List<Renderer>();
 
 		// Hold-to-pickup state. Tap path stays simple: fire OnInteract immediately on
 		// release for non-pickupable targets. For pickupable targets we wait until
@@ -215,6 +238,7 @@ namespace Starter.Common.Interactions
 			{
 				_pickupFired = true;
 				InteractConsumedFrame = Time.frameCount;
+				TriggerPromptPunch();
 
 				if (_pressPickup != null)
 				{
@@ -309,11 +333,18 @@ namespace Starter.Common.Interactions
 			AbortHold();
 		}
 
+		/// <summary>Kick off the shared prompt's scale-punch so a successful Interact reads as a tactile pop.</summary>
+		private void TriggerPromptPunch()
+		{
+			_punchStartTime = Time.unscaledTime;
+		}
+
 		private void FireTap(IInteractable target)
 		{
 			if (target.CanInteract)
 			{
 				InteractConsumedFrame = Time.frameCount;
+				TriggerPromptPunch();
 				target.OnInteract(this);
 			}
 			else if (!string.IsNullOrEmpty(target.LockedReason))
@@ -489,6 +520,15 @@ namespace Starter.Common.Interactions
 			_promptHoldFill = visuals.HoldFill;
 			_promptCenterLabel = visuals.CenterLabel;
 
+			if (_promptBox != null) _boxBaseScale = _promptBox.rectTransform.localScale;
+			if (_promptHoldFill != null) _holdFillBaseScale = _promptHoldFill.rectTransform.localScale;
+
+			// Drive show/hide as an alpha fade rather than SetActive pops. CanvasGroup covers the
+			// whole prompt (indicator + label) in one lerp; added at runtime so the prefab needn't carry it.
+			_promptCanvasGroup = _promptGO.GetComponent<CanvasGroup>();
+			if (_promptCanvasGroup == null) _promptCanvasGroup = _promptGO.AddComponent<CanvasGroup>();
+			_promptCanvasGroup.alpha = 0f;
+
 			if (_promptHoldFill != null)
 			{
 				_promptHoldFill.fillAmount = 0f;
@@ -508,39 +548,72 @@ namespace Starter.Common.Interactions
 				_promptCamera = Camera.main;
 			if (_promptCamera == null) return;
 
+			// Refresh content (position/colour/label) only when there's something to point at;
+			// otherwise leave the last frame's content in place and let it fade out.
+			bool wantVisible = UpdatePromptContent();
+
+			// Fade the whole prompt toward the target opacity instead of popping on/off. Unscaled
+			// time so it still animates while paused. Keep the GO active until fully faded out.
+			float targetAlpha = wantVisible ? 1f : 0f;
+			if (_promptCanvasGroup != null)
+			{
+				if (!Mathf.Approximately(_promptCanvasGroup.alpha, targetAlpha))
+				{
+					float step = Time.unscaledDeltaTime / Mathf.Max(0.0001f, FadeDuration);
+					_promptCanvasGroup.alpha = Mathf.MoveTowards(_promptCanvasGroup.alpha, targetAlpha, step);
+				}
+			}
+
+			bool shouldBeActive = wantVisible || (_promptCanvasGroup != null && _promptCanvasGroup.alpha > 0.001f);
+			if (_promptGO.activeSelf != shouldBeActive) _promptGO.SetActive(shouldBeActive);
+		}
+
+		/// <summary>
+		/// Positions the shared prompt over the current target and refreshes its colours, hold
+		/// fill, label, and scale-punch. Returns true if the prompt should be shown this frame, or
+		/// false (without touching content) when there's nothing to point at — so the caller can
+		/// fade it out in place.
+		/// </summary>
+		private bool UpdatePromptContent()
+		{
 			Transform target = CurrentTarget;
 			if (target == null || !IsScanningActive)
-			{
-				if (_promptGO.activeSelf) _promptGO.SetActive(false);
-				if (_promptCenterLabel != null) _promptCenterLabel.enabled = false;
-				return;
-			}
+				return false;
 
 			var prompt = target.GetComponent<InteractionPrompt>();
 
 			if (prompt != null && prompt.HideWhenLocked && CurrentInteractable != null && !CurrentInteractable.CanInteract)
-			{
-				if (_promptGO.activeSelf) _promptGO.SetActive(false);
-				if (_promptCenterLabel != null) _promptCenterLabel.enabled = false;
-				return;
-			}
+				return false;
 
-			Vector3 anchor = target.position + (prompt != null ? target.TransformVector(prompt.LocalOffset) : Vector3.zero);
+			// Anchor base: an explicit override transform wins; otherwise the asset's visual
+			// center (renderer bounds) so the prompt sits on the middle of the mesh instead of
+			// the transform pivot, which is usually at the model's base → prompt at the bottom.
+			var anchorOverride = target.GetComponent<IInteractionPromptAnchor>()?.PromptAnchor;
+			Transform anchorT = anchorOverride != null ? anchorOverride : target;
+			Vector3 anchorBase = anchorOverride != null ? anchorT.position : GetVisualCenter(target);
+			Vector3 anchor = anchorBase + (prompt != null ? anchorT.TransformVector(prompt.LocalOffset) : Vector3.zero);
 			Vector3 screenPos = _promptCamera.WorldToScreenPoint(anchor);
 			if (screenPos.z < 0f)
-			{
-				if (_promptGO.activeSelf) _promptGO.SetActive(false);
-				if (_promptCenterLabel != null) _promptCenterLabel.enabled = false;
-				return;
-			}
-
-			if (!_promptGO.activeSelf) _promptGO.SetActive(true);
+				return false;
 
 			if (_canvasRT != null)
 			{
 				RectTransformUtility.ScreenPointToLocalPointInRectangle(_canvasRT, screenPos, null, out Vector2 localPos);
 				_promptRT.anchoredPosition = localPos;
 			}
+
+			// Transient scale-punch on the indicator graphic only (Box/HoldFill, not the text label):
+			// a half-sine pop (1 -> 1+PunchScale -> 1) over PunchDuration confirming the Interact
+			// registered. Uses unscaled time so it reads even if the game pauses.
+			float punchMul = 1f;
+			if (_punchStartTime >= 0f)
+			{
+				float t = (Time.unscaledTime - _punchStartTime) / Mathf.Max(0.01f, PunchDuration);
+				if (t >= 1f) _punchStartTime = -1f;
+				else punchMul = 1f + PunchScale * Mathf.Sin(t * Mathf.PI);
+			}
+			if (_promptBox != null) _promptBox.rectTransform.localScale = _boxBaseScale * punchMul;
+			if (_promptHoldFill != null) _promptHoldFill.rectTransform.localScale = _holdFillBaseScale * punchMul;
 
 			_promptBox.color = prompt != null ? prompt.ActiveColor : new Color(0.3f, 0.65f, 1f, 1f);
 
@@ -562,6 +635,43 @@ namespace Starter.Common.Interactions
 				if (_promptCenterLabel.enabled != hasCenterLabel) _promptCenterLabel.enabled = hasCenterLabel;
 				if (hasCenterLabel) _promptCenterLabel.text = centerText;
 			}
+
+			return true;
+		}
+
+		/// <summary>
+		/// World-space center of the target's combined renderer bounds — used as the default
+		/// prompt anchor so the indicator sits on the middle of the mesh rather than the
+		/// transform pivot (typically at the model's base). Cached per target as a local-space
+		/// offset and re-transformed each frame; falls back to the pivot if no renderers exist.
+		/// </summary>
+		private Vector3 GetVisualCenter(Transform target)
+		{
+			if (target != _visualCenterTarget)
+			{
+				_visualCenterTarget = target;
+				_visualCenterLocal = Vector3.zero;
+
+				target.GetComponentsInChildren(false, _rendererScratch);
+				bool any = false;
+				Bounds bounds = default;
+				for (int i = 0; i < _rendererScratch.Count; i++)
+				{
+					var r = _rendererScratch[i];
+					// Skip UI/particle/other non-mesh renderers that would skew the center.
+					if (r is MeshRenderer || r is SkinnedMeshRenderer)
+					{
+						if (!any) { bounds = r.bounds; any = true; }
+						else bounds.Encapsulate(r.bounds);
+					}
+				}
+				_rendererScratch.Clear();
+
+				if (any)
+					_visualCenterLocal = target.InverseTransformPoint(bounds.center);
+			}
+
+			return target.TransformPoint(_visualCenterLocal);
 		}
 
 		private void ShowToast(string text)

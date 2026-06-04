@@ -1,28 +1,31 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Starter.Common.Inventory
 {
 	/// <summary>
 	/// Per-item visual description read by the shared generic prefabs (Pickup_Generic, Hand_Generic)
 	/// at spawn, so an ordinary item needs no bespoke prefab — just this data on its
-	/// <see cref="ItemDefinition"/>. The world pickup builds its Visual child from
-	/// <see cref="Mesh"/>/<see cref="Material"/>/<see cref="WorldScale"/>; the hand rig builds its
-	/// held mesh from the same mesh/material at <see cref="HeldScale"/>/<see cref="HeldLocalPosition"/>.
+	/// <see cref="ItemDefinition"/>. Both the world pickup and the hand rig instantiate
+	/// <see cref="Prefab"/> as their visual child and position it via the scale/offset fields below
+	/// (<see cref="WorldScale"/> in the world, <see cref="HeldScale"/>/<see cref="HeldLocalPosition"/>/
+	/// <see cref="HeldLocalEuler"/> in the hand). <see cref="Prefab"/> is visual-only — no gameplay
+	/// components.
 	///
-	/// For models that aren't a single mesh+material (e.g. a furniture prop), set
-	/// <see cref="VisualOverride"/> — the generic prefab instantiates it as the visual instead.
-	/// Items needing a fully bespoke functional prefab keep <c>ItemDefinition.WorldPrefab</c>/
-	/// <c>HandPrefab</c> set (those take priority over the generic path entirely).
+	/// If <see cref="Prefab"/> is null the generic rig falls back to its own placeholder primitive
+	/// (a plain cube). Items needing real functional components in a context set
+	/// <c>ItemDefinition.WorldPrefab</c>/<c>HandPrefab</c> instead — those replace the generic prefab
+	/// entirely for that context.
 	/// </summary>
 	[Serializable]
 	public sealed class ItemVisual
 	{
-		[Tooltip("Mesh shown in the world pickup and in-hand. Ignored when VisualOverride is set.")]
-		public Mesh Mesh;
-
-		[Tooltip("Material for the mesh. Ignored when VisualOverride is set.")]
-		public Material Material;
+		[Tooltip("Visual-only prefab instantiated as this item's model on the shared world pickup and " +
+		         "hand rig. The single source of an ordinary item's look — no gameplay components. " +
+		         "Leave null to fall back to the generic rig's placeholder primitive.")]
+		[FormerlySerializedAs("VisualOverride")]
+		public GameObject Prefab;
 
 		[Header("World pickup")]
 		[Tooltip("Local scale of the Visual child on the world pickup.")]
@@ -38,18 +41,13 @@ namespace Starter.Common.Inventory
 		public Vector3 PromptOffset;
 
 		[Header("In-hand")]
-		[Tooltip("Local scale of the held mesh on the hand rig.")]
+		[Tooltip("Local scale of the held model on the hand rig.")]
 		public Vector3 HeldScale = Vector3.one;
 
-		[Tooltip("Local position of the held mesh relative to the hand rig root.")]
+		[Tooltip("Local position of the held model relative to the hand rig root.")]
 		public Vector3 HeldLocalPosition;
 
-		[Tooltip("Local euler rotation of the held mesh relative to the hand rig root.")]
+		[Tooltip("Local euler rotation of the held model relative to the hand rig root.")]
 		public Vector3 HeldLocalEuler;
-
-		[Header("Override")]
-		[Tooltip("Optional visual-only prefab instantiated instead of building a primitive from Mesh/Material " +
-		         "(e.g. a furniture model). Has no gameplay components.")]
-		public GameObject VisualOverride;
 	}
 }

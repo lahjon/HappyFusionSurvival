@@ -72,6 +72,11 @@ namespace Starter.Shooter
 			if (HasInputAuthority == false)
 				return;
 
+			// Seed the accumulated look with the spawn point's yaw (carried on the spawn rotation) so we spawn
+			// facing the SpawnPoint arrow direction. Without this the look input starts at (0,0) and the first
+			// tick snaps us to world +Z. Respawns are handled separately via Player.OnSpawnLookChanged.
+			_input.LookRotation = new Vector2(0f, transform.eulerAngles.y);
+
 			_player = GetComponent<Player>();
 			_inventory = GetComponent<Inventory>();
 			_actions = GetComponent<GameInputActions>();

@@ -15,7 +15,6 @@ GameObject:
   - component: {fileID: 4316034554380949706}
   - component: {fileID: 6825770533932560494}
   - component: {fileID: 5730760256332851045}
-  - component: {fileID: 1513452612009966703}
   m_Layer: 0
   m_Name: NPC
   m_TagString: Untagged
@@ -178,29 +177,6 @@ CapsuleCollider:
   m_Height: 2
   m_Direction: 1
   m_Center: {x: 0, y: 1, z: 0}
---- !u!114 &1513452612009966703
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7190023111455513082}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fca81a4badb70634b8aa2860093bb130, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Interactions.BaseInteractable
-  InteractRangeValue: 2
-  InteractLabelText: Press E to interact
-  LockedReasonText: 
-  InteractionPointOffset: {x: 0, y: 0, z: 0}
-  Interactable: 0
-  IsConsumable: 0
-  DestroyOnConsume: 0
-  Cooldown: 0
-  OnInteracted:
-    m_PersistentCalls:
-      m_Calls: []
 --- !u!1001 &6927112465595806673
 PrefabInstance:
   m_ObjectHideFlags: 0
