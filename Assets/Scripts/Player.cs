@@ -25,6 +25,8 @@ namespace Starter.Shooter
 		public SimpleKCC KCC;
 		public PlayerInput Input;
 		public Animator Animator;
+		[Tooltip("Third-person body animator (Player child under VisualRoot/PlayerCharacter). Driven separately from the first-person arms Animator.")]
+		public Animator BodyAnimator;
 		public Transform CameraPivot;
 		public Transform CameraHandle;
 		public Transform ScalingRoot;
@@ -32,7 +34,7 @@ namespace Starter.Shooter
 		public HitboxRoot HitboxRoot;
 		public Renderer[] HeadRenderers;
 		public ActionInvoker ActionInvoker;
-
+ 
 		[Header("Movement Setup")]
 		public float WalkSpeed = 2f;
 		public float SprintSpeed = 8f;
@@ -420,13 +422,20 @@ namespace Starter.Shooter
 		// instead of snapping. -1 = uninitialized (snap to target on the first frame).
 		private float _smoothedCameraDist = -1f;
 
-		// Animation IDs
+		// Animation IDs — first-person arms
 		private int _animIDSpeedX;
 		private int _animIDSpeedZ;
 		private int _animIDMoveSpeedZ;
 		private int _animIDGrounded;
 		private int _animIDPitch;
 		private int _animIDShoot;
+
+		// Animation IDs — third-person body (shared param names with NpcAgent)
+		private static readonly int _bodyAnimIDSpeed       = Animator.StringToHash("Speed");
+		private static readonly int _bodyAnimIDMotionSpeed = Animator.StringToHash("MotionSpeed");
+		private static readonly int _bodyAnimIDGrounded    = Animator.StringToHash("Grounded");
+		private static readonly int _bodyAnimIDFreeFall    = Animator.StringToHash("FreeFall");
+		private static readonly int _bodyAnimIDJump        = Animator.StringToHash("Jump");
 
 		private int _visibleFireCount;
 		private int _visibleSecondaryFireCount;
@@ -648,6 +657,15 @@ namespace Starter.Shooter
 			_standHeight = KCC.Settings.Height;
 			if (CameraPivot != null) _standCameraPivotLocalPos = CameraPivot.localPosition;
 
+			// The BodyAnimator child is shared with the NPC visual setup which uses root motion and
+			// a NavMeshAgent. Disable both here — the KCC owns movement for players.
+			if (BodyAnimator != null)
+			{
+				BodyAnimator.applyRootMotion = false;
+				var navAgent = BodyAnimator.GetComponent<UnityEngine.AI.NavMeshAgent>();
+				if (navAgent != null) navAgent.enabled = false;
+			}
+
 			if (HasStateAuthority)
 			{
 				// Bots get their synthetic Owner in ConfigureAsBot (onBeforeSpawned); humans bind theirs here.
@@ -842,6 +860,17 @@ namespace Starter.Shooter
 			Animator.SetFloat(_animIDSpeedZ, moveSpeed.z, 0.1f, Time.deltaTime);
 			Animator.SetBool(_animIDGrounded, KCC.IsGrounded);
 			Animator.SetFloat(_animIDPitch, KCC.GetLookRotation(true, false).x, 0.02f, Time.deltaTime);
+
+			if (BodyAnimator != null)
+			{
+				float horizontalSpeed = new Vector2(KCC.RealVelocity.x, KCC.RealVelocity.z).magnitude;
+				bool isFalling        = !KCC.IsGrounded && KCC.RealVelocity.y < -1f;
+				BodyAnimator.SetFloat(_bodyAnimIDSpeed,       horizontalSpeed, 0.1f, Time.deltaTime);
+				BodyAnimator.SetFloat(_bodyAnimIDMotionSpeed, horizontalSpeed > 0.1f ? 1f : 0f, 0.1f, Time.deltaTime);
+				BodyAnimator.SetBool (_bodyAnimIDGrounded,    KCC.IsGrounded);
+				BodyAnimator.SetBool (_bodyAnimIDFreeFall,    isFalling);
+				BodyAnimator.SetBool (_bodyAnimIDJump,        _isJumping);
+			}
 
 			FootstepSound.enabled = KCC.IsGrounded && KCC.RealSpeed > 1f;
 			ScalingRoot.localScale = Vector3.Lerp(ScalingRoot.localScale, Vector3.one, Time.deltaTime * 8f);
@@ -2697,6 +2726,14 @@ namespace Starter.Shooter
 			Animator.SetFloat(_animIDSpeedX, 0f, 0.1f, Time.deltaTime);
 			Animator.SetFloat(_animIDSpeedZ, 0f, 0.1f, Time.deltaTime);
 			Animator.SetBool(_animIDGrounded, true);
+			if (BodyAnimator != null)
+			{
+				BodyAnimator.SetFloat(_bodyAnimIDSpeed,       0f, 0.1f, Time.deltaTime);
+				BodyAnimator.SetFloat(_bodyAnimIDMotionSpeed, 0f, 0.1f, Time.deltaTime);
+				BodyAnimator.SetBool (_bodyAnimIDGrounded,    true);
+				BodyAnimator.SetBool (_bodyAnimIDFreeFall,    false);
+				BodyAnimator.SetBool (_bodyAnimIDJump,        false);
+			}
 		}
 
 		/// <summary>Camera follow for the local seated player: drive CameraPivot from raw input look so the camera can pan independently of the body (which is locked to the vehicle).</summary>
