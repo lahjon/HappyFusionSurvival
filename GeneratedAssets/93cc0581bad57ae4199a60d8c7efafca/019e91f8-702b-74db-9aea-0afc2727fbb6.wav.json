@@ -1,0 +1,15 @@
+{
+    "asset": "93cc0581bad57ae4199a60d8c7efafca",
+    "fileName": "019e91f8-702b-74db-9aea-0afc2727fbb6.wav",
+    "prompt": "Peaceful daytime outdoor nature ambience: gentle wind blowing softly through trees with light gusts, and many songbirds chirping, tweeting and trilling in the background. Calm, serene, continuous countryside atmosphere. Seamless loop with no abrupt start or end.",
+    "negativePrompt": "",
+    "model": "elevenlabs-sound-effects-v2",
+    "modelName": "ElevenLabs Sound Effects V2",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "duration": 10.0,
+    "autoTrim": false,
+    "hasReference": false,
+    "voice": ""
+}

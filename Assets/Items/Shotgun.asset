@@ -1,0 +1,81 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 215c4744854153b4a948021ef1445cc3, type: 3}
+  m_Name: Shotgun
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.ItemDefinition
+  Id: 24
+  DisplayName: Shotgun
+  Icon: {fileID: 0}
+  Description: Pump-action scattergun. Devastating up close, weak at range.
+  Stats: []
+  Visual:
+    Mesh: {fileID: -5721217614269247348, guid: 8e1530ae5a2286341a35e7d289b1847a, type: 3}
+    Material: {fileID: -3454980128204284210, guid: 8e1530ae5a2286341a35e7d289b1847a, type: 3}
+    WorldScale: {x: 1, y: 1, z: 1}
+    WorldBob: 0
+    WorldRotate: 0
+    PromptOffset: {x: 0, y: 0, z: 0}
+    HeldScale: {x: 1, y: 1, z: 1}
+    HeldLocalPosition: {x: 0, y: 0, z: 0}
+    HeldLocalEuler: {x: 0, y: 0, z: 0}
+    VisualOverride: {fileID: 491163724819144659, guid: 6376e420768c5224b8d2ab97c2e2dbb4, type: 3}
+  WorldPrefab: {fileID: 0}
+  HandPrefab: {fileID: 0}
+  MaxStack: 1
+  Weight: 5
+  ScrapValue: 4
+  BaseValue: 200
+  Floats: 0
+  OverrideCenterOfMass: 0
+  CenterOfMass: {x: 0, y: 0, z: 0}
+  Capabilities:
+  - rid: 8357564934323700777
+  references:
+    version: 2
+    RefIds:
+    - rid: 8357564934323700777
+      type: {class: WeaponCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
+      data:
+        Actions:
+        - {fileID: 11400000, guid: 3a9f1e7c5b2d8a4f6e0c3b9d7a1f5e2c, type: 2}
+        SecondaryMode: 2
+        SecondaryAction: {fileID: 0}
+        Aim:
+          FOVReduction: 12
+          FOVLerpSpeed: 10
+          SwayMultiplier: 0.35
+          RecoilMultiplier: 0.6
+          BreathHoldSwayMultiplier: 0
+          BreathDepletionRecoilScale: 0.6
+        AmmoItem: {fileID: 11400000, guid: 5c0a7b3e9d2f4a1b8c6d0e3f7a9b1c2d, type: 2}
+        MagazineSize: 6
+        ReloadSeconds: 2.2
+        Rig:
+          SwingArcEuler: {x: -80, y: 0, z: 0}
+          SwingDuration: 0.28
+          ChargedBackMultiplier: 0.8
+          ChargePoseLerpSpeed: 12
+          ChargedSwingArcScale: 1.35
+          ChargedSwingDurationScale: 1.2
+          RecoilBackKick: 0.14
+          RecoilPitchDegrees: -16
+          RecoilDuration: 0.16
+          WeaponSway: 1
+          SwayMaxDegrees: 2
+          SwayFrequency: 0.85
+          AimRecoil: 1
+          AimRecoilPitchPerShot: 7
+          AimRecoilHorizontalRandom: 2
+          AimRecoilLerpSpeed: 18
+          AimRecoilRecoverySpeed: 6
+          HasMuzzle: 1
+          MuzzleLocalPosition: {x: -0.001, y: 0.121, z: 0.713}

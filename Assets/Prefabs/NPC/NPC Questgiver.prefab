@@ -52,9 +52,17 @@ PrefabInstance:
       propertyPath: SortKey
       value: 3948168873
       objectReference: {fileID: 0}
+    - target: {fileID: 4316034554380949706, guid: a9df9e7388f35714bbcf6dedf4d64288, type: 3}
+      propertyPath: NetworkedBehaviours.Array.size
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4316034554380949706, guid: a9df9e7388f35714bbcf6dedf4d64288, type: 3}
+      propertyPath: 'NetworkedBehaviours.Array.data[1]'
+      value: 
+      objectReference: {fileID: 792096102969576387}
     - target: {fileID: 7190023111455513082, guid: a9df9e7388f35714bbcf6dedf4d64288, type: 3}
       propertyPath: m_Name
-      value: NPC Shopkeeper
+      value: NPC Questgiver
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
@@ -63,13 +71,45 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 5325735194775622, guid: a9df9e7388f35714bbcf6dedf4d64288, type: 3}
       insertIndex: -1
       addedObject: {fileID: 7344005867615390228}
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 7190023111455513082, guid: a9df9e7388f35714bbcf6dedf4d64288, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 792096102969576387}
   m_SourcePrefab: {fileID: 100100000, guid: a9df9e7388f35714bbcf6dedf4d64288, type: 3}
 --- !u!4 &2544283249914203049 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 5325735194775622, guid: a9df9e7388f35714bbcf6dedf4d64288, type: 3}
   m_PrefabInstance: {fileID: 2548465200352140271}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &4653872578782855701 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7190023111455513082, guid: a9df9e7388f35714bbcf6dedf4d64288, type: 3}
+  m_PrefabInstance: {fileID: 2548465200352140271}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &792096102969576387
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4653872578782855701}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9c1c4b6519812b942ab44c7090c6271c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.QuestGiver
+  DisplayName: Station
+  InteractRange: 2.5
+  InteractionPointOffset: {x: 0, y: 0, z: 0}
+  IsPickupable: 0
+  PickupItem: {fileID: 0}
+  PickupHoldSeconds: 2
+  _questPool: {fileID: 11400000, guid: df6cbc47b0b3a524fa41dcec13d3d029, type: 2}
+  _generateCount: 4
+  Offers: []
+  _CompletedBy: []
+  _OfferQuestId: 
+  _OfferCountNet: 0
 --- !u!1001 &7348585346584455888
 PrefabInstance:
   m_ObjectHideFlags: 0

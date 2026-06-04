@@ -98,6 +98,7 @@ Transform:
   - {fileID: 2110747649096965878}
   - {fileID: 4590350245862430676}
   - {fileID: 443669032358294212}
+  - {fileID: 2244854105918068010}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &6045234127610043122
@@ -115,7 +116,8 @@ MonoBehaviour:
   SortKey: 3788692690
   ObjectInterest: 1
   Flags: 262145
-  NestedObjects: []
+  NestedObjects:
+  - {fileID: 875950534454321497}
   NetworkedBehaviours:
   - {fileID: 7320251672261777739}
   ForceRemoteRenderTimeframe: 0
@@ -133,7 +135,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.NpcBuilding
   InteriorArea: {fileID: 2810434415013355142}
   DefenseArea: {fileID: 735256432007377705}
-  Exits: []
+  Exits:
+  - {fileID: 4888665277471698878}
   InteriorAnchors:
   - {fileID: 2110747649096965878}
   - {fileID: 4590350245862430676}
@@ -262,3 +265,91 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.NpcMovementArea
   Size: {x: 8, y: 4, z: 8}
   NavSampleHeight: 4
+--- !u!1001 &354902502479280513
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 1292963180158643201}
+    m_Modifications:
+    - target: {fileID: 631873581375690968, guid: eb2cb543d85056c4e96ec15e2cbd6572, type: 3}
+      propertyPath: SortKey
+      value: 2071223514
+      objectReference: {fileID: 0}
+    - target: {fileID: 2002851794517912747, guid: eb2cb543d85056c4e96ec15e2cbd6572, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 2.48
+      objectReference: {fileID: 0}
+    - target: {fileID: 2002851794517912747, guid: eb2cb543d85056c4e96ec15e2cbd6572, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.00000017204957
+      objectReference: {fileID: 0}
+    - target: {fileID: 2002851794517912747, guid: eb2cb543d85056c4e96ec15e2cbd6572, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -3.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2002851794517912747, guid: eb2cb543d85056c4e96ec15e2cbd6572, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2002851794517912747, guid: eb2cb543d85056c4e96ec15e2cbd6572, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2002851794517912747, guid: eb2cb543d85056c4e96ec15e2cbd6572, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2002851794517912747, guid: eb2cb543d85056c4e96ec15e2cbd6572, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2002851794517912747, guid: eb2cb543d85056c4e96ec15e2cbd6572, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2002851794517912747, guid: eb2cb543d85056c4e96ec15e2cbd6572, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2002851794517912747, guid: eb2cb543d85056c4e96ec15e2cbd6572, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5946431840380176918, guid: eb2cb543d85056c4e96ec15e2cbd6572, type: 3}
+      propertyPath: m_Name
+      value: NpcExit_Door
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: eb2cb543d85056c4e96ec15e2cbd6572, type: 3}
+--- !u!114 &875950534454321497 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 631873581375690968, guid: eb2cb543d85056c4e96ec15e2cbd6572, type: 3}
+  m_PrefabInstance: {fileID: 354902502479280513}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: -1552182283, guid: e725a070cec140c4caffb81624c8c787, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Fusion.Runtime.dll::Fusion.NetworkObject
+--- !u!4 &2244854105918068010 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 2002851794517912747, guid: eb2cb543d85056c4e96ec15e2cbd6572, type: 3}
+  m_PrefabInstance: {fileID: 354902502479280513}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &4888665277471698878 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 5130966502086809151, guid: eb2cb543d85056c4e96ec15e2cbd6572, type: 3}
+  m_PrefabInstance: {fileID: 354902502479280513}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8411f5d4eb349b842abfb4d82e30849c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.NpcExit

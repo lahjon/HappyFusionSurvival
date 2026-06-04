@@ -199,3 +199,8 @@ MonoBehaviour:
   _baselinePushImpulse: 0.6
   _pushSpeedScale: 0.8
   _maxPushImpulse: 5
+  _overrideCenterOfMass: 0
+  _centerOfMass: {x: 0, y: 0, z: 0}
+  _sleepLinearThreshold: 0.12
+  _sleepAngularThreshold: 0.5
+  _sleepDelay: 1

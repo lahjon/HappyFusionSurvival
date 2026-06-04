@@ -27,11 +27,16 @@ MonoBehaviour:
     HeldScale: {x: 0.05, y: 0.05, z: 0.6}
     HeldLocalPosition: {x: 0, y: 0, z: 0}
     HeldLocalEuler: {x: 0, y: 0, z: 0}
-    VisualOverride: {fileID: 0}
+    VisualOverride: {fileID: 598121554222918576, guid: 8f35d513ebe9e6348b05615fe977d121, type: 3}
   WorldPrefab: {fileID: 0}
   HandPrefab: {fileID: 0}
   MaxStack: 1
   Weight: 0
+  ScrapValue: 1
+  BaseValue: 10
+  Floats: 0
+  OverrideCenterOfMass: 0
+  CenterOfMass: {x: 0, y: 0, z: 0}
   Capabilities:
   - rid: 8357564934323700060
   - rid: 8357564934323700061
@@ -43,6 +48,38 @@ MonoBehaviour:
       data:
         Actions:
         - {fileID: 11400000, guid: 1316574e19883cd40b91587e4a96835d, type: 2}
+        SecondaryMode: 0
+        SecondaryAction: {fileID: 0}
+        Aim:
+          FOVReduction: 18
+          FOVLerpSpeed: 10
+          SwayMultiplier: 0.25
+          RecoilMultiplier: 0.5
+          BreathHoldSwayMultiplier: 0
+          BreathDepletionRecoilScale: 0.6
+        AmmoItem: {fileID: 0}
+        MagazineSize: 0
+        ReloadSeconds: 1.5
+        Rig:
+          SwingArcEuler: {x: -80, y: 0, z: 0}
+          SwingDuration: 0.28
+          ChargedBackMultiplier: 0.8
+          ChargePoseLerpSpeed: 12
+          ChargedSwingArcScale: 1.35
+          ChargedSwingDurationScale: 1.2
+          RecoilBackKick: 0.06
+          RecoilPitchDegrees: -8
+          RecoilDuration: 0.12
+          WeaponSway: 0
+          SwayMaxDegrees: 1.25
+          SwayFrequency: 0.9
+          AimRecoil: 0
+          AimRecoilPitchPerShot: 3.5
+          AimRecoilHorizontalRandom: 1.5
+          AimRecoilLerpSpeed: 18
+          AimRecoilRecoverySpeed: 6
+          HasMuzzle: 0
+          MuzzleLocalPosition: {x: 0, y: 0, z: 0}
     - rid: 8357564934323700061
       type: {class: HealingCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
       data:

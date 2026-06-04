@@ -12,6 +12,7 @@ namespace Starter.Shooter
 	/// <item><c>add_scraps &lt;int&gt;</c> — grant crafting scraps to the local player (state-authority replicated).</item>
 	/// <item><c>time_scale &lt;float&gt;</c> — set the game speed on every peer (networked via the state authority).</item>
 	/// <item><c>set_daytime</c> / <c>set_nighttime</c> — force the match phase AND visual day/night cycle.</item>
+	/// <item><c>trigger_night</c> — fast-forward Day + sun to ~1s before the first siren, then let them advance so you can watch the sunset and NPCs retreat.</item>
 	/// <item><c>trigger_victory</c> — (Night only) instant-win for the local player's team; everyone else loses.</item>
 	/// </list>
 	/// </summary>
@@ -280,6 +281,21 @@ namespace Starter.Shooter
 
 			match.RPC_DebugForcePhase(MatchPhase.DuskWarning);
 			return "set_dusk: forced DuskWarning (siren + NPC retreat). set_nighttime → hostility, set_daytime → reset.";
+		}
+
+		[Command("trigger_night", "Fast-forwards the Day phase to 1s before the first siren, then lets the round advance on its own — so you can watch the DuskWarning siren, the sunset, and every NPC retreating home in real time. Optional arg: seconds of lead time (default 1). Forces Day first if not already there. Replicated.")]
+		private static string TriggerNight(float leadSeconds = 1f)
+		{
+			var match = MatchManager.Instance;
+			if (match == null) return "trigger_night: no MatchManager found (not in a match?).";
+			if (leadSeconds < 0f) return $"trigger_night: leadSeconds can't be negative (got {leadSeconds}).";
+
+			float lead = Mathf.Max(0.1f, leadSeconds);
+			match.RPC_DebugSkipToDusk(leadSeconds);
+
+			// No need to park the sun anymore — TimeManager now drives the look straight off the match phase, so the
+			// DuskWarning sunset rolls automatically once the round advances into dusk.
+			return $"trigger_night: Day fast-forwarded — siren, sunset & NPC retreat play out over the next ~{lead:0.##}s + dusk window.";
 		}
 
 		[Command("set_daytime", "Forces DAY — MatchManager Day phase + TimeManager visual day. Replicated.")]

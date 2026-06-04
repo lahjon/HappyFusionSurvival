@@ -131,6 +131,9 @@ MonoBehaviour:
   IsConsumable: 0
   DestroyOnConsume: 0
   Cooldown: 0
+  SfxClip: {fileID: 0}
+  SfxVolume: 1
+  SfxDelay: 0
   OnInteracted:
     m_PersistentCalls:
       m_Calls:

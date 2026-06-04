@@ -27,13 +27,16 @@ MonoBehaviour:
     HeldScale: {x: 1, y: 1, z: 1}
     HeldLocalPosition: {x: 0, y: 0, z: 0}
     HeldLocalEuler: {x: 0, y: 0, z: 0}
-    VisualOverride: {fileID: 0}
+    VisualOverride: {fileID: 6982310282819529583, guid: cf8d2e1f1a3824649a23753d6fcc5b5e, type: 3}
   WorldPrefab: {fileID: 0}
   HandPrefab: {fileID: 0}
   MaxStack: 1
   Weight: 6
   ScrapValue: 5
   BaseValue: 250
+  Floats: 0
+  OverrideCenterOfMass: 0
+  CenterOfMass: {x: 0, y: 0, z: 0}
   Capabilities:
   - rid: 8357564954676298356
   references:

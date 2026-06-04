@@ -18,7 +18,6 @@ namespace Starter.Shooter
 		public float HealthLerpSpeed = 6f;
 		public Image StaminaBar;
 		public float StaminaLerpSpeed = 6f;
-		public CanvasGroup HitIndicator;
 		public TextMeshProUGUI DayTimeLabel;
 
 		[Header("Money (top-right)")]
@@ -132,9 +131,6 @@ namespace Starter.Shooter
 
 		private void Update()
 		{
-			// Fadeout hit indicator
-			HitIndicator.alpha = Mathf.Lerp(HitIndicator.alpha, 0f, Time.deltaTime * 2f);
-
 			// Fade the red damage vignette back out (triggered below when health drops).
 			if (_damageVignette != null)
 			{
@@ -176,7 +172,6 @@ namespace Starter.Shooter
 				if (_lastHealth > player.Health.CurrentHealth)
 				{
 					// Show hit received
-					HitIndicator.alpha = 1f;
 					_damageVignetteAlpha = DamageVignetteMaxAlpha;
 
 					var clip = isAlive ? HitReceivedClip : DeathClip;

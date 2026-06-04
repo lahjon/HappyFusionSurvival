@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: Shopkeeper_Wander
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.NpcDefinition
   DisplayName: Shopkeeper
-  Prefab: {fileID: 0}
+  Prefab: {fileID: 7127647021657424681, guid: bc943ca0afc1c1044a0bf874953feb15, type: 3}
   Behavior: 1
   MoveSpeed: 1.2
   ArrivalTolerance: 0.3
-  LookAround: 0
+  LookAround: 1
   LookAroundSpeed: 15
   WanderRadius: 3
   WanderIdleMin: 1

@@ -54,6 +54,9 @@ namespace Starter.Shooter
 			if (Instance == this) Instance = null;
 		}
 
+		// Auto-discover the zones and spawn points in the scene (mirrors how GameManager finds spawn points). Each
+		// spawn point is tied to the zone whose footprint contains it — no manual tagging — so a team assigned a zone
+		// can spawn at any of that zone's SpawnPoints.
 		private void RebuildZoneCache()
 		{
 			_zonesById.Clear();
@@ -64,6 +67,7 @@ namespace Starter.Shooter
 			{
 				var z = zones[i];
 				if (z == null) continue;
+				z.ClearSpawnPoints();
 				if (_zonesById.ContainsKey(z.ZoneId))
 				{
 					Debug.LogWarning($"[ZoneManager] Duplicate Zone id {z.ZoneId} on '{z.name}' — ids must be unique. Ignoring duplicate.", z);
@@ -73,6 +77,28 @@ namespace Starter.Shooter
 				_sortedZones.Add(z);
 			}
 			_sortedZones.Sort((a, b) => a.ZoneId.CompareTo(b.ZoneId));
+
+			AssignSpawnPointsToZones();
+		}
+
+		// Distribute every scene SpawnPoint to the first zone (by ascending ZoneId) whose footprint contains it.
+		private void AssignSpawnPointsToZones()
+		{
+			var spawnPoints = FindObjectsByType<SpawnPoint>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+			for (int i = 0; i < spawnPoints.Length; i++)
+			{
+				var sp = spawnPoints[i];
+				if (sp == null) continue;
+
+				bool claimed = false;
+				for (int z = 0; z < _sortedZones.Count; z++)
+				{
+					if (_sortedZones[z].TryClaimSpawnPoint(sp)) { claimed = true; break; }
+				}
+
+				if (claimed == false)
+					Debug.LogWarning($"[ZoneManager] SpawnPoint '{sp.name}' is not inside any Zone — it can only be used as a fallback spawn.", sp);
+			}
 		}
 
 		// =========================================================================
@@ -185,6 +211,14 @@ namespace Starter.Shooter
 			int id = ZoneIdOfPlayer(player);
 			if (id < 0) return null;
 			return _zonesById.TryGetValue(id, out var z) ? z : null;
+		}
+
+		/// <summary>The <see cref="Zone"/> with the given <see cref="Zone.ZoneId"/>, or null if none. Used by
+		/// <see cref="GameManager"/> to pull a zone's spawn points when positioning a team.</summary>
+		public Zone ZoneById(int zoneId)
+		{
+			if (zoneId < 0) return null;
+			return _zonesById.TryGetValue(zoneId, out var z) ? z : null;
 		}
 	}
 }

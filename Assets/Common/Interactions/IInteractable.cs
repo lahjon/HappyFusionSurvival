@@ -37,6 +37,20 @@ namespace Starter.Common.Interactions
 	}
 
 	/// <summary>
+	/// Optional facet letting an interactable place its on-screen prompt indicator at a
+	/// transform other than its own. The <see cref="InteractionScanner"/> anchors the shared
+	/// prompt HUD to <see cref="PromptAnchor"/> (still offset by any <see cref="InteractionPrompt.LocalOffset"/>)
+	/// when this returns a non-null transform; otherwise it falls back to the target's own transform.
+	/// Useful when the indicator should sit on a child marker (e.g. a door handle, a lever tip)
+	/// rather than the interactable's pivot.
+	/// </summary>
+	public interface IInteractionPromptAnchor
+	{
+		/// <summary>Transform the prompt indicator should follow, or null to use the interactable's own transform.</summary>
+		Transform PromptAnchor { get; }
+	}
+
+	/// <summary>
 	/// Optional facet for interactables that come in clusters where only the nearest one
 	/// should ever be selectable (e.g. the seats of a single vehicle). Candidates sharing
 	/// the same non-null <see cref="InteractionGroupKey"/> are collapsed by the

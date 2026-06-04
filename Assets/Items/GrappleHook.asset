@@ -28,7 +28,7 @@ MonoBehaviour:
     HeldScale: {x: 1, y: 1, z: 1}
     HeldLocalPosition: {x: 0, y: 0, z: 0}
     HeldLocalEuler: {x: 0, y: 0, z: 0}
-    VisualOverride: {fileID: 0}
+    VisualOverride: {fileID: 4955417941568818315, guid: 0e1fb3535333f484fbf55a2199c00b84, type: 3}
   WorldPrefab: {fileID: 0}
   HandPrefab: {fileID: 0}
   MaxStack: 1
@@ -36,6 +36,8 @@ MonoBehaviour:
   ScrapValue: 1
   BaseValue: 30
   Floats: 0
+  OverrideCenterOfMass: 0
+  CenterOfMass: {x: 0, y: 0, z: 0}
   Capabilities:
   - rid: 7700000000000000019
   references:
@@ -48,6 +50,7 @@ MonoBehaviour:
         ReelSpeed: 22
         ArrivalDistance: 1.5
         FireCooldown: 0.35
+        MaxReelTime: 3
         Charges: 3
         RopeColor: {r: 0.85, g: 0.7, b: 0.4, a: 1}
         RopeWidth: 0.03

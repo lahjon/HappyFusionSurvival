@@ -196,27 +196,14 @@ namespace Starter.Shooter
 		private void OnDrawGizmosSelected()
 		{
 			if (InteriorArea != null)
-			{
-				Gizmos.color = new Color(0.3f, 1f, 0.4f, 1f);
-				DrawAreaGizmo(InteriorArea);
-			}
+				InteriorArea.DrawFootprintGizmo(new Color(0.3f, 1f, 0.4f, 0.12f), new Color(0.3f, 1f, 0.4f, 1f));
 			if (DefenseArea != null)
-			{
-				Gizmos.color = new Color(1f, 0.45f, 0.2f, 1f);
-				DrawAreaGizmo(DefenseArea);
-			}
+				DefenseArea.DrawFootprintGizmo(new Color(1f, 0.45f, 0.2f, 0.12f), new Color(1f, 0.45f, 0.2f, 1f));
 
 			Gizmos.color = new Color(1f, 0.9f, 0.2f, 0.8f);
 			if (Exits != null)
 				for (int i = 0; i < Exits.Count; i++)
 					if (Exits[i] != null) Gizmos.DrawLine(transform.position, Exits[i].transform.position);
-		}
-
-		private static void DrawAreaGizmo(NpcMovementArea area)
-		{
-			Gizmos.matrix = Matrix4x4.TRS(area.transform.position, area.transform.rotation, Vector3.one);
-			Gizmos.DrawWireCube(Vector3.zero, area.Size);
-			Gizmos.matrix = Matrix4x4.identity;
 		}
 	}
 }
