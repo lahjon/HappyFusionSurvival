@@ -92,7 +92,7 @@ namespace Starter.Shooter
 			if (HasStateAuthority == false || _player == null || _player.IsBot == false)
 				return;
 
-			_gameManager = FindAnyObjectByType<GameManager>();
+			_gameManager = GameManager.Instance;
 			_home = _kcc != null ? _kcc.Position : transform.position;
 			_aimLook = new Vector2(0f, _player.transform.eulerAngles.y);
 			_rng = new System.Random(unchecked((int)(Object.Id.Raw * 2654435761u + 1013904223u)));
@@ -188,7 +188,7 @@ namespace Starter.Shooter
 
 		private Player AcquireTarget()
 		{
-			if (_gameManager == null) _gameManager = FindAnyObjectByType<GameManager>();
+			if (_gameManager == null) _gameManager = GameManager.Instance;
 			var roster = _gameManager != null ? _gameManager.Players : null;
 			if (roster == null) return null;
 
@@ -220,7 +220,9 @@ namespace Starter.Shooter
 		{
 			input.LookRotation = _aimLook;
 
-			float now = Time.time;
+			// Sim clock (not Time.time): the brain runs inside FixedUpdateNetwork on the host, so timing
+			// must advance with the simulation tick to stay deterministic under re-simulation / time-scale.
+			float now = (float)Runner.SimulationTime;
 			if (_haveWanderDest == false)
 			{
 				if (now >= _wanderIdleUntil && TryPickWanderDestination(out _wanderDest, leashToHome))
@@ -277,10 +279,11 @@ namespace Starter.Shooter
 			if (_agent != null && _agent.enabled && _agent.isOnNavMesh)
 			{
 				WarpAgentToBody();
-				if (Time.time >= _nextRepathTime)
+				float now = (float)Runner.SimulationTime;
+				if (now >= _nextRepathTime)
 				{
 					_agent.SetDestination(destPos);
-					_nextRepathTime = Time.time + RepathInterval;
+					_nextRepathTime = now + RepathInterval;
 				}
 
 				Vector3 steer = _agent.desiredVelocity;

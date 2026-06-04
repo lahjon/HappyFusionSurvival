@@ -85,11 +85,11 @@ public void OpenMenu()
     var playerObj = Runner != null ? Runner.GetPlayerObject(Runner.LocalPlayer) : null;
     var session   = playerObj != null
         ? playerObj.GetComponent<TSession>()
-        : FindFirstObjectByType<TSession>();
+        : FindAnyObjectByType<TSession>();
     session?.TryOpen(this);
 }
 ```
-Resolves local player's session via Fusion, falls back to `FindFirstObjectByType` offline. Session component (`ShopSession`, `QuestSession`) lives on the Player prefab, initialized by `PlayerInput.cs` on spawn. `RequestClose()`/`CloseMenu()` follow the same pattern.
+Resolves local player's session via Fusion, falls back to `FindAnyObjectByType` offline (`FindFirstObjectByType` is deprecated in Unity 6). Session component (`ShopSession`, `QuestSession`) lives on the Player prefab, initialized by `PlayerInput.cs` on spawn. `RequestClose()`/`CloseMenu()` follow the same pattern.
 
 ### Interaction system (shared, mandatory)
 

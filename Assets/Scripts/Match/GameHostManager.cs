@@ -114,7 +114,7 @@ namespace Starter.Shooter
 			_teams = TeamManager.Instance != null ? TeamManager.Instance : GetComponent<TeamManager>();
 			if (_teams == null) _teams = FindAnyObjectByType<TeamManager>();
 
-			_gameManager = FindAnyObjectByType<GameManager>();
+			_gameManager = GameManager.Instance != null ? GameManager.Instance : FindAnyObjectByType<GameManager>();
 
 			BuildEvents();
 

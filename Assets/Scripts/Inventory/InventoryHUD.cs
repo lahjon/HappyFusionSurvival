@@ -265,7 +265,7 @@ namespace Starter.Shooter
 				}
 				else
 				{
-					var def = ItemDatabase.Instance != null ? ItemDatabase.Instance.GetById(slot.ItemId) : null;
+					ItemDatabase.TryGet(slot.ItemId, out var def);
 					var sprite = def != null ? def.Icon : null;
 					_slotIcons[i].sprite = sprite;
 					_slotIcons[i].enabled = sprite != null;

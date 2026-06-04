@@ -195,7 +195,7 @@ namespace Starter.Shooter
 		private void TryAutoBegin()
 		{
 			if (_gameManager == null)
-				_gameManager = FindAnyObjectByType<GameManager>();
+				_gameManager = GameManager.Instance;
 			if (_gameManager == null) return;
 
 			int expected = Runner.ActivePlayers.Count();
@@ -343,7 +343,7 @@ namespace Starter.Shooter
 
 			// Wipe every living enemy (anyone not on the winning team) outright. AuthorityKill bypasses the
 			// downed hook so they die rather than bleed out, making the win condition resolve cleanly.
-			var gm = FindAnyObjectByType<GameManager>();
+			var gm = GameManager.Instance;
 			if (gm != null)
 			{
 				var players = gm.Players;

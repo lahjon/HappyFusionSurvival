@@ -23,6 +23,24 @@ namespace Starter.Shooter
 	[RequireComponent(typeof(Rigidbody))]
 	public abstract class PhysicsBody : NetworkBehaviour, IKnockbackable, IBuoyantBody
 	{
+		/// <summary>How the body behaves on the host the moment it spawns.</summary>
+		public enum StartPhysicsMode
+		{
+			/// <summary>Simulates immediately — reacts to gravity and forces from frame one (default).</summary>
+			Normal,
+			/// <summary>Host starts the body kinematic so it neither simulates nor replicates (zero cost),
+			/// staying put until the first disturbance — a combat hit or a player walking into it — wakes it
+			/// into a Normal dynamic body. Once woken it behaves exactly like Normal (it won't re-freeze; it
+			/// just sleeps when it settles, like any other prop).</summary>
+			KinematicUntilHit,
+		}
+
+		[Header("Spawn")]
+		[Tooltip("Normal: simulates from spawn (reacts to gravity/forces immediately). " +
+		         "KinematicUntilHit: spawns frozen (no simulation or network traffic) until something hits it — " +
+		         "a shot/melee/explosion or a player walking into it — then it becomes a normal dynamic body.")]
+		[SerializeField] protected StartPhysicsMode _startMode = StartPhysicsMode.Normal;
+
 		[Header("Water")]
 		[Tooltip("ON: this body floats to the surface of any WaterVolume it enters and self-rights there. " +
 		         "OFF (default): it sinks. PickupableItem overrides this to read the item's ItemDefinition.")]
@@ -73,6 +91,20 @@ namespace Starter.Shooter
 		/// <summary>Whether this body floats in water. Virtual so a subclass can source it elsewhere
 		/// (PickupableItem reads the item's ItemDefinition, since the generic pickup prefab is shared).</summary>
 		public virtual bool Floats => _floats;
+
+		/// <summary>
+		/// Freeze the body before any physics runs. A scene-placed Rigidbody starts simulating in PhysX the
+		/// instant the scene loads — which is BEFORE Fusion calls <see cref="Spawned"/>, where authority and
+		/// start mode are decided. Without this, a body authored non-kinematic falls/tips during that gap (a
+		/// flamingo on thin legs topples in a couple of ticks) and then freezes in the wrong pose. Awake runs
+		/// before the first physics step, so we kinematic-freeze every body here; <see cref="Spawned"/> then
+		/// sets the real state — dynamic for a Normal host body, kinematic for a proxy or KinematicUntilHit.
+		/// </summary>
+		protected virtual void Awake()
+		{
+			_rb = GetComponent<Rigidbody>();
+			if (_rb != null) _rb.isKinematic = true;
+		}
 
 		/// <summary>Cache the Rigidbody/Collider and apply the authored center of mass.
 		/// Call from the subclass's <c>Spawned()</c>.</summary>
@@ -125,6 +157,26 @@ namespace Starter.Shooter
 			}
 		}
 
+		/// <summary>Host-only. The single entry point every force path calls before imparting an impulse.
+		/// If this is a <see cref="StartPhysicsMode.KinematicUntilHit"/> body that's still frozen, flip it to a
+		/// simulating dynamic body so the impulse (and gravity from here on) takes effect; otherwise just wake
+		/// it from sleep. Proxies follow the NetworkTransform regardless, so there's nothing to replicate here.</summary>
+		protected void WakeOnImpact()
+		{
+			if (_rb == null) return;
+			if (_rb.isKinematic)
+			{
+				// First disturbance for a KinematicUntilHit body — become a normal dynamic prop from now on.
+				_rb.isKinematic = false;
+				_rb.interpolation = RigidbodyInterpolation.Interpolate;
+				_restTimer = 0f;
+			}
+			else if (_rb.IsSleeping())
+			{
+				_rb.WakeUp();
+			}
+		}
+
 		// --- IBuoyantBody: WaterVolume reads these to apply buoyancy/self-righting on the host ---
 
 		Rigidbody IBuoyantBody.Body => _rb;
@@ -137,7 +189,7 @@ namespace Starter.Shooter
 		void IKnockbackable.ApplyKnockback(Vector3 fromPosition, float distance)
 		{
 			if (Object.HasStateAuthority == false) return;
-			if (_rb == null || _rb.isKinematic || distance <= 0f) return;
+			if (_rb == null || distance <= 0f) return;
 
 			Vector3 dir = transform.position - fromPosition;
 			dir.y = 0f;
@@ -147,7 +199,7 @@ namespace Starter.Shooter
 			Vector3 impulse = dir * (distance * _knockbackImpulseScale);
 			impulse.y += distance * _knockbackUpScale;
 
-			if (_rb.IsSleeping()) _rb.WakeUp();
+			WakeOnImpact();
 			_rb.AddForce(impulse, ForceMode.Impulse);
 		}
 
@@ -157,7 +209,10 @@ namespace Starter.Shooter
 		// rigidbody. Each tick on the host, check for player overlap and shove the body away horizontally.
 		protected void ApplyPlayerPush()
 		{
-			if (_rb == null || _rb.isKinematic || _col == null) return;
+			if (_rb == null || _col == null) return;
+			// A kinematic body normally skips the sweep, but a KinematicUntilHit prop must keep sweeping while
+			// frozen so that a player walking into it counts as a "hit" and wakes it (WakeOnImpact, below).
+			if (_rb.isKinematic && _startMode != StartPhysicsMode.KinematicUntilHit) return;
 
 			Vector3 center = _rb.position;
 			var ext = _col.bounds.extents;
@@ -187,7 +242,7 @@ namespace Starter.Shooter
 				float intoSpeed = Mathf.Max(Vector3.Dot(playerVel, away), 0f);
 				float impulse = Mathf.Min(_baselinePushImpulse + intoSpeed * _pushSpeedScale, _maxPushImpulse);
 
-				if (_rb.IsSleeping()) _rb.WakeUp();
+				WakeOnImpact();
 				_rb.AddForce(away * impulse, ForceMode.Impulse);
 			}
 		}

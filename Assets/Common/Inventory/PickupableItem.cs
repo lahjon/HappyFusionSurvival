@@ -48,7 +48,7 @@ namespace Starter.Common.Inventory
 		[Networked] public Quaternion AttachLocalRot { get; set; }
 
 		public ItemDefinition Definition =>
-			ItemDatabase.Instance != null ? ItemDatabase.Instance.GetById(ItemId) : null;
+			ItemDatabase.TryGet(ItemId, out var def) ? def : null;
 
 		// A dropped item's float behaviour is a property of the item type, not the (shared) generic pickup
 		// prefab, so source it from the ItemDefinition. Falls back to the base prefab flag when the item

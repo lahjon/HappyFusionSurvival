@@ -30,10 +30,13 @@ namespace Starter.Shooter
 
 			if (Object.HasStateAuthority)
 			{
-				// Host is the only peer that simulates. Interpolate so the host's own view is smooth
-				// between fixed ticks (mirrors Vehicle); the NetworkTransform handles proxies.
-				_rb.isKinematic = false;
-				_rb.interpolation = RigidbodyInterpolation.Interpolate;
+				// Host is the only peer that simulates. A KinematicUntilHit prop starts frozen (no sim, no
+				// NetworkTransform deltas) until WakeOnImpact flips it dynamic; a Normal prop simulates at once.
+				// When dynamic, Interpolate so the host's own view is smooth between fixed ticks (mirrors
+				// Vehicle); the NetworkTransform handles proxies.
+				bool startKinematic = _startMode == StartPhysicsMode.KinematicUntilHit;
+				_rb.isKinematic = startKinematic;
+				_rb.interpolation = startKinematic ? RigidbodyInterpolation.None : RigidbodyInterpolation.Interpolate;
 			}
 			else
 			{

@@ -1,110 +1,22 @@
-using System;
-using Fusion;
-using Starter.Common.Input;
-using Starter.Common.Interactions;
-using Starter.Common.Menu;
 using UnityEngine;
 
 namespace Starter.Shooter
 {
 	/// <summary>
-	/// Local-only orchestrator for "having a crafting bench open". Lives on the Player
-	/// prefab next to <see cref="GameInputActions"/> + <see cref="InputContextController"/>.
-	/// Mirrors <see cref="Starter.Common.Inventory.LootSession"/>, but the open/close
-	/// transition is purely local — the bench is multi-user and stores no per-opener state.
-	///
-	/// Registers as an <see cref="IMenuScreen"/> while open so <see cref="MenuManager"/> routes Escape to it.
+	/// Local-only orchestrator for "having a crafting bench open". See <see cref="InteractableSession{TStation}"/>
+	/// for the shared open/close/auto-close lifecycle — this subclass only adds the bench-specific request
+	/// forwarders and its own "is any open" flag.
 	/// </summary>
-	[RequireComponent(typeof(GameInputActions))]
-	[RequireComponent(typeof(InputContextController))]
-	public sealed class CraftingSession : MonoBehaviour, IInteractionGate, IMenuScreen
+	public sealed class CraftingSession : InteractableSession<CraftingBench>
 	{
-		string IMenuScreen.MenuName => "Crafting";
-		bool IMenuScreen.DismissOnEscape => true;
-		void IMenuScreen.CloseFromMenu() => RequestClose();
-
-		[Tooltip("Auto-close margin: when the local player walks further than InteractRange * this multiplier from the open bench, the menu closes.")]
-		public float AutoCloseRangeMultiplier = 1.5f;
-
-		bool IInteractionGate.AllowInteractions => Current == null;
-
-		public CraftingBench Current { get; private set; }
-
 		/// <summary>True while ANY local CraftingSession has an open bench. Polled by UI gates to suppress menu toggles during crafting.</summary>
 		public static bool IsAnyCrafting { get; private set; }
 
 		[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-		private static void ResetStatics()
-		{
-			IsAnyCrafting = false;
-		}
+		private static void ResetStatics() => IsAnyCrafting = false;
 
-		/// <summary>Fires when the open bench changes. Argument is null when closed.</summary>
-		public event Action<CraftingBench> OpenedChanged;
-
-		private InputContextController _context;
-		private bool _initialized;
-
-		public void Initialize()
-		{
-			if (_initialized) return;
-
-			_context = GetComponent<InputContextController>();
-
-			_initialized = true;
-		}
-
-		private void OnDestroy()
-		{
-			if (!_initialized) return;
-
-			if (Current != null)
-			{
-				IsAnyCrafting = false;
-				MenuManager.Instance?.Close(this);
-			}
-			Current = null;
-		}
-
-		private void Update()
-		{
-			if (Current == null) return;
-
-			// Auto-close if the player wanders away — the bench has no networked lock,
-			// so each opener polices its own range.
-			float allowed = Current.InteractRange * AutoCloseRangeMultiplier;
-			if ((Current.transform.position - transform.position).sqrMagnitude > allowed * allowed)
-			{
-				RequestClose();
-			}
-		}
-
-		/// <summary>Called by <see cref="CraftingBench"/> when the local scanner fires Interact near it.</summary>
-		public void TryOpen(CraftingBench bench)
-		{
-			if (!_initialized || bench == null) return;
-			if (Current != null) return;
-
-			Current = bench;
-			IsAnyCrafting = true;
-			if (_context != null) _context.EnterInventoryMode();
-			MenuManager.Instance?.Open(this);
-			OpenedChanged?.Invoke(Current);
-			Debug.Log($"[CraftingSession] Opened '{bench.DisplayName}'.");
-		}
-
-		public void RequestClose()
-		{
-			if (Current == null) return;
-
-			var closed = Current;
-			Current = null;
-			IsAnyCrafting = false;
-			MenuManager.Instance?.Close(this);
-			if (_context != null) _context.EnterPlayerMode();
-			OpenedChanged?.Invoke(null);
-			Debug.Log($"[CraftingSession] Closed '{closed.DisplayName}'.");
-		}
+		protected override string Label => "Crafting";
+		protected override void SetAnyOpen(bool value) => IsAnyCrafting = value;
 
 		/// <summary>Forward a craft request to the open bench's state authority. UI should pre-gate via CanCraft.</summary>
 		public void RequestCraft(int recipeId)

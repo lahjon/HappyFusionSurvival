@@ -123,7 +123,7 @@ namespace Starter.Shooter
 			var playerObj = Runner != null ? Runner.GetPlayerObject(Runner.LocalPlayer) : null;
 			var session   = playerObj != null
 				? playerObj.GetComponent<QuestSession>()
-				: FindFirstObjectByType<QuestSession>();
+				: FindAnyObjectByType<QuestSession>();
 			session?.TryOpen(this);
 		}
 

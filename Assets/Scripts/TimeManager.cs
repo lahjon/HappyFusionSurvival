@@ -568,9 +568,12 @@ namespace Starter.Shooter
 
 			// Lerp skybox properties between day and night on a runtime material clone.
 			// DynamicGI.UpdateEnvironment is throttled — calling it every frame is too expensive.
+			// The skybox blend rides SunSetAmount01 (NOT the daylight brightness), so the sky holds the full day
+			// texture all through the Day phase and only crosses over to the night sky across the DuskWarning window —
+			// matching the sun's set. Brightness still dims the day light separately before then.
 			if (DriveSkybox && _runtimeSkybox != null && NightSkyboxMaterial != null)
 			{
-				float blend = 1f - brightness;
+				float blend = SunSetAmount01();
 				if (Mathf.Abs(blend - _lastSkyboxBlend) > 0.001f)
 				{
 					if (_useBlendedSkybox)

@@ -635,7 +635,7 @@ namespace Starter.Shooter
 					continue;
 				}
 
-				var def = ItemDatabase.Instance != null ? ItemDatabase.Instance.GetById(slot.ItemId) : null;
+				ItemDatabase.TryGet(slot.ItemId, out var def);
 				if (def != null && def.Icon != null)
 				{
 					w.Icon.sprite = def.Icon;

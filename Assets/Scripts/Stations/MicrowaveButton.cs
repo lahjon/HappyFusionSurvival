@@ -27,8 +27,11 @@ namespace Starter.Shooter
 
 		[Min(0f)] [SerializeField] private float _interactRange = 2.5f;
 
-		[Tooltip("Prompt label shown when aiming at this button.")]
+		[Tooltip("Prompt label shown when aiming at this button. For the Start button this is the idle/'Start' label.")]
 		[SerializeField] private string _label = "Press";
+
+		[Tooltip("Start button only: prompt label shown while the microwave is running (acts as the Stop label).")]
+		[SerializeField] private string _runningLabel = "Stop";
 
 		[Tooltip("Optional local click played on press.")]
 		[SerializeField] private AudioClip _clickClip;
@@ -42,7 +45,12 @@ namespace Starter.Shooter
 		bool IInteractable.CanInteract => _microwave != null && isActiveAndEnabled;
 		Vector3 IInteractable.InteractionPoint => transform.position;
 		string IInteractable.LockedReason => string.Empty;
-		string IInteractable.InteractLabel => _label;
+		// Start button flips its label between "Start" and "Stop" as the microwave runs;
+		// read live each frame by the InteractionScanner/prompt (the Door.cs pattern).
+		string IInteractable.InteractLabel =>
+			_kind == ButtonKind.Start && _microwave != null && _microwave.IsRunning
+				? _runningLabel
+				: _label;
 
 		void IInteractable.OnInteract(InteractionScanner scanner)
 		{

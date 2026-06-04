@@ -20,6 +20,10 @@ namespace Starter.Shooter
 
 	public sealed class GameManager : NetworkBehaviour, IPlayerJoined, IPlayerLeft
 	{
+		/// <summary>Scene singleton, set in <see cref="Spawned"/>. Lets hot-path callers (bot AI, match flow) reach the
+		/// roster without a per-tick <c>FindAnyObjectByType</c> scan — mirrors <c>MatchManager.Instance</c> / <c>TeamManager.Instance</c>.</summary>
+		public static GameManager Instance { get; private set; }
+
 		public Player PlayerPrefab;
 		public ItemDatabase ItemDatabase;
 		public RecipeDatabase RecipeDatabase;
@@ -76,6 +80,7 @@ namespace Starter.Shooter
 
 		public override void Spawned()
 		{
+			Instance = this;
 			Debug.Log($"[SPAWNDBG] GameManager.Spawned hasStateAuth={HasStateAuthority} object={Object?.Id}");
 			_spawnPoints = FindObjectsByType<SpawnPoint>(FindObjectsInactive.Exclude);
 
@@ -245,6 +250,7 @@ namespace Starter.Shooter
 
 		public override void Despawned(NetworkRunner runner, bool hasState)
 		{
+			if (Instance == this) Instance = null;
 			// Clear the reference because UI can try to access it even after despawn
 			LocalPlayer = null;
 		}

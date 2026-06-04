@@ -37,6 +37,18 @@ namespace Starter.Common.Inventory
 			return def;
 		}
 
+		/// <summary>
+		/// Centralised null-safe lookup. Resolves <paramref name="id"/> against the bound database and
+		/// returns true only when a non-null definition is found; returns false (with <paramref name="def"/>
+		/// null) when no database is bound or the id is unknown. Lets call sites drop the repetitive
+		/// <c>Instance == null ? ... : Instance.GetById(...)</c> guard scattered across inventory/UI code.
+		/// </summary>
+		public static bool TryGet(short id, out ItemDefinition def)
+		{
+			def = Instance != null ? Instance.GetById(id) : null;
+			return def != null;
+		}
+
 		private void BuildLookup()
 		{
 			_byId = new Dictionary<short, ItemDefinition>(_items.Count);

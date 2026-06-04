@@ -224,10 +224,12 @@ namespace Starter.Shooter
 		{
 			if (OwnerPlayer == null) return;
 
-			if (Time.unscaledTime >= _nextPlayerRefreshTime)
+			// Time.time (not unscaledTime) so the scan cadence honours the debug time-scale and matches the
+			// ping expiry/fade clock used elsewhere in this component.
+			if (Time.time >= _nextPlayerRefreshTime)
 			{
 				RefreshPlayerCache();
-				_nextPlayerRefreshTime = Time.unscaledTime + 1f;
+				_nextPlayerRefreshTime = Time.time + 1f;
 			}
 
 			ScanAndPing();

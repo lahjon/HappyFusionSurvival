@@ -101,7 +101,7 @@ namespace Starter.Common.Inventory.UI
 				return;
 			}
 
-			var def = ItemDatabase.Instance != null ? ItemDatabase.Instance.GetById(slot.ItemId) : null;
+			ItemDatabase.TryGet(slot.ItemId, out var def);
 			var sprite = def != null ? def.Icon : null;
 			widget.Icon.sprite = sprite;
 			widget.Icon.enabled = sprite != null;

@@ -357,7 +357,7 @@ namespace Starter.Shooter
 			float allowed = PickupRange * 1.5f;
 			if (distSq > allowed * allowed) return;
 
-			var def = ItemDatabase.Instance != null ? ItemDatabase.Instance.GetById(pickup.ItemId) : null;
+			ItemDatabase.TryGet(pickup.ItemId, out var def);
 			if (def != null && def.HasCapability<PlaceableCapability>())
 			{
 				// Placeables route into the carry channel, not the hotbar. Any existing carry
@@ -443,9 +443,11 @@ namespace Starter.Shooter
 				return false;
 			}
 
-			// Range check tolerates camera height + a little network jitter.
-			const float RangeSlack = 2f;
-			float maxDist = cap.PlacementRange + RangeSlack;
+			// Host re-validates the client-supplied pose — never trust the local placement raycast. Allow the
+			// authored range plus a proportional slack (matches the InteractRange * 1.25f host-range convention)
+			// and a fixed camera-height term so placing on the ground from eye level isn't falsely rejected.
+			const float CameraHeightSlack = 2f;
+			float maxDist = cap.PlacementRange * 1.25f + CameraHeightSlack;
 			if ((position - transform.position).sqrMagnitude > maxDist * maxDist) return false;
 
 			if (cap.Footprint > 0f && IsObstructed(position, cap.Footprint, cap.PlacementMask)) return false;

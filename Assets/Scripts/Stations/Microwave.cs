@@ -98,7 +98,7 @@ namespace Starter.Shooter
 		/// <summary>Door button. Toggles the door; sends a state-authority RPC.</summary>
 		public void RequestToggleDoor() => RPC_RequestToggleDoor();
 
-		/// <summary>Start button. Begins a cook cycle; sends a state-authority RPC.</summary>
+		/// <summary>Start/Stop button. Starts a cook cycle, or stops one already running; sends a state-authority RPC.</summary>
 		public void RequestStart() => RPC_RequestStart();
 
 		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
@@ -120,7 +120,17 @@ namespace Starter.Shooter
 		private void RPC_RequestStart(RpcInfo info = default)
 		{
 			if (!ValidateSource(info)) return;
-			if (IsRunning || DoorOpen) return;
+
+			// Pressing the button while running stops the cycle short (no finish pling), like
+			// hitting Stop on a real microwave.
+			if (IsRunning)
+			{
+				IsRunning = false;
+				RunTimer = default;
+				return;
+			}
+
+			if (DoorOpen) return;
 
 			IsRunning = true;
 			RunTimer = TickTimer.CreateFromSeconds(Runner, _runSeconds);
