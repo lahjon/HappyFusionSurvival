@@ -59,6 +59,20 @@ namespace Starter
 		bool IMenuScreen.DismissOnEscape => true;
 		void IMenuScreen.CloseFromMenu() => HidePause();
 
+		/// <summary>
+		/// Editor-only one-shot override set by the "Play Single Player" toolbar button
+		/// (see <c>SinglePlayerToolbarButton</c>). It lets that button force isolated-host mode for a single
+		/// Play session via the editor's SessionState — without writing the serialized <see cref="ForceSinglePlayer"/>
+		/// field, so the scene is never dirtied. The button clears it again when Play mode exits, so the normal
+		/// Play button is unaffected. Keep the key string in sync with the toolbar script.
+		/// </summary>
+#if UNITY_EDITOR
+		private static bool EditorSinglePlayerOverride =>
+			UnityEditor.SessionState.GetBool("HFS.ForceSinglePlayer", false);
+#else
+		private const bool EditorSinglePlayerOverride = false;
+#endif
+
 		[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
 		private static void ResetStatics()
 		{
@@ -91,7 +105,7 @@ namespace Starter
 			//   * random, unguessable session name (no one can target it by name),
 			//   * IsVisible = false (hidden from the lobby list, so AutoHostOrClient matchmaking never finds it),
 			//   * IsOpen = false (closed to joins even if someone learned the name).
-			var isolatedHost = Application.isEditor && ForceSinglePlayer;
+			var isolatedHost = Application.isEditor && (ForceSinglePlayer || EditorSinglePlayerOverride);
 
 			var startArguments = new StartGameArgs()
 			{

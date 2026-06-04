@@ -7,9 +7,11 @@ namespace Starter.Shooter
 	/// <summary>
 	/// Local-view-only manager that draws a floating chevron above every other player: a green marker over
 	/// teammates (visible through walls, within <see cref="AllyRange"/>) and a red marker over hostiles
-	/// (Night only, line-of-sight only — hidden by walls). Pure presentation — no networked state, no RPCs.
-	/// Reads existing networked state: <see cref="Player.Owner"/>, <see cref="TeamManager.SameTeam"/>,
-	/// <see cref="Health.IsAlive"/>, <see cref="MatchManager.Phase"/>.
+	/// (Night only, line-of-sight only — hidden by walls). It also draws a single house beacon over the local
+	/// player's own team zone (through walls; within <see cref="HouseRange"/> by Day, map-wide from DuskWarning on;
+	/// hidden once you're inside the zone). Pure presentation — no networked state, no RPCs. Reads existing
+	/// networked state: <see cref="Player.Owner"/>, <see cref="TeamManager.SameTeam"/>, <see cref="Health.IsAlive"/>,
+	/// <see cref="MatchManager.Phase"/>, <see cref="ZoneManager.ZoneOfPlayer"/>.
 	///
 	/// Self-bootstrapping (see <see cref="Bootstrap"/>) — no scene or prefab wiring. Markers are pooled
 	/// world-space meshes parented under this manager and repositioned every frame, so player despawns need
@@ -27,6 +29,16 @@ namespace Starter.Shooter
 		[Tooltip("Geometry on these layers blocks the line-of-sight check that reveals enemy markers. Default = everything.")]
 		public LayerMask OcclusionMask = ~0;
 
+		[Header("House marker (your team's zone — through walls)")]
+		[Tooltip("During Day the house beacon shows only within this many metres; from DuskWarning onward it shows map-wide.")]
+		public float HouseRange = 20f;
+		[Tooltip("Colour of the through-walls beacon over your team's house / zone.")]
+		public Color HouseColor = new Color(1f, 0.82f, 0.2f, 1f);
+		[Tooltip("Metres above the zone centre the house beacon floats.")]
+		public float HouseMarkerHeight = 4f;
+		[Tooltip("Base world size of the house beacon (read at map distance, so larger than player markers).")]
+		public float HouseMarkerScale = 1.1f;
+
 		[Header("Placement / feel")]
 		[Tooltip("Metres above the player root the marker floats.")]
 		public float MarkerHeight = 2.3f;
@@ -38,9 +50,11 @@ namespace Starter.Shooter
 		private static WorldMarkerManager _instance;
 
 		private Mesh _chevronMesh;
+		private Mesh _houseMesh;
 		private Material _allyMat;
 		private Material _enemyMat;
 		private Transform _camera;
+		private Marker _houseMarker;
 
 		private readonly Dictionary<Player, Marker> _markers = new(32);
 		private readonly List<Player> _stale = new(8);
@@ -71,6 +85,7 @@ namespace Starter.Shooter
 			_instance = this;
 
 			_chevronMesh = BuildChevronMesh();
+			_houseMesh = BuildHouseMesh();
 
 			var shader = Resources.Load<Shader>("Indicator");
 			if (shader == null)
@@ -93,6 +108,8 @@ namespace Starter.Shooter
 		private void OnDestroy()
 		{
 			if (_chevronMesh != null) Destroy(_chevronMesh);
+			if (_houseMesh != null) Destroy(_houseMesh);
+			if (_houseMarker != null && _houseMarker.Go != null) Destroy(_houseMarker.Go);
 			if (_allyMat != null) Destroy(_allyMat);
 			if (_enemyMat != null) Destroy(_enemyMat);
 		}
@@ -116,6 +133,8 @@ namespace Starter.Shooter
 				if (p == null || p.Object == null) continue;
 				UpdateMarkerFor(p, local, dt);
 			}
+
+			UpdateHouseMarker(local, dt);
 
 			PruneStaleMarkers();
 		}
@@ -146,7 +165,7 @@ namespace Starter.Shooter
 				}
 			}
 
-			// Lerp the show factor for the pop in/out. Hidden, fully-collapsed markers are deactivated.
+			// Skip allocating a marker for a player that's hidden and has no fade-out left to play.
 			bool hasMarker = _markers.TryGetValue(p, out var m);
 			if (visible == false && (hasMarker == false || m.Shown <= 0.001f))
 			{
@@ -156,15 +175,8 @@ namespace Starter.Shooter
 
 			if (hasMarker == false)
 			{
-				m = CreateMarker();
+				m = CreateMarker(_chevronMesh, _enemyMat);
 				_markers.Add(p, m);
-			}
-
-			m.Shown = Mathf.MoveTowards(m.Shown, visible ? 1f : 0f, PopSpeed * dt);
-			if (m.Shown <= 0.001f)
-			{
-				if (m.Go.activeSelf) m.Go.SetActive(false);
-				return;
 			}
 
 			// Swap material when an ally/enemy relationship flips (rare; e.g. team reassignment between rounds).
@@ -174,18 +186,73 @@ namespace Starter.Shooter
 				m.WasAlly = wantAlly;
 			}
 
+			Vector3 headPos = p.transform.position + Vector3.up * MarkerHeight;
+			Color baseColor = wantAlly ? AllyColor : EnemyColor;
+			ApplyPopRender(m, visible, headPos, baseColor, MarkerScale, dt);
+		}
+
+		/// <summary>Beacon floating over the local player's own team zone ("home"). Drawn through walls (shares the
+		/// ally material's ZTest-Always pass). <b>Day:</b> shows only within <see cref="HouseRange"/>. <b>From
+		/// DuskWarning onward</b> (the rush home to arm for the Purge): shows map-wide. Hidden whenever you're already
+		/// standing inside your zone, and before zones are assigned (Lobby) / after the match (MatchOver) — all of
+		/// which fall through to <c>visible = false</c> and fade out via the same pop logic as player markers.</summary>
+		private void UpdateHouseMarker(Player local, float dt)
+		{
+			if (_camera == null) return;
+
+			var zm = ZoneManager.Instance;
+			Zone zone = (local != null && zm != null) ? zm.ZoneOfPlayer(local.Owner) : null;
+
+			bool visible = false;
+			// Default to the marker's current spot so a fade-out plays in place even when we momentarily lack a zone.
+			Vector3 worldPos = _houseMarker != null ? _houseMarker.Tr.position : default;
+
+			if (zone != null)
+			{
+				// An override anchor on the zone positions the beacon exactly; otherwise float above the footprint centre.
+				Vector3 anchor = zone.IndicatorPosition;
+				worldPos = zone.HasIndicatorAnchor ? anchor : anchor + Vector3.up * HouseMarkerHeight;
+
+				// Already home → nothing to point at; let it fade out at the house.
+				if (zone.Contains(local.transform.position) == false)
+				{
+					var phase = MatchManager.Instance != null ? MatchManager.Instance.Phase : MatchPhase.Lobby;
+					if (phase == MatchPhase.Day)
+						visible = (anchor - local.transform.position).sqrMagnitude <= HouseRange * HouseRange;
+					else if (phase == MatchPhase.DuskWarning || phase == MatchPhase.Night)
+						visible = true; // rush-home beacon — whole map
+				}
+			}
+
+			if (_houseMarker == null)
+			{
+				if (visible == false) return; // don't allocate until first shown
+				_houseMarker = CreateMarker(_houseMesh, _allyMat);
+			}
+
+			ApplyPopRender(_houseMarker, visible, worldPos, HouseColor, HouseMarkerScale, dt);
+		}
+
+		/// <summary>Shared pop-in / fade-out feel for every marker (player chevrons and the house beacon): a smooth
+		/// MoveTowards on a 0..1 show factor that scales (EaseOutBack overshoot) and fades alpha together — never a
+		/// hard on/off. Deactivates the GameObject once fully collapsed. Per-marker colour + alpha go through a
+		/// property block so pooled markers stay independent without instancing the shared material.</summary>
+		private void ApplyPopRender(Marker m, bool visible, Vector3 worldPos, Color baseColor, float scale, float dt)
+		{
+			m.Shown = Mathf.MoveTowards(m.Shown, visible ? 1f : 0f, PopSpeed * dt);
+			if (m.Shown <= 0.001f)
+			{
+				if (m.Go.activeSelf) m.Go.SetActive(false);
+				return;
+			}
+
 			if (m.Go.activeSelf == false) m.Go.SetActive(true);
 
-			// Position above the head and billboard toward the camera.
-			m.Tr.position = p.transform.position + Vector3.up * MarkerHeight;
-			m.Tr.rotation = _camera.rotation;
+			m.Tr.position = worldPos;
+			m.Tr.rotation = _camera.rotation; // billboard toward the camera
+			m.Tr.localScale = Vector3.one * (scale * EaseOutBack(m.Shown));
 
-			float pop = EaseOutBack(m.Shown);
-			m.Tr.localScale = Vector3.one * (MarkerScale * pop);
-
-			// Per-marker colour + alpha (alpha drives the fade) via property block — keeps pooled markers
-			// independent without instancing the shared material.
-			var c = wantAlly ? AllyColor : EnemyColor;
+			Color c = baseColor;
 			c.a *= Mathf.Clamp01(m.Shown);
 			m.Mpb.SetColor(ColorId, c);
 			m.Renderer.SetPropertyBlock(m.Mpb);
@@ -231,18 +298,18 @@ namespace Starter.Shooter
 			}
 		}
 
-		private Marker CreateMarker()
+		private Marker CreateMarker(Mesh mesh, Material material)
 		{
 			var go = new GameObject("Marker");
 			go.transform.SetParent(transform, false);
 			var mf = go.AddComponent<MeshFilter>();
-			mf.sharedMesh = _chevronMesh;
+			mf.sharedMesh = mesh;
 			var mr = go.AddComponent<MeshRenderer>();
 			mr.shadowCastingMode = ShadowCastingMode.Off;
 			mr.receiveShadows = false;
 			mr.lightProbeUsage = LightProbeUsage.Off;
 			mr.reflectionProbeUsage = ReflectionProbeUsage.Off;
-			mr.sharedMaterial = _enemyMat;
+			mr.sharedMaterial = material;
 			return new Marker
 			{
 				Go = go,
@@ -282,6 +349,34 @@ namespace Starter.Shooter
 
 			var mesh = new Mesh { name = "ChevronMarker" };
 			mesh.SetVertices(new List<Vector3>(verts));
+			mesh.SetTriangles(tris, 0);
+			mesh.RecalculateBounds();
+			return mesh;
+		}
+
+		/// <summary>A solid house silhouette (square body + triangular roof) in the local XY plane, sized to roughly
+		/// match the chevron's footprint. Billboarded like the chevron; Cull Off makes it double-sided.</summary>
+		private static Mesh BuildHouseMesh()
+		{
+			var verts = new List<Vector3>
+			{
+				new Vector3(-0.35f, -0.5f,  0f), // 0 body bottom-left
+				new Vector3( 0.35f, -0.5f,  0f), // 1 body bottom-right
+				new Vector3( 0.35f,  0.12f, 0f), // 2 body top-right (eave)
+				new Vector3(-0.35f,  0.12f, 0f), // 3 body top-left  (eave)
+				new Vector3(-0.5f,   0.12f, 0f), // 4 roof left eave
+				new Vector3( 0.5f,   0.12f, 0f), // 5 roof right eave
+				new Vector3( 0f,     0.6f,  0f), // 6 roof apex
+			};
+
+			var tris = new int[]
+			{
+				0, 3, 2,  0, 2, 1,   // body quad
+				4, 6, 5,             // roof triangle
+			};
+
+			var mesh = new Mesh { name = "HouseMarker" };
+			mesh.SetVertices(verts);
 			mesh.SetTriangles(tris, 0);
 			mesh.RecalculateBounds();
 			return mesh;

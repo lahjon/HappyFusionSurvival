@@ -12,7 +12,9 @@ namespace Starter.Shooter
 	/// </summary>
 	public static class MatchBootstrap
 	{
-		/// <summary>Team size selected in the lobby (1=Solo, 2=Duo, 3=Trio). Defaults to Duo until the host picks.</summary>
-		public static int PendingTeamSize = 2;
+		/// <summary>Team size selected in the lobby (1=Solo, 2=Duo, 3=Trio). Defaults to Solo so a direct-from-game-scene
+		/// start (skipping the lobby) puts every player on their own team — i.e. everyone is an enemy, for quick PvP testing.
+		/// The lobby overwrites this the instant the host picks a size, so normal flow is unaffected.</summary>
+		public static int PendingTeamSize = 1;
 	}
 }

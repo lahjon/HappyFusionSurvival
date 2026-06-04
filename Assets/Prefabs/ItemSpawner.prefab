@@ -1,0 +1,148 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &790480349699429714
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7080658309013017904}
+  - component: {fileID: 6655875831132147025}
+  - component: {fileID: 2983996100038054572}
+  m_Layer: 0
+  m_Name: ItemSpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 3936346786652291628, guid: 0000000000000000d000000000000000, type: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7080658309013017904
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 790480349699429714}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &6655875831132147025
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 790480349699429714}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: -1552182283, guid: e725a070cec140c4caffb81624c8c787, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Fusion.Runtime.dll::Fusion.NetworkObject
+  SortKey: 674828736
+  ObjectInterest: 1
+  Flags: 262145
+  NestedObjects: []
+  NetworkedBehaviours:
+  - {fileID: 2983996100038054572}
+  ForceRemoteRenderTimeframe: 0
+--- !u!114 &2983996100038054572
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 790480349699429714}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e15eaeaf8f496c44b7b95b26f3eaf08, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ItemSpawner
+  _lootTable:
+  - Item: {fileID: 11400000, guid: 937396294af95d448a9b450b9c0dede9, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: 79683915c9c0e314aae32371617049f1, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: 79917157da00c0143bf627ba74c561de, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: a4b8c9d1e2f34a5b67890c1d2e3f4a50, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: 9c7ea7f0acf6bd34caf768554297e98f, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: 0cb2ee84da1a30e44b7b12a7e4286260, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: 1d10cf4fec0e5f14db5fd1b1da2fbcbd, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: 5578e534240349b988fcab73c4a99792, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: d2328ae19181e8a408625f4560c8acc5, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: b53ee48c43a719543a74caa9bd789046, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: 9f8e7d6c5b4a39281716052413029f80, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: e8d6c4b2a09786543210fedcba987654, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: 6b81b0cd1e2a3b4c5d6e7f8091a2b3c4, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: 7a90c1de2f3b4c5d6e7f8091a2b3c4d5, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: 9d155cd363aa28544b20c6a8a2dfd079, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: 52a2a8b5972b3554db5159e35dac5bee, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: 5af45a9c3773d1a4a8a2ef4c07d3d4e0, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: 0fedcba987654321fedcba9876543210, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: d89c58b295105264fa2618b4c804477e, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: c0ffee1234abcdef5678901234abcdef, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: 1a2b3c4d5e6f70819a2b3c4d5e6f7081, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: 2b3c4d5e6f708192a3b4c5d6e7f80912, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: b7c3d9e1f2a44b5c6d7e8f9a0b1c2d3e, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: 5c0a7b3e9d2f4a1b8c6d0e3f7a9b1c2d, type: 2}
+    Weight: 1
+    Count: 1
+  - Item: {fileID: 11400000, guid: 7e1d9a4c2b6f3e0a8d5c1b7f4a2e9d6c, type: 2}
+    Weight: 1
+    Count: 1
+  _spawnPoints: []
+  _spawnHeight: 0.1
+  _genericPickupPrefab: {fileID: 9211657559894916144, guid: d6be30b7870ee414c884bea67ee7e83b, type: 3}
+  _respawnAfterPickup: 1
+  _respawnDelay: 30
+  _activePhases: 

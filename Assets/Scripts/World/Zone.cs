@@ -22,10 +22,26 @@ namespace Starter.Shooter
 			"can still set it by hand to control team→zone order; duplicates just get bumped.")]
 		public int ZoneId;
 
+		[Header("House Indicator")]
+		[Tooltip("Optional override for where the house beacon (WorldMarkerManager) floats. When set, the beacon " +
+			"anchors to this transform's position exactly — e.g. an empty placed over the roof or door — instead of " +
+			"the footprint centre, and the manager's height offset is NOT added (you position it precisely). Leave " +
+			"empty to fall back to the zone centre + the manager's HouseMarkerHeight.")]
+		[SerializeField] private Transform _indicatorAnchor;
+
 		[Header("Spawn Points")]
 		[Tooltip("Spawn points sitting inside this zone. Auto-gathered by ZoneManager on init at runtime; use the " +
 			"Gather button to populate/preview the list in the editor. A team assigned this zone spawns at one of these.")]
 		[SerializeField] private List<SpawnPoint> _spawnPoints = new();
+
+		/// <summary>True when an <see cref="_indicatorAnchor"/> override is assigned, so the house beacon should use
+		/// <see cref="IndicatorPosition"/> verbatim instead of the footprint centre + the manager's height offset.</summary>
+		public bool HasIndicatorAnchor => _indicatorAnchor != null;
+
+		/// <summary>World position the house beacon should anchor to: the <see cref="_indicatorAnchor"/> override if
+		/// set, else the footprint <see cref="WorldArea.Center"/>. Also used as the reference point for the Day-time
+		/// proximity range.</summary>
+		public Vector3 IndicatorPosition => _indicatorAnchor != null ? _indicatorAnchor.position : Center;
 
 		/// <summary>The <see cref="SpawnPoint"/>s sitting inside this zone (by footprint containment). Rebuilt at
 		/// runtime by <see cref="ZoneManager"/> on init; a team assigned this zone spawns at one of these (see
@@ -134,6 +150,14 @@ namespace Starter.Shooter
 			Color fill = c; fill.a = 0.18f;
 			Color line = c; line.a = 0.9f;
 			DrawFootprintGizmo(fill, line);
+
+			// Show where the house beacon will anchor when an override transform is assigned.
+			if (_indicatorAnchor != null)
+			{
+				Gizmos.color = line;
+				Gizmos.DrawLine(Center, _indicatorAnchor.position);
+				Gizmos.DrawWireSphere(_indicatorAnchor.position, 0.4f);
+			}
 		}
 
 		/// <summary>Stable, readable gizmo colour per zone id so designers can tell zones apart at a glance.</summary>

@@ -133,6 +133,10 @@ namespace Starter.Shooter
 		public float MantleUpDistance = 1.1f;
 		[Tooltip("While climbing, if a flat ledge top is within this distance above the chest, the mantle triggers early instead of waiting for the chest to clear the wall. Higher = grabs onto ledges from further below.")]
 		public float LedgeReachDistance = 0.8f;
+		[Tooltip("Grace window (seconds) after the wall probe loses contact before the player drops. Gives them time to physically round a sharp corner where the wall briefly isn't in front of the chest. The player coasts with their climb intent during this window.")]
+		public float ClimbCornerGraceDuration = 0.25f;
+		[Tooltip("DEBUG: draw climb wall/corner probes in the Scene view and log probe outcomes. Turn off for release.")]
+		public bool DebugClimbProbes = true;
 
 		[Header("Movement Accelerations")]
 		public float GroundAcceleration = 55f;
@@ -323,6 +327,11 @@ namespace Starter.Shooter
 		// down; when it expires they let go and fall.
 		[Networked]
 		private TickTimer _climbSlideTimer { get; set; }
+		// Starts when the wall probe (straight + corner-wrap) loses contact. While it ticks the player
+		// stays attached and coasts so they can round a sharp corner; if it expires without reacquiring
+		// a wall they drop. Reset to default the moment any probe finds a wall again.
+		[Networked]
+		private TickTimer _climbGraceTimer { get; set; }
 		// Non-default _mantleTimer means a mantle is in progress.
 		[Networked]
 		private TickTimer _mantleTimer { get; set; }
@@ -554,6 +563,7 @@ namespace Starter.Shooter
 			_climbWallNormal = Vector3.zero;
 			_climbJumpTimer = default;
 			_climbSlideTimer = default;
+			_climbGraceTimer = default;
 			_mantleTimer = default;
 			_mantleStart = Vector3.zero;
 			_mantleEnd = Vector3.zero;
@@ -839,6 +849,7 @@ namespace Starter.Shooter
 				// Drop out of climb if it was active — knockback / ragdoll must not strand the player on a wall.
 				if (HasStateAuthority && IsClimbing)
 				{
+					if (DebugClimbProbes) Debug.Log($"[Climb] EXIT via no-input/ragdoll path: alive={Health.IsAlive} ragdoll={RagdollState} sleeping={IsSleeping}");
 					ExitClimb();
 				}
 				// Cancel any in-progress charge — releasing while ragdolled/dead must not fire.
@@ -1718,9 +1729,22 @@ namespace Starter.Shooter
 
 			// Re-probe the wall to update the normal (handles convex curves and segmented geometry)
 			// and detect when the player has climbed off the side.
+			float probeLen = ClimbWallProbeDistance + ClimbStickRange;
 			Vector3 probeDir = -_climbWallNormal;
 			Vector3 origin = GetClimbProbeOrigin();
-			if (Physics.Raycast(origin, probeDir, out RaycastHit hit, ClimbWallProbeDistance + ClimbStickRange, ClimbableMask, QueryTriggerInteraction.Ignore) == false)
+			bool wallFound = Physics.Raycast(origin, probeDir, out RaycastHit hit, probeLen, ClimbableMask, QueryTriggerInteraction.Ignore);
+			if (DebugClimbProbes)
+				Debug.DrawRay(origin, probeDir * probeLen, wallFound ? Color.green : Color.red, 2f);
+			if (wallFound == false)
+			{
+				// A missed straight probe doesn't always mean the player left the wall — when moving
+				// around a vertical 90° edge the old face simply ends. Try wrapping around the corner
+				// (in the move direction) onto the perpendicular face before giving up the climb.
+				wallFound = TryWrapClimbCorner(input, out hit);
+				if (DebugClimbProbes)
+					Debug.Log($"[Climb] straight probe MISS at {origin:F2} normal={_climbWallNormal:F2} -> wrap {(wallFound ? $"HIT {hit.collider.name} n={hit.normal:F2}" : "MISS")}");
+			}
+			if (wallFound == false)
 			{
 				// Lost wall contact. If a flat ledge is right above us, kick off a mantle; otherwise drop.
 				if (TryStartMantle(out Vector3 mantleEnd))
@@ -1730,13 +1754,31 @@ namespace Starter.Shooter
 					_mantleTimer = TickTimer.CreateFromSeconds(Runner, MantleDuration);
 					IsClimbing = false;
 					_climbWallNormal = Vector3.zero;
+					_climbGraceTimer = default;
 					_moveVelocity = Vector3.zero;
 					return false;
 				}
+
+				// No wall and no ledge this tick. Rather than dropping instantly, hold the climb for a
+				// short grace window and coast with the last wall velocity, giving the player time to
+				// physically round a sharp corner (where the wall isn't in front of the chest for a tick
+				// or two) and let a probe reacquire. Gravity is already zeroed above, so coasting is safe.
+				if (_climbGraceTimer.IsRunning == false)
+					_climbGraceTimer = TickTimer.CreateFromSeconds(Runner, ClimbCornerGraceDuration);
+
+				if (_climbGraceTimer.Expired(Runner) == false)
+				{
+					KCC.Move(_moveVelocity, 0f);
+					return true;
+				}
+
+				// Grace expired without reacquiring a wall — genuinely off the wall now.
 				ExitClimb();
 				MovePlayer(Vector3.zero, 0f);
 				return false;
 			}
+			// Reacquired (or never lost) a wall — clear the grace window and adopt the new normal.
+			_climbGraceTimer = default;
 			_climbWallNormal = hit.normal;
 
 			// Wall-surface fallback basis: horizontal along wall, vertical along wall. Used when the
@@ -1773,7 +1815,10 @@ namespace Starter.Shooter
 			else
 			{
 				up = wallForward.normalized;
-				right = Vector3.Cross(_climbWallNormal, up).normalized;
+				// Strafe axis must stay pitch-independent: deriving it from `up` (the projected look)
+				// flips its sign once the look pitches below the wall horizon, inverting A/D when the
+				// player looks down. surfaceRight is the stable horizontal along-wall axis.
+				right = surfaceRight;
 			}
 
 			bool isMoving = input.MoveDirection.sqrMagnitude > 0.01f;
@@ -1918,7 +1963,61 @@ namespace Starter.Shooter
 			_climbWallNormal = Vector3.zero;
 			_climbJumpTimer = default;
 			_climbSlideTimer = default;
+			_climbGraceTimer = default;
 			_moveVelocity = Vector3.zero;
+		}
+
+		// Horizontal yaw offsets (degrees) for the corner fan-sweep, ordered nearest-to-straight first so
+		// the most continuous surface wins. Both signs are tried so the wall can turn either way. The
+		// camera's climb yaw is clamped to ±90° from the wall facing, so a span to ±110° comfortably
+		// covers any 90° corner regardless of where the player is looking.
+		private static readonly float[] _cornerSweepAngles = { 30f, -30f, 55f, -55f, 80f, -80f, 105f, -105f };
+
+		// When the straight wall re-probe (locked to the old wall normal) misses, the player may be
+		// wrapping around a vertical corner rather than leaving the wall. Find where the surface continues
+		// using a purely GEOMETRIC search — no dependency on camera look or movement direction, so it
+		// works the same whether the player faces the wall, looks away, or stands still at the edge:
+		//   1. Concave / turned faces: fan the into-wall probe left and right around vertical (the old
+		//      face simply bent away); the first steep climbable hit wins.
+		//   2. Convex / outer edges: step the origin past the edge along each horizontal tangent, then
+		//      cast back to catch the perpendicular face wrapped around the corner.
+		// On a hit, `wall` is the new anchor face; the per-tick anchor correction in ProcessClimbInput
+		// then snaps the player to its standoff distance, completing the wrap.
+		private bool TryWrapClimbCorner(GameplayInput input, out RaycastHit wall)
+		{
+			wall = default;
+			Vector3 origin = GetClimbProbeOrigin();
+			float reach = ClimbWallProbeDistance + ClimbStickRange;
+
+			// Horizontal "into the wall" direction (drop any vertical tilt) and the horizontal tangent.
+			Vector3 into = -_climbWallNormal;
+			into.y = 0f;
+			if (into.sqrMagnitude < 0.0001f) return false; // wall is a ceiling/floor — nothing to wrap to
+			into.Normalize();
+			Vector3 tangent = Vector3.Cross(Vector3.up, into).normalized;
+
+			// 1) Concave fan: rotate the into-wall probe around vertical to catch a face that turned away.
+			foreach (float ang in _cornerSweepAngles)
+			{
+				Vector3 dir = Quaternion.AngleAxis(ang, Vector3.up) * into;
+				if (DebugClimbProbes) Debug.DrawRay(origin, dir * reach, Color.magenta, 2f);
+				if (Physics.Raycast(origin, dir, out wall, reach, ClimbableMask, QueryTriggerInteraction.Ignore)
+					&& Vector3.Angle(wall.normal, Vector3.up) >= ClimbForceAngle)
+					return true;
+			}
+
+			// 2) Convex sweep: step past the edge along each tangent and cast back for the wrapped face.
+			for (int s = -1; s <= 1; s += 2)
+			{
+				Vector3 step = tangent * s;
+				Vector3 convexOrigin = origin + step * reach;
+				if (DebugClimbProbes) Debug.DrawRay(convexOrigin, -step * (reach + ClimbStickRange), Color.yellow, 2f);
+				if (Physics.Raycast(convexOrigin, -step, out wall, reach + ClimbStickRange, ClimbableMask, QueryTriggerInteraction.Ignore)
+					&& Vector3.Angle(wall.normal, Vector3.up) >= ClimbForceAngle)
+					return true;
+			}
+
+			return false;
 		}
 
 		// Per-tick scan run while still anchored on the wall. If the wall ends within LedgeReachDistance

@@ -61,7 +61,7 @@ GameManager.cs  — NetworkBehaviour + IPlayerJoined/IPlayerLeft, spawns Player 
 
 ### `Assets/03_Shooter/` (active gameplay)
 
-- **Player** (`Player.cs`): SimpleKCC movement, stamina (sprint/jump/climb drain), climbing/mantling + wall-leap, ragdoll on heavy knockback, head-bob, sprint FOV, camera collision sweep. (Hunger fields present but legacy.)
+- **Player** (`Assets/Scripts/Player.cs`): SimpleKCC movement, stamina (sprint/jump/climb drain), climbing/mantling + wall-leap, ragdoll on heavy knockback, head-bob, sprint FOV, camera collision sweep. (Hunger fields present but legacy.) Prefab: `Assets/Scenes/03_Shooter/Prefabs/Player.prefab`.
 - **Combat** — `Actions/` SOs (`CombatAction` → `HitscanAction`/`OverlapAction`/`ProjectileAction`), resolved by per-actor `ActionInvoker` (cooldown + charge tick `[Networked]`). Held item's actions come from its `WeaponCapability` (fists from `Inventory._unarmedItem`); `Inventory.ActiveAction` is the single source the fire path reads. Same primitive for players, dummies, fists.
 - **Inventory** — 8-slot networked hotbar (`Inventory.cs`, `NetworkArray<InventorySlot>`). Weight over `WeightLimit` slows movement. Large items exist only while equipped. `PlacementController` (local) drives ghost-preview for `PlaceableCapability` items.
 - **Crafting** — `CraftingBench` (IInteractable) → local `CraftingSession` UI; recipes filtered per-bench.
@@ -113,7 +113,7 @@ Every openable local UI (pause, loot/crafting/quest/shop/computer, sleep, lobby/
 
 ### Movement
 
-All modes use **SimpleKCC** (`Fusion.Addons.SimpleKCC`). Extend the mode's `Player.cs`, don't write controllers from scratch. Canonical patterns in `03_Shooter/Player.cs`: hitscan + lag comp (`Runner.LagCompensation.Raycast`); predicted look (`KCC.Settings.ForcePredictedLookRotation = true`); layer swap to `FirstPersonOverlay` for weapon anti-clip.
+All modes use **SimpleKCC** (`Fusion.Addons.SimpleKCC`). Extend the mode's `Player.cs`, don't write controllers from scratch. Canonical patterns in `Assets/Scripts/Player.cs`: hitscan + lag comp (`Runner.LagCompensation.Raycast`); predicted look (`KCC.Settings.ForcePredictedLookRotation = true`); layer swap to `FirstPersonOverlay` for weapon anti-clip.
 
 ## Fusion 2 conventions
 
