@@ -436,6 +436,7 @@ namespace Starter.Shooter
 		private static readonly int _bodyAnimIDGrounded    = Animator.StringToHash("Grounded");
 		private static readonly int _bodyAnimIDFreeFall    = Animator.StringToHash("FreeFall");
 		private static readonly int _bodyAnimIDJump        = Animator.StringToHash("Jump");
+		private static readonly int _bodyAnimIDClimbState   = Animator.StringToHash("ClimbState");
 
 		private int _visibleFireCount;
 		private int _visibleSecondaryFireCount;
@@ -864,12 +865,32 @@ namespace Starter.Shooter
 			if (BodyAnimator != null)
 			{
 				float horizontalSpeed = new Vector2(KCC.RealVelocity.x, KCC.RealVelocity.z).magnitude;
-				bool isFalling        = !KCC.IsGrounded && KCC.RealVelocity.y < -1f;
-				BodyAnimator.SetFloat(_bodyAnimIDSpeed,       horizontalSpeed, 0.1f, Time.deltaTime);
-				BodyAnimator.SetFloat(_bodyAnimIDMotionSpeed, horizontalSpeed > 0.1f ? 1f : 0f, 0.1f, Time.deltaTime);
-				BodyAnimator.SetBool (_bodyAnimIDGrounded,    KCC.IsGrounded);
-				BodyAnimator.SetBool (_bodyAnimIDFreeFall,    isFalling);
-				BodyAnimator.SetBool (_bodyAnimIDJump,        _isJumping);
+
+				if (IsClimbing)
+				{
+					// While climbing: suppress fall/jump params so they can't override the climb state.
+					// ClimbState 1 = moving up (or stationary), 2 = moving down.
+					int climbState = KCC.RealVelocity.y < -0.1f ? 2 : 1;
+					BodyAnimator.SetInteger(_bodyAnimIDClimbState,  climbState);
+					BodyAnimator.SetBool   (_bodyAnimIDFreeFall,    false);
+					BodyAnimator.SetBool   (_bodyAnimIDJump,        false);
+					BodyAnimator.SetBool   (_bodyAnimIDGrounded,    false);
+					BodyAnimator.SetFloat  (_bodyAnimIDSpeed,       0f, 0.1f, Time.deltaTime);
+					BodyAnimator.SetFloat  (_bodyAnimIDMotionSpeed, 0f, 0.1f, Time.deltaTime);
+					// Pause the animation when not moving vertically so the player looks like they're hanging.
+					BodyAnimator.speed = Mathf.Abs(KCC.RealVelocity.y) > 0.1f ? 1f : 0f;
+				}
+				else
+				{
+					bool isFalling = !KCC.IsGrounded && KCC.RealVelocity.y < -1f;
+					BodyAnimator.speed = 1f;
+					BodyAnimator.SetInteger(_bodyAnimIDClimbState,  0);
+					BodyAnimator.SetFloat  (_bodyAnimIDSpeed,       horizontalSpeed, 0.1f, Time.deltaTime);
+					BodyAnimator.SetFloat  (_bodyAnimIDMotionSpeed, horizontalSpeed > 0.1f ? 1f : 0f, 0.1f, Time.deltaTime);
+					BodyAnimator.SetBool   (_bodyAnimIDGrounded,    KCC.IsGrounded);
+					BodyAnimator.SetBool   (_bodyAnimIDFreeFall,    isFalling);
+					BodyAnimator.SetBool   (_bodyAnimIDJump,        _isJumping);
+				}
 			}
 
 			FootstepSound.enabled = KCC.IsGrounded && KCC.RealSpeed > 1f;
