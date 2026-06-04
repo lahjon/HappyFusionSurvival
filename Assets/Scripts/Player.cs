@@ -1934,15 +1934,17 @@ namespace Starter.Shooter
 			return desiredVel;
 		}
 
-		// Drives the KCC capsule height from the networked IsCrouching state. Called from every path
+		// Drives the KCC capsule height from the networked IsCrouching/_isJumping state. Called from every path
 		// that touches IsCrouching so each peer's capsule matches the replicated state without an OnChangedRender.
 		// IsDowned overrides to a shorter DownedHeight so the body reads as flat on the floor.
+		// While airborne (_isJumping) the capsule shrinks to CrouchHeight so the player can pass
+		// through windows and low openings without needing to hold crouch mid-air.
 		private void ApplyCrouchHeight()
 		{
 			if (_standHeight <= 0f) return;
 			float target;
 			if (IsDowned) target = DownedHeight;
-			else if (IsCrouching) target = CrouchHeight;
+			else if (IsCrouching || _isJumping) target = CrouchHeight;
 			else target = _standHeight;
 			if (Mathf.Abs(KCC.Settings.Height - target) > 0.001f)
 			{
