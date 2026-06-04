@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using Fusion;
 using Fusion.Addons.SimpleKCC;
+using Sirenix.OdinInspector;
 using Starter.Common.Interactions;
 using Starter.Common.Inventory;
 using UnityEngine.Rendering;
@@ -495,6 +496,8 @@ namespace Starter.Shooter
 			SpawnAnchorSet = true;
 		}
 
+
+		
 		// While the round hasn't begun (still waiting for everyone to load in), clamp the player's horizontal position
 		// to a circle around their spawn anchor. Runs on both the state authority and the input authority's prediction,
 		// off the same networked anchor + shared radius, so they agree. No-op once MatchManager.RoundStarted is true.
@@ -2011,6 +2014,16 @@ namespace Starter.Shooter
 		// Origin used for both entry and re-probe raycasts. Using the chest bone keeps the probe at the
 		// same in-world position the body occupies on every peer, so authority and proxies probe identically.
 		// Falls back to a fixed offset above the root when no ChestBone is wired.
+
+		/// <summary>Fires an Animator trigger on both BodyAnimator and NoHeadAnimator simultaneously.</summary>
+		[Sirenix.OdinInspector.Button]
+		public void TriggerAnimation(string triggerName)
+		{
+			if (string.IsNullOrEmpty(triggerName)) return;
+			BodyAnimator?  .SetTrigger(triggerName);
+			NoHeadAnimator?.SetTrigger(triggerName);
+		}
+
 		/// <summary>Drive a body animator with the current movement/climb state.</summary>
 		private void DriveBodyAnimator(Animator anim, float horizontalSpeed)
 		{
