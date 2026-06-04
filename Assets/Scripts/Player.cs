@@ -902,10 +902,13 @@ namespace Starter.Shooter
 			// Transform velocity vector to local space.
 			var moveSpeed = transform.InverseTransformVector(KCC.RealVelocity);
 
-			Animator.SetFloat(_animIDSpeedX, moveSpeed.x, 0.1f, Time.deltaTime);
-			Animator.SetFloat(_animIDSpeedZ, moveSpeed.z, 0.1f, Time.deltaTime);
-			Animator.SetBool(_animIDGrounded, KCC.IsGrounded);
-			Animator.SetFloat(_animIDPitch, KCC.GetLookRotation(true, false).x, 0.02f, Time.deltaTime);
+			if (Animator != null && Animator.runtimeAnimatorController != null)
+			{
+				Animator.SetFloat(_animIDSpeedX, moveSpeed.x, 0.1f, Time.deltaTime);
+				Animator.SetFloat(_animIDSpeedZ, moveSpeed.z, 0.1f, Time.deltaTime);
+				Animator.SetBool(_animIDGrounded, KCC.IsGrounded);
+				Animator.SetFloat(_animIDPitch, KCC.GetLookRotation(true, false).x, 0.02f, Time.deltaTime);
+			}
 
 			{
 				float horizontalSpeed = new Vector2(KCC.RealVelocity.x, KCC.RealVelocity.z).magnitude;
@@ -2385,7 +2388,7 @@ namespace Starter.Shooter
 					}
 				}
 
-				Animator.SetTrigger(_animIDShoot);
+				Animator?.SetTrigger(_animIDShoot);
 
 				if (_hitPosition != Vector3.zero)
 				{
@@ -2410,7 +2413,7 @@ namespace Starter.Shooter
 			if (_visibleSecondaryFireCount < _secondaryFireCount)
 			{
 				GetHeldVisual()?.PlayMeleeFeedback(false);
-				Animator.SetTrigger(_animIDShoot);
+				Animator?.SetTrigger(_animIDShoot);
 			}
 			_visibleSecondaryFireCount = _secondaryFireCount;
 		}
@@ -2873,9 +2876,12 @@ namespace Starter.Shooter
 			}
 
 			// Body animator: clamp to idle-ish values so the run cycle doesn't play while seated.
-			Animator.SetFloat(_animIDSpeedX, 0f, 0.1f, Time.deltaTime);
-			Animator.SetFloat(_animIDSpeedZ, 0f, 0.1f, Time.deltaTime);
-			Animator.SetBool(_animIDGrounded, true);
+			if (Animator != null)
+			{
+				Animator.SetFloat(_animIDSpeedX, 0f, 0.1f, Time.deltaTime);
+				Animator.SetFloat(_animIDSpeedZ, 0f, 0.1f, Time.deltaTime);
+				Animator.SetBool(_animIDGrounded, true);
+			}
 			foreach (var anim in new[] { BodyAnimator, NoHeadAnimator })
 			{
 				if (anim == null) continue;
