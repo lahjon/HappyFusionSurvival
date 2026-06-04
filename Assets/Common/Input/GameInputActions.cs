@@ -29,6 +29,7 @@ namespace Starter.Common.Input
 		public InputAction Rotate { get; private set; }
 		public InputAction HotbarScroll { get; private set; }
 		public InputAction[] HotbarSlots { get; private set; }
+		public InputAction Emotes { get; private set; }
 
 		public InputAction Close { get; private set; }
 		public InputAction TakeAll { get; private set; }
@@ -67,6 +68,7 @@ namespace Starter.Common.Input
 			Drop = PlayerMap.FindAction("Drop", true);
 			Rotate = PlayerMap.FindAction("Rotate", true);
 			HotbarScroll = PlayerMap.FindAction("HotbarScroll", true);
+			Emotes       = PlayerMap.FindAction("Emotes", false);
 
 			HotbarSlots = new InputAction[8];
 			for (int i = 0; i < 8; i++)

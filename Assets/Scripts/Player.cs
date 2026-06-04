@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using Fusion;
 using Fusion.Addons.SimpleKCC;
+using Sirenix.OdinInspector;
 using Starter.Common.Interactions;
 using Starter.Common.Inventory;
 using UnityEngine.Rendering;
@@ -31,6 +32,16 @@ namespace Starter.Shooter
 		public Animator NoHeadAnimator;
 		[Tooltip("Debug: show both FullBody and NoHead for the local player so both are visible in the scene view.")]
 		public bool ShowBothBodiesDebug = false;
+
+		[Header("Arm IK")]
+		[Tooltip("Enable IK on the right hand — move RightHandTarget to the item grip point.")]
+		public bool UseRightArmIK = false;
+		[Tooltip("Enable IK on the left hand — move LeftHandTarget to the off-hand grip point.")]
+		public bool UseLeftArmIK = false;
+		[Tooltip("Right hand IK target — move this to where the held item's grip is.")]
+		public Transform RightHandTarget;
+		[Tooltip("Left hand IK target — move this to where the off-hand grip is.")]
+		public Transform LeftHandTarget;
 		public Transform CameraPivot;
 		public Transform CameraHandle;
 		public Transform ScalingRoot;
@@ -485,6 +496,8 @@ namespace Starter.Shooter
 			SpawnAnchorSet = true;
 		}
 
+
+		
 		// While the round hasn't begun (still waiting for everyone to load in), clamp the player's horizontal position
 		// to a circle around their spawn anchor. Runs on both the state authority and the input authority's prediction,
 		// off the same networked anchor + shared radius, so they agree. No-op once MatchManager.RoundStarted is true.
@@ -698,6 +711,7 @@ namespace Starter.Shooter
 					anim.cullingMode = AnimatorCullingMode.AlwaysAnimate;
 
 
+
 			if (HasStateAuthority)
 			{
 				// Bots get their synthetic Owner in ConfigureAsBot (onBeforeSpawned); humans bind theirs here.
@@ -888,15 +902,39 @@ namespace Starter.Shooter
 			// Transform velocity vector to local space.
 			var moveSpeed = transform.InverseTransformVector(KCC.RealVelocity);
 
-			Animator.SetFloat(_animIDSpeedX, moveSpeed.x, 0.1f, Time.deltaTime);
-			Animator.SetFloat(_animIDSpeedZ, moveSpeed.z, 0.1f, Time.deltaTime);
-			Animator.SetBool(_animIDGrounded, KCC.IsGrounded);
-			Animator.SetFloat(_animIDPitch, KCC.GetLookRotation(true, false).x, 0.02f, Time.deltaTime);
+			if (Animator != null && Animator.runtimeAnimatorController != null)
+			{
+				Animator.SetFloat(_animIDSpeedX, moveSpeed.x, 0.1f, Time.deltaTime);
+				Animator.SetFloat(_animIDSpeedZ, moveSpeed.z, 0.1f, Time.deltaTime);
+				Animator.SetBool(_animIDGrounded, KCC.IsGrounded);
+				Animator.SetFloat(_animIDPitch, KCC.GetLookRotation(true, false).x, 0.02f, Time.deltaTime);
+			}
 
 			{
 				float horizontalSpeed = new Vector2(KCC.RealVelocity.x, KCC.RealVelocity.z).magnitude;
 				DriveBodyAnimator(BodyAnimator,   horizontalSpeed);
 				DriveBodyAnimator(NoHeadAnimator, horizontalSpeed);
+			}
+
+			// Per-hand IK toggle — live so each can be flipped independently during play.
+			foreach (var anim in new[] { BodyAnimator, NoHeadAnimator })
+			{
+				if (anim == null) continue;
+
+				// Enable the RigBuilder if either hand needs IK.
+				var rb = anim.GetComponent<UnityEngine.Animations.Rigging.RigBuilder>();
+				bool needsIK = UseRightArmIK || UseLeftArmIK;
+				if (rb != null && rb.enabled != needsIK) rb.enabled = needsIK;
+
+				// Drive individual constraint weights — only active when the bool is on AND an item with a grip is held.
+				var constraints = anim.GetComponentsInChildren<UnityEngine.Animations.Rigging.TwoBoneIKConstraint>(true);
+				foreach (var c in constraints)
+				{
+					if (c.gameObject.name == "Right_Arm_IK")
+						c.weight = UseRightArmIK ? 1f : 0f;
+					else if (c.gameObject.name == "Left_Arm_IK")
+						c.weight = UseLeftArmIK  ? 1f : 0f;
+				}
 			}
 
 			// Body visibility — updated every frame so the debug toggle responds live.
@@ -940,6 +978,7 @@ namespace Starter.Shooter
 
 			visual.SetCharging(ActionInvoker.IsCharging, ActionInvoker.ChargeProgress(action));
 		}
+
 
 		private void Awake()
 		{
@@ -1978,6 +2017,16 @@ namespace Starter.Shooter
 		// Origin used for both entry and re-probe raycasts. Using the chest bone keeps the probe at the
 		// same in-world position the body occupies on every peer, so authority and proxies probe identically.
 		// Falls back to a fixed offset above the root when no ChestBone is wired.
+
+		/// <summary>Fires an Animator trigger on both BodyAnimator and NoHeadAnimator simultaneously.</summary>
+		[Sirenix.OdinInspector.Button]
+		public void TriggerAnimation(string triggerName)
+		{
+			if (string.IsNullOrEmpty(triggerName)) return;
+			BodyAnimator?  .SetTrigger(triggerName);
+			NoHeadAnimator?.SetTrigger(triggerName);
+		}
+
 		/// <summary>Drive a body animator with the current movement/climb state.</summary>
 		private void DriveBodyAnimator(Animator anim, float horizontalSpeed)
 		{
@@ -1989,7 +2038,7 @@ namespace Starter.Shooter
 				anim.SetBool (_bodyAnimIDJump,        false);
 				anim.SetBool (_bodyAnimIDGrounded,    false);
 				anim.SetFloat(_bodyAnimIDSpeed,       0f, 0.1f, Time.deltaTime);
-				anim.SetFloat(_bodyAnimIDMotionSpeed, 0f, 0.1f, Time.deltaTime);
+				anim.SetFloat(_bodyAnimIDMotionSpeed, 1f);
 				anim.speed = KCC.RealVelocity.magnitude > 0.1f ? 1f : 0f;
 			}
 			else
@@ -1997,7 +2046,7 @@ namespace Starter.Shooter
 				anim.speed = 1f;
 				anim.SetBool (_bodyAnimIDIsClimbing,  false);
 				anim.SetFloat(_bodyAnimIDSpeed,       horizontalSpeed, 0.1f, Time.deltaTime);
-				anim.SetFloat(_bodyAnimIDMotionSpeed, horizontalSpeed > 0.1f ? 1f : 0f, 0.1f, Time.deltaTime);
+				anim.SetFloat(_bodyAnimIDMotionSpeed, 1f);
 				anim.SetBool (_bodyAnimIDGrounded,    KCC.IsGrounded);
 				anim.SetBool (_bodyAnimIDFreeFall,    !KCC.IsGrounded && KCC.RealVelocity.y < -1f);
 				anim.SetBool (_bodyAnimIDJump,        _isJumping);
@@ -2339,7 +2388,7 @@ namespace Starter.Shooter
 					}
 				}
 
-				Animator.SetTrigger(_animIDShoot);
+				Animator?.SetTrigger(_animIDShoot);
 
 				if (_hitPosition != Vector3.zero)
 				{
@@ -2364,7 +2413,7 @@ namespace Starter.Shooter
 			if (_visibleSecondaryFireCount < _secondaryFireCount)
 			{
 				GetHeldVisual()?.PlayMeleeFeedback(false);
-				Animator.SetTrigger(_animIDShoot);
+				Animator?.SetTrigger(_animIDShoot);
 			}
 			_visibleSecondaryFireCount = _secondaryFireCount;
 		}
@@ -2827,14 +2876,17 @@ namespace Starter.Shooter
 			}
 
 			// Body animator: clamp to idle-ish values so the run cycle doesn't play while seated.
-			Animator.SetFloat(_animIDSpeedX, 0f, 0.1f, Time.deltaTime);
-			Animator.SetFloat(_animIDSpeedZ, 0f, 0.1f, Time.deltaTime);
-			Animator.SetBool(_animIDGrounded, true);
+			if (Animator != null)
+			{
+				Animator.SetFloat(_animIDSpeedX, 0f, 0.1f, Time.deltaTime);
+				Animator.SetFloat(_animIDSpeedZ, 0f, 0.1f, Time.deltaTime);
+				Animator.SetBool(_animIDGrounded, true);
+			}
 			foreach (var anim in new[] { BodyAnimator, NoHeadAnimator })
 			{
 				if (anim == null) continue;
 				anim.SetFloat(_bodyAnimIDSpeed,       0f, 0.1f, Time.deltaTime);
-				anim.SetFloat(_bodyAnimIDMotionSpeed, 0f, 0.1f, Time.deltaTime);
+				anim.SetFloat(_bodyAnimIDMotionSpeed, 1f);
 				anim.SetBool (_bodyAnimIDGrounded,    true);
 				anim.SetBool (_bodyAnimIDFreeFall,    false);
 				anim.SetBool (_bodyAnimIDJump,        false);
