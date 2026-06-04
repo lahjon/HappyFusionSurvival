@@ -47,7 +47,7 @@ Animator:
   m_Controller: {fileID: 9100000, guid: 948806ab7f574094a953ac7c5413a535, type: 2}
   m_CullingMode: 1
   m_UpdateMode: 0
-  m_ApplyRootMotion: 1
+  m_ApplyRootMotion: 0
   m_LinearVelocityBlending: 0
   m_StabilizeFeet: 0
   m_AnimatePhysics: 0
@@ -138,6 +138,42 @@ PrefabInstance:
       propertyPath: m_Controller
       value: 
       objectReference: {fileID: 9100000, guid: 948806ab7f574094a953ac7c5413a535, type: 2}
+    - target: {fileID: 137012867325547646, guid: 7726852b74327584980d2b8f88a12239, type: 3}
+      propertyPath: m_CastShadows
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 137016474407065488, guid: 7726852b74327584980d2b8f88a12239, type: 3}
+      propertyPath: m_CastShadows
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 137185770229071454, guid: 7726852b74327584980d2b8f88a12239, type: 3}
+      propertyPath: m_CastShadows
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 137188506284536754, guid: 7726852b74327584980d2b8f88a12239, type: 3}
+      propertyPath: m_CastShadows
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 137585648229557076, guid: 7726852b74327584980d2b8f88a12239, type: 3}
+      propertyPath: m_CastShadows
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 137625415157651402, guid: 7726852b74327584980d2b8f88a12239, type: 3}
+      propertyPath: m_CastShadows
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 137639019620710568, guid: 7726852b74327584980d2b8f88a12239, type: 3}
+      propertyPath: m_CastShadows
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 137740248530358102, guid: 7726852b74327584980d2b8f88a12239, type: 3}
+      propertyPath: m_CastShadows
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 137894482051316428, guid: 7726852b74327584980d2b8f88a12239, type: 3}
+      propertyPath: m_CastShadows
+      value: 3
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

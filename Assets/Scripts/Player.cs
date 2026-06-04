@@ -1052,7 +1052,7 @@ namespace Starter.Shooter
 				CameraPivot.localPosition = Vector3.Lerp(CameraPivot.localPosition, target, CrouchCameraLerpSpeed * Time.deltaTime);
 			}
 
-			if (isDeadRagdoll == false)
+			if (isDeadRagdoll == false && ChestBone != null && ChestTargetPosition != null)
 			{
 				// Dummy IK solution, we are snapping chest bone to prepared ChestTargetPosition position
 				// Lerping blends the fixed position with little bit of animation position.
