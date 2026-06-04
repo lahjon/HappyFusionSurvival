@@ -679,6 +679,7 @@ GameObject:
   - component: {fileID: 7886537220140394926}
   - component: {fileID: 7567263523350443063}
   - component: {fileID: 7099354799689439675}
+  - component: {fileID: 3241785420770753567}
   m_Layer: 6
   m_Name: Player
   m_TagString: Player
@@ -888,6 +889,7 @@ MonoBehaviour:
     _value: 0
   _IsDowned:
     _value: 0
+  _SpawnLookYaw: 0
   _DownedTimeRemaining: 0
   _ReviveCount: 0
   _ReviveProgress: 0
@@ -1102,6 +1104,9 @@ MonoBehaviour:
   ScanRadius: 3
   ViewConeDot: 0.3
   ToastCooldown: 1
+  PunchDuration: 0.18
+  PunchScale: 0.18
+  FadeDuration: 0.1
 --- !u!114 &2000060299088015355
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1211,6 +1216,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ShopSession
   AutoCloseRangeMultiplier: 1.5
+--- !u!114 &3241785420770753567
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3123905968297068043}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5919370ffdeff1142a99c451c3a826d2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerEmotes
+  _emoteTrigger: WaveRightArm
 --- !u!1 &3226221424221943437
 GameObject:
   m_ObjectHideFlags: 0
@@ -7002,7 +7020,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6858728261059332358}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fff0960ef4ea6e04eac66b4a7fd2189d, type: 3}
   m_Name: 
@@ -18153,7 +18171,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5871122478820212169}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fff0960ef4ea6e04eac66b4a7fd2189d, type: 3}
   m_Name: 
