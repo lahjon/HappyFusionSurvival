@@ -2023,8 +2023,10 @@ namespace Starter.Shooter
 		public void TriggerAnimation(string triggerName)
 		{
 			if (string.IsNullOrEmpty(triggerName)) return;
-			BodyAnimator?  .SetTrigger(triggerName);
-			NoHeadAnimator?.SetTrigger(triggerName);
+			// Unity-safe null checks: the `?.` operator bypasses Unity's overloaded == and
+			// throws UnassignedReferenceException on a serialized-but-unassigned field.
+			if (BodyAnimator   != null) BodyAnimator.SetTrigger(triggerName);
+			if (NoHeadAnimator != null) NoHeadAnimator.SetTrigger(triggerName);
 		}
 
 		/// <summary>Drive a body animator with the current movement/climb state.</summary>
@@ -2388,7 +2390,7 @@ namespace Starter.Shooter
 					}
 				}
 
-				Animator?.SetTrigger(_animIDShoot);
+				if (Animator != null) Animator.SetTrigger(_animIDShoot);
 
 				if (_hitPosition != Vector3.zero)
 				{
@@ -2413,7 +2415,7 @@ namespace Starter.Shooter
 			if (_visibleSecondaryFireCount < _secondaryFireCount)
 			{
 				GetHeldVisual()?.PlayMeleeFeedback(false);
-				Animator?.SetTrigger(_animIDShoot);
+				if (Animator != null) Animator.SetTrigger(_animIDShoot);
 			}
 			_visibleSecondaryFireCount = _secondaryFireCount;
 		}
