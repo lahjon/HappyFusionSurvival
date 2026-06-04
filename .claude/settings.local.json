@@ -88,7 +88,9 @@
       "Bash(awk '/&[0-9]+$/{anchor=$0} /guid: 5e12b3749b8e53a4fa7416ced95f5baf/{found=1} found&&/m_GameObject:/{print \"component anchor:\", anchor; print $0; exit}' Assets/03_Shooter/03_Shooter.unity)",
       "Bash(awk '/guid: 5e12b3749b8e53a4fa7416ced95f5baf/{f=1} f&&/m_GameObject:/{match\\($0,/[0-9]+/\\);print substr\\($0,RSTART,RLENGTH\\);exit}' Assets/03_Shooter/03_Shooter.unity)",
       "Bash(awk -v 'id=&__TRACKED_VAR__' '$0 ~ id\"$\"{f=1} f&&/m_Name:/{print;exit}' Assets/03_Shooter/03_Shooter.unity)",
-      "Bash(python3 -)"
+      "Bash(python3 -)",
+      "Bash(awk '/^--- !u!1001 &3653119847157736499/{found=1} found{print; if\\(/^---/ && NR>1 && !/3653119847157736499/\\) exit}')",
+      "Bash(awk '/^--- !u!1001 &3653119847157736499/{found=1} found{print; if\\(/m_SourcePrefab/\\) exit}')"
     ]
   }
 }
