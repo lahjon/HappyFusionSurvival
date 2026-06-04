@@ -25,8 +25,12 @@ namespace Starter.Shooter
 		public SimpleKCC KCC;
 		public PlayerInput Input;
 		public Animator Animator;
-		[Tooltip("Third-person body animator (Player child under VisualRoot/PlayerCharacter). Driven separately from the first-person arms Animator.")]
+		[Tooltip("Full body animator — visible to other players only.")]
 		public Animator BodyAnimator;
+		[Tooltip("No-head body animator — visible to local player only.")]
+		public Animator NoHeadAnimator;
+		[Tooltip("Debug: show both FullBody and NoHead for the local player so both are visible in the scene view.")]
+		public bool ShowBothBodiesDebug = false;
 		public Transform CameraPivot;
 		public Transform CameraHandle;
 		public Transform ScalingRoot;
@@ -658,14 +662,23 @@ namespace Starter.Shooter
 			_standHeight = KCC.Settings.Height;
 			if (CameraPivot != null) _standCameraPivotLocalPos = CameraPivot.localPosition;
 
-			// The BodyAnimator child is shared with the NPC visual setup which uses root motion and
-			// a NavMeshAgent. Disable both here — the KCC owns movement for players.
-			if (BodyAnimator != null)
+			// Disable root motion and NavMeshAgent on both body animators — KCC owns movement.
+			foreach (var anim in new[] { BodyAnimator, NoHeadAnimator })
 			{
-				BodyAnimator.applyRootMotion = false;
-				var navAgent = BodyAnimator.GetComponent<UnityEngine.AI.NavMeshAgent>();
+				if (anim == null) continue;
+				anim.applyRootMotion = false;
+				var navAgent = anim.GetComponent<UnityEngine.AI.NavMeshAgent>();
 				if (navAgent != null) navAgent.enabled = false;
 			}
+
+			// NoHeadAnimator is the local player's view — the body is mostly behind the first-person
+			// camera so CullUpdateTransforms would freeze its bones. Force AlwaysAnimate on every
+			// animator in the hierarchy (parent + nested Character_Daughter_01) so IK and animation
+			// keep running even when the mesh is off-screen.
+			if (NoHeadAnimator != null)
+				foreach (var anim in NoHeadAnimator.GetComponentsInChildren<Animator>(true))
+					anim.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+
 
 			if (HasStateAuthority)
 			{
@@ -862,33 +875,27 @@ namespace Starter.Shooter
 			Animator.SetBool(_animIDGrounded, KCC.IsGrounded);
 			Animator.SetFloat(_animIDPitch, KCC.GetLookRotation(true, false).x, 0.02f, Time.deltaTime);
 
-			if (BodyAnimator != null)
 			{
 				float horizontalSpeed = new Vector2(KCC.RealVelocity.x, KCC.RealVelocity.z).magnitude;
+				DriveBodyAnimator(BodyAnimator,   horizontalSpeed);
+				DriveBodyAnimator(NoHeadAnimator, horizontalSpeed);
+			}
 
-				if (IsClimbing)
-				{
-					// While climbing: suppress fall/jump params so they can't override the climb state.
-					BodyAnimator.SetBool   (_bodyAnimIDIsClimbing,  true);
-					BodyAnimator.SetBool   (_bodyAnimIDFreeFall,    false);
-					BodyAnimator.SetBool   (_bodyAnimIDJump,        false);
-					BodyAnimator.SetBool   (_bodyAnimIDGrounded,    false);
-					BodyAnimator.SetFloat  (_bodyAnimIDSpeed,       0f, 0.1f, Time.deltaTime);
-					BodyAnimator.SetFloat  (_bodyAnimIDMotionSpeed, 0f, 0.1f, Time.deltaTime);
-					// Pause the animation only when fully stationary on the wall (no vertical or horizontal movement).
-					BodyAnimator.speed = KCC.RealVelocity.magnitude > 0.1f ? 1f : 0f;
-				}
-				else
-				{
-					bool isFalling = !KCC.IsGrounded && KCC.RealVelocity.y < -1f;
-					BodyAnimator.speed = 1f;
-					BodyAnimator.SetBool(_bodyAnimIDIsClimbing, false);
-					BodyAnimator.SetFloat  (_bodyAnimIDSpeed,       horizontalSpeed, 0.1f, Time.deltaTime);
-					BodyAnimator.SetFloat  (_bodyAnimIDMotionSpeed, horizontalSpeed > 0.1f ? 1f : 0f, 0.1f, Time.deltaTime);
-					BodyAnimator.SetBool   (_bodyAnimIDGrounded,    KCC.IsGrounded);
-					BodyAnimator.SetBool   (_bodyAnimIDFreeFall,    isFalling);
-					BodyAnimator.SetBool   (_bodyAnimIDJump,        _isJumping);
-				}
+			// Body visibility — updated every frame so the debug toggle responds live.
+			// Local player sees NoHead; others see FullBody. Debug flag shows both.
+			if (BodyAnimator != null)
+			{
+				bool hideFullBody = HasInputAuthority && !ShowBothBodiesDebug;
+				var mode = hideFullBody ? ShadowCastingMode.ShadowsOnly : ShadowCastingMode.On;
+				foreach (var r in BodyAnimator.GetComponentsInChildren<Renderer>(true))
+					if (r.shadowCastingMode != mode) r.shadowCastingMode = mode;
+			}
+			if (NoHeadAnimator != null)
+			{
+				bool hideNoHead = !HasInputAuthority && !ShowBothBodiesDebug;
+				var mode = hideNoHead ? ShadowCastingMode.ShadowsOnly : ShadowCastingMode.On;
+				foreach (var r in NoHeadAnimator.GetComponentsInChildren<Renderer>(true))
+					if (r.shadowCastingMode != mode) r.shadowCastingMode = mode;
 			}
 
 			FootstepSound.enabled = KCC.IsGrounded && KCC.RealSpeed > 1f;
@@ -959,14 +966,11 @@ namespace Starter.Shooter
 				return;
 			}
 
-			// Lock the character visual to face the wall while climbing.
+			// Lock the character visual to face the wall while climbing, then restore normal
+			// inherited rotation when climbing ends so the body tracks the KCC again.
 			// Done in LateUpdate so it runs after Fusion's Render() and KCC transform updates.
-			if (IsClimbing && BodyAnimator != null)
-			{
-				Vector3 faceDir = new Vector3(-_climbWallNormal.x, 0f, -_climbWallNormal.z);
-				if (faceDir.sqrMagnitude > 0.001f)
-					BodyAnimator.transform.rotation = Quaternion.LookRotation(faceDir, Vector3.up);
-			}
+			ApplyClimbRotation(BodyAnimator);
+			ApplyClimbRotation(NoHeadAnimator);
 
 			bool isDeadRagdoll = RagdollState == ERagdollState.Dead;
 
@@ -1956,6 +1960,48 @@ namespace Starter.Shooter
 		// Origin used for both entry and re-probe raycasts. Using the chest bone keeps the probe at the
 		// same in-world position the body occupies on every peer, so authority and proxies probe identically.
 		// Falls back to a fixed offset above the root when no ChestBone is wired.
+		/// <summary>Drive a body animator with the current movement/climb state.</summary>
+		private void DriveBodyAnimator(Animator anim, float horizontalSpeed)
+		{
+			if (anim == null) return;
+			if (IsClimbing)
+			{
+				anim.SetBool (_bodyAnimIDIsClimbing,  true);
+				anim.SetBool (_bodyAnimIDFreeFall,    false);
+				anim.SetBool (_bodyAnimIDJump,        false);
+				anim.SetBool (_bodyAnimIDGrounded,    false);
+				anim.SetFloat(_bodyAnimIDSpeed,       0f, 0.1f, Time.deltaTime);
+				anim.SetFloat(_bodyAnimIDMotionSpeed, 0f, 0.1f, Time.deltaTime);
+				anim.speed = KCC.RealVelocity.magnitude > 0.1f ? 1f : 0f;
+			}
+			else
+			{
+				anim.speed = 1f;
+				anim.SetBool (_bodyAnimIDIsClimbing,  false);
+				anim.SetFloat(_bodyAnimIDSpeed,       horizontalSpeed, 0.1f, Time.deltaTime);
+				anim.SetFloat(_bodyAnimIDMotionSpeed, horizontalSpeed > 0.1f ? 1f : 0f, 0.1f, Time.deltaTime);
+				anim.SetBool (_bodyAnimIDGrounded,    KCC.IsGrounded);
+				anim.SetBool (_bodyAnimIDFreeFall,    !KCC.IsGrounded && KCC.RealVelocity.y < -1f);
+				anim.SetBool (_bodyAnimIDJump,        _isJumping);
+			}
+		}
+
+		/// <summary>Set world rotation on a body animator, or reset to inherited when not climbing.</summary>
+		private void ApplyClimbRotation(Animator anim)
+		{
+			if (anim == null) return;
+			if (IsClimbing)
+			{
+				Vector3 faceDir = new Vector3(-_climbWallNormal.x, 0f, -_climbWallNormal.z);
+				if (faceDir.sqrMagnitude > 0.001f)
+					anim.transform.rotation = Quaternion.LookRotation(faceDir, Vector3.up);
+			}
+			else
+			{
+				anim.transform.localRotation = Quaternion.identity;
+			}
+		}
+
 		private Vector3 GetClimbProbeOrigin()
 		{
 			return ChestBone != null ? ChestBone.position : transform.position + Vector3.up * 1.0f;
@@ -2754,13 +2800,14 @@ namespace Starter.Shooter
 			Animator.SetFloat(_animIDSpeedX, 0f, 0.1f, Time.deltaTime);
 			Animator.SetFloat(_animIDSpeedZ, 0f, 0.1f, Time.deltaTime);
 			Animator.SetBool(_animIDGrounded, true);
-			if (BodyAnimator != null)
+			foreach (var anim in new[] { BodyAnimator, NoHeadAnimator })
 			{
-				BodyAnimator.SetFloat(_bodyAnimIDSpeed,       0f, 0.1f, Time.deltaTime);
-				BodyAnimator.SetFloat(_bodyAnimIDMotionSpeed, 0f, 0.1f, Time.deltaTime);
-				BodyAnimator.SetBool (_bodyAnimIDGrounded,    true);
-				BodyAnimator.SetBool (_bodyAnimIDFreeFall,    false);
-				BodyAnimator.SetBool (_bodyAnimIDJump,        false);
+				if (anim == null) continue;
+				anim.SetFloat(_bodyAnimIDSpeed,       0f, 0.1f, Time.deltaTime);
+				anim.SetFloat(_bodyAnimIDMotionSpeed, 0f, 0.1f, Time.deltaTime);
+				anim.SetBool (_bodyAnimIDGrounded,    true);
+				anim.SetBool (_bodyAnimIDFreeFall,    false);
+				anim.SetBool (_bodyAnimIDJump,        false);
 			}
 		}
 
