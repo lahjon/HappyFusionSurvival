@@ -582,7 +582,7 @@ MonoBehaviour:
   CrouchCameraLerpSpeed: 12
   CrouchStandClearance: 1.8
   CrouchStandCheckRadius: 0.3
-  MaxStamina: 100
+  MaxStamina: 1000
   StaminaDrainPerSecond: 25
   StaminaRegenPerSecond: 35
   StaminaRegenDelay: 1
@@ -17442,6 +17442,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BodyLookAt
   Weight: 1
+  MaxLookUp: 50
+  MaxLookDown: 40
 --- !u!1001 &3917966571787449504
 PrefabInstance:
   m_ObjectHideFlags: 0

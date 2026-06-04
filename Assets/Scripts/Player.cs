@@ -436,7 +436,7 @@ namespace Starter.Shooter
 		private static readonly int _bodyAnimIDGrounded    = Animator.StringToHash("Grounded");
 		private static readonly int _bodyAnimIDFreeFall    = Animator.StringToHash("FreeFall");
 		private static readonly int _bodyAnimIDJump        = Animator.StringToHash("Jump");
-		private static readonly int _bodyAnimIDClimbState   = Animator.StringToHash("ClimbState");
+		private static readonly int _bodyAnimIDIsClimbing   = Animator.StringToHash("IsClimbing");
 
 		private int _visibleFireCount;
 		private int _visibleSecondaryFireCount;
@@ -869,22 +869,20 @@ namespace Starter.Shooter
 				if (IsClimbing)
 				{
 					// While climbing: suppress fall/jump params so they can't override the climb state.
-					// ClimbState 1 = moving up (or stationary), 2 = moving down.
-					int climbState = KCC.RealVelocity.y < -0.1f ? 2 : 1;
-					BodyAnimator.SetInteger(_bodyAnimIDClimbState,  climbState);
+					BodyAnimator.SetBool   (_bodyAnimIDIsClimbing,  true);
 					BodyAnimator.SetBool   (_bodyAnimIDFreeFall,    false);
 					BodyAnimator.SetBool   (_bodyAnimIDJump,        false);
 					BodyAnimator.SetBool   (_bodyAnimIDGrounded,    false);
 					BodyAnimator.SetFloat  (_bodyAnimIDSpeed,       0f, 0.1f, Time.deltaTime);
 					BodyAnimator.SetFloat  (_bodyAnimIDMotionSpeed, 0f, 0.1f, Time.deltaTime);
-					// Pause the animation when not moving vertically so the player looks like they're hanging.
-					BodyAnimator.speed = Mathf.Abs(KCC.RealVelocity.y) > 0.1f ? 1f : 0f;
+					// Pause the animation only when fully stationary on the wall (no vertical or horizontal movement).
+					BodyAnimator.speed = KCC.RealVelocity.magnitude > 0.1f ? 1f : 0f;
 				}
 				else
 				{
 					bool isFalling = !KCC.IsGrounded && KCC.RealVelocity.y < -1f;
 					BodyAnimator.speed = 1f;
-					BodyAnimator.SetInteger(_bodyAnimIDClimbState,  0);
+					BodyAnimator.SetBool(_bodyAnimIDIsClimbing, false);
 					BodyAnimator.SetFloat  (_bodyAnimIDSpeed,       horizontalSpeed, 0.1f, Time.deltaTime);
 					BodyAnimator.SetFloat  (_bodyAnimIDMotionSpeed, horizontalSpeed > 0.1f ? 1f : 0f, 0.1f, Time.deltaTime);
 					BodyAnimator.SetBool   (_bodyAnimIDGrounded,    KCC.IsGrounded);
@@ -924,8 +922,6 @@ namespace Starter.Shooter
 			_inventory = GetComponent<Inventory>();
 			if (ActionInvoker == null) ActionInvoker = GetComponent<ActionInvoker>();
 			_botBrain = GetComponent<BotBrain>();
-			// Auto-attach the procedural climbing-hand visual so the Player prefab doesn't need editing.
-			if (GetComponent<ClimbingHands>() == null) gameObject.AddComponent<ClimbingHands>();
 		}
 
 		/// <summary>Marks this Player as an AI bot and stamps its synthetic <see cref="Owner"/> ref. Called by
@@ -961,6 +957,15 @@ namespace Starter.Shooter
 			{
 				SeatedLateUpdate();
 				return;
+			}
+
+			// Lock the character visual to face the wall while climbing.
+			// Done in LateUpdate so it runs after Fusion's Render() and KCC transform updates.
+			if (IsClimbing && BodyAnimator != null)
+			{
+				Vector3 faceDir = new Vector3(-_climbWallNormal.x, 0f, -_climbWallNormal.z);
+				if (faceDir.sqrMagnitude > 0.001f)
+					BodyAnimator.transform.rotation = Quaternion.LookRotation(faceDir, Vector3.up);
 			}
 
 			bool isDeadRagdoll = RagdollState == ERagdollState.Dead;
@@ -1614,8 +1619,10 @@ namespace Starter.Shooter
 		// (so the regen check in FixedUpdateNetwork stays gated).
 		private bool ProcessClimbInput(GameplayInput input, NetworkButtons previousButtons)
 		{
-			// Player can still look around while on the wall — pitch is preserved for ledge inspection.
-			KCC.SetLookRotation(input.LookRotation, -90f, 90f);
+			// Pitch is free; yaw is clamped to ±90° from wall-facing so the player can't spin away.
+			float wallFacingYaw = Mathf.Atan2(-_climbWallNormal.x, -_climbWallNormal.z) * Mathf.Rad2Deg;
+			float clampedYaw    = wallFacingYaw + Mathf.Clamp(Mathf.DeltaAngle(wallFacingYaw, input.LookRotation.y), -90f, 90f);
+			KCC.SetLookRotation(new Vector2(input.LookRotation.x, clampedYaw), -90f, 90f);
 
 			// No gravity while anchored — the wall holds the player.
 			KCC.SetGravity(0f);
@@ -1709,7 +1716,7 @@ namespace Starter.Shooter
 			}
 
 			bool isMoving = input.MoveDirection.sqrMagnitude > 0.01f;
-			Vector3 wallVel = (right * input.MoveDirection.x + up * input.MoveDirection.y) * ClimbSpeed;
+			Vector3 wallVel = (right * input.MoveDirection.x * 0.25f + up * input.MoveDirection.y) * ClimbSpeed;
 
 			// Out-of-stamina slide: stay attached but override player input with a slow downward slide
 			// along the wall. Climb-hop and wall-leap below already gate on Stamina > ClimbStaminaJumpCost,
