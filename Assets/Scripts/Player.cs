@@ -61,6 +61,16 @@ namespace Starter.Shooter
 		public float UpGravity = 25f;
 		public float DownGravity = 40f;
 
+		[Header("Fall Damage")]
+		[Tooltip("Master toggle for landing/fall damage.")]
+		public bool EnableFallDamage = true;
+		[Tooltip("Downward impact speed (m/s) at or below which a landing deals no damage. Keep this above the speed a normal jump lands at (~13 m/s with the default jump/gravity) so ordinary hops never hurt.")]
+		public float SafeFallSpeed = 16f;
+		[Tooltip("Downward impact speed (m/s) at or above which a landing deals the full MaxFallDamage. Damage scales linearly between SafeFallSpeed and this.")]
+		public float LethalFallSpeed = 32f;
+		[Tooltip("Damage dealt by a landing at or above LethalFallSpeed. Set to the player's max health for a guaranteed kill on a long drop.")]
+		public int MaxFallDamage = 10;
+
 		[Header("Crouch")]
 		[Tooltip("Horizontal speed while crouched and grounded (m/s). Airborne movement keeps the normal walk/sprint speed.")]
 		public float CrouchSpeed = 1.2f;
@@ -286,6 +296,12 @@ namespace Starter.Shooter
 		private NetworkBool _airSprintCarry { get; set; }
 		[Networked]
 		private TickTimer _staminaRegenTimer { get; set; }
+		// Fastest downward speed (m/s, positive while descending) seen during the current fall. Reset on landing.
+		[Networked]
+		private float _fallPeakDownSpeed { get; set; }
+		// KCC grounded state at the end of the previous fall-damage tick, so we can detect the airborne→grounded edge.
+		[Networked]
+		private NetworkBool _wasGroundedForFall { get; set; }
 
 		/// <summary>The seat the player is currently in (driver or passenger), or null if on foot. Set by <see cref="Seat.RPC_RequestEnter"/> on state authority.</summary>
 		[Networked, OnChangedRender(nameof(OnInCurrentSeatChanged))]
@@ -569,6 +585,8 @@ namespace Starter.Shooter
 			_wasSprinting = false;
 			_airSprintCarry = false;
 			_staminaRegenTimer = default;
+			_fallPeakDownSpeed = 0f;
+			_wasGroundedForFall = true;
 
 			IsDowned = false;
 			DownedTimeRemaining = 0f;
@@ -909,6 +927,9 @@ namespace Starter.Shooter
 				// Stop jumping
 				_isJumping = false;
 			}
+
+			// Landing damage — runs after movement so KCC.RealVelocity reflects this tick's fall speed.
+			ProcessFallDamage();
 
 			// Pre-round lockdown: keep the player inside their spawn area until the round begins (everyone loaded in).
 			ApplySpawnConfinement();
@@ -2411,6 +2432,50 @@ namespace Starter.Shooter
 			if (castDistance <= 0f) return false;
 			int mask = Physics.DefaultRaycastLayers & ~(1 << gameObject.layer);
 			return Physics.SphereCast(origin, CrouchStandCheckRadius, Vector3.up, out _, castDistance, mask, QueryTriggerInteraction.Ignore);
+		}
+
+		// Tracks the player's fall speed and applies damage on the airborne→grounded transition. State-authority
+		// only — fall damage is unattributed environmental damage (Health.TakeHit(int) → PlayerRef.None), so it
+		// bypasses the PvP phase/team gate and lands in any phase. Suppressed while climbing, mantling, grappling,
+		// seated, sleeping, downed, ragdolled, or dead — none of those count as a free fall.
+		private void ProcessFallDamage()
+		{
+			if (HasStateAuthority == false || EnableFallDamage == false) return;
+
+			bool tracking = Health.IsAlive
+				&& RagdollState == ERagdollState.Normal
+				&& IsClimbing == false && IsMantling == false && IsGrappling == false
+				&& IsSeated == false && IsSleeping == false && IsDowned == false;
+
+			if (tracking == false)
+			{
+				// In a non-falling state — forget any accumulated fall and don't register a landing edge.
+				_fallPeakDownSpeed = 0f;
+				_wasGroundedForFall = KCC.IsGrounded;
+				return;
+			}
+
+			bool grounded = KCC.IsGrounded;
+			if (grounded == false)
+			{
+				// Airborne: remember the fastest descent speed seen this fall.
+				float downSpeed = -KCC.RealVelocity.y;
+				if (downSpeed > _fallPeakDownSpeed)
+					_fallPeakDownSpeed = downSpeed;
+			}
+			else
+			{
+				// Just touched down? Convert peak descent speed into damage above the safe threshold.
+				if (_wasGroundedForFall == false && _fallPeakDownSpeed > SafeFallSpeed && LethalFallSpeed > SafeFallSpeed)
+				{
+					float t = Mathf.InverseLerp(SafeFallSpeed, LethalFallSpeed, _fallPeakDownSpeed);
+					int damage = Mathf.Max(1, Mathf.RoundToInt(t * MaxFallDamage));
+					Health.TakeHit(damage);
+				}
+				_fallPeakDownSpeed = 0f;
+			}
+
+			_wasGroundedForFall = grounded;
 		}
 
 		private void MovePlayer(Vector3 desiredMoveVelocity, float jumpImpulse)

@@ -24,8 +24,6 @@ namespace Starter
 		public int MaxPlayerCount = 8;
 
 		[Header("Debug")]
-		[Tooltip("For debug purposes it is possible to force single-player game (starts faster)")]
-		public bool ForceSinglePlayer;
 		[Tooltip("Auto-invoke StartGame() on scene load so you don't have to click Start every iteration. Only fires once per app session, so explicit Disconnect still works. Ignored when the game scene was entered from the menu/lobby (a persistent NetworkLauncher already owns the connection) — it only kicks in when the game scene is loaded directly with no launcher (dev press-Play).")]
 		public bool AutoStart = true;
 
@@ -60,11 +58,10 @@ namespace Starter
 		void IMenuScreen.CloseFromMenu() => HidePause();
 
 		/// <summary>
-		/// Editor-only one-shot override set by the "Play Single Player" toolbar button
-		/// (see <c>SinglePlayerToolbarButton</c>). It lets that button force isolated-host mode for a single
-		/// Play session via the editor's SessionState — without writing the serialized <see cref="ForceSinglePlayer"/>
-		/// field, so the scene is never dirtied. The button clears it again when Play mode exits, so the normal
-		/// Play button is unaffected. Keep the key string in sync with the toolbar script.
+		/// Editor-only flag — the single source for forcing isolated-host ("single player") mode. Set in the editor's
+		/// SessionState by the "Play Single Player" toolbar button (<c>SinglePlayerToolbarButton</c>) and the Happy Hub
+		/// Testing tab (<c>HappyTestLauncher</c>); both clear it again when Play mode exits, so a normal Play press is
+		/// unaffected and the scene is never dirtied. Keep the key string in sync with those scripts.
 		/// </summary>
 #if UNITY_EDITOR
 		private static bool EditorSinglePlayerOverride =>
@@ -105,7 +102,7 @@ namespace Starter
 			//   * random, unguessable session name (no one can target it by name),
 			//   * IsVisible = false (hidden from the lobby list, so AutoHostOrClient matchmaking never finds it),
 			//   * IsOpen = false (closed to joins even if someone learned the name).
-			var isolatedHost = Application.isEditor && (ForceSinglePlayer || EditorSinglePlayerOverride);
+			var isolatedHost = Application.isEditor && EditorSinglePlayerOverride;
 
 			var startArguments = new StartGameArgs()
 			{

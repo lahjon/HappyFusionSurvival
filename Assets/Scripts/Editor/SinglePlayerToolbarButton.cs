@@ -11,9 +11,9 @@ namespace Starter.Shooter.EditorTools
 	/// <summary>
 	/// Adds two play buttons to the main editor toolbar's centre cluster, next to the standard Play controls:
 	///
-	///   • "Solo"      — enters Play mode with <see cref="UIGameMenu.ForceSinglePlayer"/> forced on (the
-	///                    isolated-host path in <see cref="UIGameMenu.StartGame"/>), starting from whatever
-	///                    scene is currently open.
+	///   • "Solo"      — enters Play mode with the isolated-host path forced on via the <c>HFS.ForceSinglePlayer</c>
+	///                    SessionState flag (read by <c>UIGameMenu.EditorSinglePlayerOverride</c> in
+	///                    <see cref="UIGameMenu.StartGame"/>), starting from whatever scene is currently open.
 	///   • "Main Menu" — enters Play mode starting from the <c>00_MainMenu</c> scene (the lobby), regardless of
 	///                    which scene is open, via <see cref="EditorSceneManager.playModeStartScene"/>. The
 	///                    open scene is left untouched, and the start-scene override is cleared on exit.
@@ -79,7 +79,7 @@ namespace Starter.Shooter.EditorTools
 		{
 			var icon = EditorGUIUtility.IconContent("PlayButton").image as Texture2D;
 			var content = new MainToolbarContent("Solo", icon,
-				"Play Single Player — enters Play mode with UIGameMenu.ForceSinglePlayer on (isolated host), applying the " +
+				"Play Single Player — enters Play mode in isolated-host mode, applying the " +
 				"Happy Hub Testing-tab scenario (team size, bots, loadout, phase).");
 			return new MainToolbarButton(content, OnSoloClicked);
 		}

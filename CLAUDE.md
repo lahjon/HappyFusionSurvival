@@ -36,7 +36,7 @@ Anything that changes between phases (vendors, damage rules, music, lighting, AI
 No CLI build. Open in Unity 6000.4.8f1.
 
 - **Build settings:** `00_MainMenu` (index 0, entry) + `HappyTown` (index 1, main gameplay scene).
-- **Multi-client:** Fusion Multiplay/ParrelSync. `UIGameMenu.ForceSinglePlayer` flips `GameMode.Single` ↔ `GameMode.AutoHostOrClient`.
+- **Multi-client:** Fusion Multiplay/ParrelSync. Isolated-host ("single player") mode is toggled only from the editor via the `HFS.ForceSinglePlayer` SessionState flag (set by the Solo toolbar button / Happy Hub Testing tab, read by `UIGameMenu.EditorSinglePlayerOverride`) — it spins up a hidden, closed cloud Host instead of `GameMode.AutoHostOrClient`. No serialized inspector toggle.
 - **Tests:** none configured. Don't claim tests pass; verify via the Editor.
 - `run-loop.ps1` pipes `prompt.md` into the Claude CLI for overnight generation — not a build script.
 

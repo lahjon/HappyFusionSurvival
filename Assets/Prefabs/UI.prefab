@@ -3479,10 +3479,6 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 5137055805878071812, guid: 8ef8c98852a6f494c97ab4073099c9a6, type: 3}
-      propertyPath: ForceSinglePlayer
-      value: 1
-      objectReference: {fileID: 0}
     - target: {fileID: 8200954117154530962, guid: 8ef8c98852a6f494c97ab4073099c9a6, type: 3}
       propertyPath: m_Name
       value: UIGameMenu

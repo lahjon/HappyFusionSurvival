@@ -108,11 +108,11 @@ MeshCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 5
-  m_Convex: 0
+  m_Convex: 1
   m_CookingOptions: 30
   m_Mesh: {fileID: 4300002, guid: 858a8a2fe5afd5b46a87e62a939cf025, type: 3}
 --- !u!114 &980568173802990508
@@ -125,20 +125,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 33fbcde1edeb15a44a6c79075932e898, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ContainerOpenable
   _interactRange: 2.5
   _doorIsInteractable: 1
-  _interactionPoint: {fileID: 0}
+  _interactionPoint: {fileID: 2405629784174836905}
   _openLabel: Open
   _closeLabel: Close
-  _door: {fileID: 0}
+  _door: {fileID: 8403546243570465797}
   _doorClosedEuler: {x: 0, y: 0, z: 0}
   _doorOpenEuler: {x: 0, y: -110, z: 0}
   _doorLerpSpeed: 10
   _extraDoors: []
-  _interiorVolume: {fileID: 0}
-  _light: {fileID: 0}
+  _interiorVolume: {fileID: 2980928323253923259}
+  _light: {fileID: 655758078123657491}
   _lightWhenOpen: 1
   _openClip: {fileID: 0}
   _closeClip: {fileID: 0}
@@ -243,9 +243,9 @@ Light:
   m_Enabled: 1
   serializedVersion: 13
   m_Type: 2
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_Intensity: 1
-  m_Range: 10
+  m_Color: {r: 1, g: 0.95, b: 0.82, a: 1}
+  m_Intensity: 1.6
+  m_Range: 0.9
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
   m_CookieSize2D: {x: 0.5, y: 0.5}
@@ -533,11 +533,11 @@ MeshCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 5
-  m_Convex: 0
+  m_Convex: 1
   m_CookingOptions: 30
   m_Mesh: {fileID: 4300004, guid: 858a8a2fe5afd5b46a87e62a939cf025, type: 3}
 --- !u!114 &9125776573379347941
@@ -550,20 +550,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 33fbcde1edeb15a44a6c79075932e898, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ContainerOpenable
   _interactRange: 2.5
   _doorIsInteractable: 1
-  _interactionPoint: {fileID: 0}
+  _interactionPoint: {fileID: 2826786391162769322}
   _openLabel: Open
   _closeLabel: Close
-  _door: {fileID: 0}
+  _door: {fileID: 8226445006259195310}
   _doorClosedEuler: {x: 0, y: 0, z: 0}
   _doorOpenEuler: {x: 0, y: -110, z: 0}
   _doorLerpSpeed: 10
   _extraDoors: []
-  _interiorVolume: {fileID: 0}
-  _light: {fileID: 0}
+  _interiorVolume: {fileID: 7893240062878930898}
+  _light: {fileID: 4869413453654318386}
   _lightWhenOpen: 1
   _openClip: {fileID: 0}
   _closeClip: {fileID: 0}
@@ -677,7 +677,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.8, y: 1.2, z: 0.4}
+  m_Size: {x: 0.8, y: 0.85, z: 0.35}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &8651831266642741077
 GameObject:
@@ -868,9 +868,9 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
+  m_Size: {x: 0.8, y: 0.7, z: 0.35}
   m_Center: {x: 0, y: 0, z: 0}

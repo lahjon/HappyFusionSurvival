@@ -9,8 +9,8 @@ EditorBuildSettings:
     path: Assets/Scenes/00_MainMenu/00_MainMenu.unity
     guid: d198b8844fa7b0b428305da711f39bc4
   - enabled: 1
-    path: Assets/Scenes/03_Shooter.unity
-    guid: 48eca0ea64af48643bf103efe83d23af
+    path: Assets/Scenes/HappyTown.unity
+    guid: 8702d184615e27f48b791479e9db6b25
   m_configObjects:
     com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
