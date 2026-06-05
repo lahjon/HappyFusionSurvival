@@ -56,6 +56,7 @@ namespace TestCloneKit
 			EditorGUILayout.Space(8);
 			DrawChanges();
 			EditorGUILayout.Space(8);
+			DrawBaseline();
 			DrawPullBack();
 			EditorGUILayout.Space(8);
 			DrawQueue();
@@ -67,8 +68,8 @@ namespace TestCloneKit
 			}
 		}
 
-		private void OnEnable() => RefreshQueue();
-		private void OnFocus() => RefreshQueue();
+		private void OnEnable() { RefreshQueue(); RefreshBaseline(); }
+		private void OnFocus() { RefreshQueue(); RefreshBaseline(); }
 
 		private void OnInspectorUpdate()
 		{
@@ -202,6 +203,65 @@ namespace TestCloneKit
 				if (!TestCloneService.CloneExists)
 					EditorGUILayout.HelpBox("Create the clone before syncing.", MessageType.None);
 			}
+		}
+
+		private int _behind = -1;
+		private string _cloneHead = "", _mainHead = "";
+
+		private void RefreshBaseline()
+		{
+			if (TestCloneService.CloneExists && !TestCloneService.IsLinkedWorktree)
+			{
+				_behind = TestCloneService.CommitsBehind();
+				_cloneHead = TestCloneService.CloneHead();
+				_mainHead = TestCloneService.MainHead();
+			}
+			else _behind = -1;
+		}
+
+		private void DrawBaseline()
+		{
+			if (!TestCloneService.CloneExists || TestCloneService.IsLinkedWorktree) return;
+			if (_behind < 0) RefreshBaseline();
+
+			EditorGUILayout.LabelField("Baseline", EditorStyles.boldLabel);
+
+			var inSync = _behind == 0;
+			EditorGUILayout.HelpBox(inSync
+				? $"Clone baseline matches main (both at {_mainHead}). Everything not explicitly synced is identical."
+				: $"Clone is {_behind} commit(s) behind main (clone {_cloneHead} · main {_mainHead}). Committed work in main " +
+				  "after the clone was made is NOT in the clone — re-baseline so tests reflect main.",
+				inSync ? MessageType.None : MessageType.Warning);
+
+			using (new EditorGUILayout.HorizontalScope())
+			{
+				if (GUILayout.Button("Refresh", GUILayout.Width(80))) RefreshBaseline();
+				using (new EditorGUI.DisabledScope(inSync))
+				{
+					if (GUILayout.Button($"Re-baseline clone → main ({_mainHead})"))
+					{
+						// Guard: re-baseline discards the clone's own tracked changes. Warn if the clone has unsynced edits.
+						var cloneEdits = TestCloneService.RefreshCloneChanges(out _);
+						var extra = cloneEdits.Count > 0
+							? $"\n\n⚠ The clone has {cloneEdits.Count} uncommitted change(s) that will be DISCARDED. Pull them back first if you want to keep them."
+							: "";
+						if (EditorUtility.DisplayDialog("Re-baseline clone?",
+							$"Reset the clone's tracked files to main's HEAD ({_mainHead}) via git reset --hard.{extra}",
+							"Re-baseline", "Cancel"))
+						{
+							if (TestCloneService.Rebaseline(out var err))
+							{
+								AssetDatabase.Refresh();
+								SetMessage($"Clone re-baselined to {_mainHead}. Reopen/refresh the clone editor to import the updated baseline.", MessageType.Info);
+								_cloneChanges.Clear();
+							}
+							else SetMessage(err, MessageType.Error);
+							RefreshBaseline();
+						}
+					}
+				}
+			}
+			EditorGUILayout.Space(8);
 		}
 
 		private void DrawPullBack()

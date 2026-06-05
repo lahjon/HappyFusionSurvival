@@ -66,6 +66,17 @@ powershell -File .claude/skills/clone-test/scripts/enqueue.ps1 -Label my-change 
 The queue location is shared via the **main** worktree, so the clone reads it no matter which folder it lives in. The
 `.clone-test-queue/` folder is git-ignored.
 
+## Keeping the clone in sync (baseline)
+
+The clone is created from a commit and lives on its own branch, so as **main** advances, the clone's *baseline* (everything
+you didn't explicitly sync) goes stale — and tests there stop reflecting main. The **Baseline** section of the window
+shows how many commits the clone is behind and offers **Re-baseline clone → main**, which resets the clone's tracked
+files to main's current HEAD (`git reset --hard`). It warns first if the clone has unsynced edits (which a reset would
+discard — pull them back first). Re-baselining also brings the clone's copy of this plugin back in step with main.
+
+Push (sync/queue) handles in-progress *uncommitted* changes; re-baseline handles *committed* drift. Between the two, the
+clone never silently diverges from main.
+
 ## Pulling clone edits back to main
 
 The clone is a normal git worktree, so anything you change *inside* it (tweak the scene, adjust values, edit a script)

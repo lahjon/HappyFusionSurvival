@@ -1,6 +1,6 @@
 {
   "name": "com.gard.testclonekit",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "displayName": "Test Clone Kit",
   "description": "Open a second, isolated Unity session backed by a git worktree, and selectively sync changes both ways: push chosen changes (or queued jobs the clone drains one at a time with auto-Play) into it, and pull edits made inside the clone back into main as uncommitted changes to review and commit. Play-test one thing in isolation while other tools or agents keep editing the main project. Editor-only, zero runtime footprint, no third-party dependencies.",
   "unity": "2021.3",

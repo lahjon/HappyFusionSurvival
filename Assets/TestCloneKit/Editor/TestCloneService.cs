@@ -244,6 +244,42 @@ namespace TestCloneKit
 		}
 
 		// =====================================================================
+		// Baseline drift — keep the clone's committed baseline in step with main
+		// =====================================================================
+
+		private static string ShortHead(string workDir)
+		{
+			var (code, outp, _) = Run("git", "rev-parse --short HEAD", workDir);
+			return code == 0 ? outp.Trim() : "?";
+		}
+
+		public static string MainHead() => ShortHead(MainWorktree());
+		public static string CloneHead() => CloneExists ? ShortHead(ClonePath) : "—";
+
+		/// <summary>How many commits the clone's branch is behind the main worktree's HEAD (0 = baseline in sync).</summary>
+		public static int CommitsBehind()
+		{
+			if (!CloneExists) return 0;
+			var (c1, cloneCommit, _) = Run("git", "rev-parse HEAD", ClonePath);
+			if (c1 != 0) return 0;
+			var (c2, count, _) = Run("git", $"rev-list --count {cloneCommit.Trim()}..HEAD", MainWorktree());
+			return c2 == 0 && int.TryParse(count.Trim(), out var n) ? n : 0;
+		}
+
+		/// <summary>Reset the clone's tracked files to main's current HEAD commit, so its baseline matches main again.
+		/// Discards the clone's own committed/working tracked changes — caller must confirm + check for unsynced edits.</summary>
+		public static bool Rebaseline(out string error)
+		{
+			error = null;
+			if (!CloneExists) { error = "Clone doesn't exist."; return false; }
+			var (c1, head, e1) = Run("git", "rev-parse HEAD", MainWorktree());
+			if (c1 != 0) { error = "Could not read main HEAD:\n" + e1; return false; }
+			var (c2, _, e2) = Run("git", $"reset --hard {head.Trim()}", ClonePath);
+			if (c2 != 0) { error = "git reset failed in clone:\n" + e2; return false; }
+			return true;
+		}
+
+		// =====================================================================
 		// Reverse: pull changes made inside the clone back into the main working tree
 		// =====================================================================
 
