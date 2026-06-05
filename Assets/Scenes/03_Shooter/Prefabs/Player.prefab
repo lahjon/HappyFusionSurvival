@@ -684,7 +684,7 @@ MonoBehaviour:
   Animator: {fileID: 0}
   BodyAnimator: {fileID: 659722049481221040}
   NoHeadAnimator: {fileID: 2912222766608132034}
-  ShowBothBodiesDebug: 1
+  ShowBothBodiesDebug: 0
   UseRightArmIK: 1
   UseLeftArmIK: 0
   UseIKOnlyOnFullBody: 0
@@ -1143,6 +1143,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5919370ffdeff1142a99c451c3a826d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerEmotes
+  Emotes:
+  - {fileID: 11400000, guid: 9cfa72d1eb360b2498d92ab7474167d2, type: 2}
+  - {fileID: 11400000, guid: 9b34dfb8447cda3478d5caefcc5073a0, type: 2}
+  - {fileID: 11400000, guid: c2a495fa165edaf4b9a42b2e1d7ac872, type: 2}
   _emoteWheelPrefab: {fileID: 1634922898309468765, guid: ed7511e798992fb4aa64b6c9a618661b, type: 3}
 --- !u!1 &3226221424221943437
 GameObject:

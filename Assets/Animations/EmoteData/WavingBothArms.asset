@@ -15,3 +15,9 @@ MonoBehaviour:
   Clip: {fileID: 7400000, guid: 74b8cae699e92364b9c7bd1846f0f8cc, type: 2}
   DisplayName: Extra Happy Wave
   Icon: {fileID: 21300000, guid: f6f431b8bf0c54364bdc5d03328fa33c, type: 3}
+  EmoteAudio: {fileID: 8300000, guid: 9e592953333d20240b59488e3f5e8462, type: 3}
+  AudioDelay: 0.5
+  AudioVolume: 1
+  ShowFullBody: 1
+  ThirdPersonOffset: {x: 0, y: 0.25, z: -2}
+  CameraTransitionSpeed: 10

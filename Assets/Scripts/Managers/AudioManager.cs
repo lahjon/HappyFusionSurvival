@@ -368,6 +368,9 @@ namespace Starter.Shooter
         }
 
         // ── SFX — key overloads ────────────────────────────────────────────────
+        /// <summary>Returns true if the given key is registered in the SFX library.</summary>
+        public bool HasSFX(string key) => sfxDict.ContainsKey(key);
+
         public AudioSource PlaySFX(string key, Vector3 position)
         {
             if (!sfxDict.TryGetValue(key, out var e))

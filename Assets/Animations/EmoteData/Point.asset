@@ -15,3 +15,6 @@ MonoBehaviour:
   Clip: {fileID: 7400000, guid: cedb6e56e10c2414a86fa0c50082af7b, type: 2}
   DisplayName: Point
   Icon: {fileID: 21300000, guid: 06613161e55d14d448f677acea5ac65b, type: 3}
+  ShowFullBody: 1
+  ThirdPersonOffset: {x: 0, y: 0.25, z: -2}
+  CameraTransitionSpeed: 10

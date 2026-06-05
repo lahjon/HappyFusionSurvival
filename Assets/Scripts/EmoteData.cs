@@ -16,9 +16,29 @@ public class EmoteData : ScriptableObject
     [Tooltip("Icon shown on the emote wheel.")]
     public Sprite Icon;
 
+    [Header("Audio")]
+    [Tooltip("Optional sound to play when the emote starts.")]
+    public AudioClip EmoteAudio;
+    [Tooltip("Delay in seconds before the audio plays after the emote starts.")]
+    public float AudioDelay = 0f;
+    [Tooltip("Playback volume (0–1).")]
+    [Range(0f, 1f)] public float AudioVolume = 1f;
+
+    [Header("Camera")]
+    [Tooltip("When true, the camera pulls back to show the full body during the emote.")]
+    public bool ShowFullBody = false;
+    [Tooltip("Local-space offset applied to the camera while ShowFullBody is active (e.g. 0, 1, -4 pulls back and up).")]
+    public Vector3 ThirdPersonOffset = new Vector3(0f, 0.25f, -3f);
+    [Tooltip("How fast the camera transitions in and out of the third-person offset (units/sec).")]
+    public float CameraTransitionSpeed = 10f;
+
+    [Header("Playback")]
+    [Tooltip("Playback speed of the animation. 1 = normal, 2 = double speed, 0.5 = half speed.")]
+    [Min(0.01f)] public float AnimationSpeed = 1f;
+
     /// <summary>Animator trigger name — matches the clip name.</summary>
     public string TriggerName => Clip != null ? Clip.name : string.Empty;
 
-    /// <summary>Full duration of the clip in seconds.</summary>
-    public float Duration => Clip != null ? Clip.length : 0f;
+    /// <summary>Actual playback duration accounting for AnimationSpeed.</summary>
+    public float Duration => Clip != null ? Clip.length / AnimationSpeed : 0f;
 }
