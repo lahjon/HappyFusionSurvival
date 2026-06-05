@@ -25,7 +25,7 @@ Transform:
   m_GameObject: {fileID: 132563530780632173}
   serializedVersion: 2
   m_LocalRotation: {x: -1.0587912e-22, y: -0, z: -0.000000011175871, w: 1}
-  m_LocalPosition: {x: 0.33, y: -0.19999999, z: 0.45}
+  m_LocalPosition: {x: 0.4, y: -0.19999999, z: 0.45}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -704,6 +704,10 @@ MonoBehaviour:
   JumpImpulse: 10
   UpGravity: -25
   DownGravity: -40
+  EnableFallDamage: 1
+  SafeFallSpeed: 16
+  LethalFallSpeed: 32
+  MaxFallDamage: 10
   CrouchSpeed: 1.2
   CrouchHeight: 1
   CrouchCameraDrop: -0.5
@@ -1708,7 +1712,7 @@ Transform:
   m_GameObject: {fileID: 5599681242508085420}
   serializedVersion: 2
   m_LocalRotation: {x: 0.27161905, y: -0.20705056, z: 0.4757781, w: 0.8105482}
-  m_LocalPosition: {x: 0.33, y: -0.2, z: 0.45}
+  m_LocalPosition: {x: 0.4, y: -0.2, z: 0.45}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -12607,8 +12611,14 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects: [{targetCorrespondingSourceObject: {fileID: 6932067373834403659, guid: 82684bfcef0928e47bb81919ca209f33, type: 3}, insertIndex: -1, addedObject: {fileID: 3243112045813081417}}]
-    m_AddedComponents: [{targetCorrespondingSourceObject: {fileID: 7190023111455513082, guid: 82684bfcef0928e47bb81919ca209f33, type: 3}, insertIndex: -1, addedObject: {fileID: 5237362963080302318}}]
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 6932067373834403659, guid: 82684bfcef0928e47bb81919ca209f33, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 3243112045813081417}
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 7190023111455513082, guid: 82684bfcef0928e47bb81919ca209f33, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5237362963080302318}
   m_SourcePrefab: {fileID: 100100000, guid: 82684bfcef0928e47bb81919ca209f33, type: 3}
 --- !u!95 &659722049481221040 stripped
 Animator:
