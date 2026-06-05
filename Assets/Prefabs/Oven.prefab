@@ -262,6 +262,7 @@ MonoBehaviour:
   _extraDoors: []
   _interiorVolume: {fileID: 7453454025156583307}
   _light: {fileID: 4056552271697562597}
+  _lightWhenOpen: 1
   _openClip: {fileID: 0}
   _closeClip: {fileID: 0}
   _doorVolume: 1
@@ -276,6 +277,7 @@ MonoBehaviour:
   _finishClip: {fileID: 0}
   _finishVolume: 1
   _activeWhileCooking: []
+  _cookWithDoorOpen: 1
   _IsCooking:
     _value: 0
 --- !u!114 &5016609030509920265

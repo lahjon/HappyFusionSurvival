@@ -29,7 +29,9 @@ namespace Starter.Shooter
 	/// (adds a heat/cook cycle). Subclasses override the protected hooks to layer behaviour on the
 	/// single networked open flag; they must call <c>base.Spawned()</c> / <c>base.Despawned()</c>.
 	/// </summary>
-	[RequireComponent(typeof(NetworkObject))]
+	// No [RequireComponent(NetworkObject)]: an appliance's NetworkObject may live on an ANCESTOR, not this
+	// GameObject — e.g. a multi-door fridge puts one ContainerOpenable per door (child) all sharing the
+	// root's single NetworkObject. Ensure the prefab root (or an ancestor) carries a NetworkObject.
 	public abstract class OpenableAppliance : NetworkBehaviour, IInteractable, IInteractionPromptAnchor
 	{
 		// Every spawned appliance registers here so the local InteractionScanner can ask whether a
@@ -74,6 +76,9 @@ namespace Starter.Shooter
 		[SerializeField] private BoxCollider _interiorVolume;
 		[Tooltip("Interior light, on while LightShouldBeOn (open by default).")]
 		[SerializeField] protected Light _light;
+		[Tooltip("ON (fridge/oven): the interior light comes on whenever the door is open. OFF (microwave): the " +
+		         "light only lights while the appliance is running, not when the door opens.")]
+		[SerializeField] private bool _lightWhenOpen = true;
 
 		[Header("Audio")]
 		[Tooltip("One-shot clip played when the door opens.")]
@@ -240,7 +245,7 @@ namespace Starter.Shooter
 		protected virtual void OnOpenStateRendered(bool isOpen) { }
 
 		/// <summary>Whether the interior light should be lit. Open by default; cooking appliances also light while running.</summary>
-		protected virtual bool LightShouldBeOn => IsOpen;
+		protected virtual bool LightShouldBeOn => _lightWhenOpen && IsOpen;
 
 		/// <summary>Re-apply the interior light from <see cref="LightShouldBeOn"/>. Subclasses call this when their state changes.</summary>
 		protected void ApplyLight()

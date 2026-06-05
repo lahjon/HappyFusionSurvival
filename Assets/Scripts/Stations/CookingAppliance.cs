@@ -29,6 +29,9 @@ namespace Starter.Shooter
 		[Range(0f, 1f)] [SerializeField] private float _finishVolume = 1f;
 		[Tooltip("Optional objects enabled only while cooking — heating coils, a glow, the turntable, etc.")]
 		[SerializeField] private GameObject[] _activeWhileCooking;
+		[Tooltip("ON (oven): can start/keep heating with the door open. OFF (microwave): door must be shut to " +
+		         "start, and opening it mid-cycle aborts the cook (the safety cut-off).")]
+		[SerializeField] private bool _cookWithDoorOpen = false;
 
 		/// <summary>True while a cook cycle is running. State authority writes; peers render via OnChangedRender.</summary>
 		[Networked, OnChangedRender(nameof(OnCookingRender))]
@@ -73,7 +76,7 @@ namespace Starter.Shooter
 				return;
 			}
 
-			if (IsOpen) return; // safety interlock — won't run with the door open
+			if (IsOpen && !_cookWithDoorOpen) return; // microwave safety interlock — won't run with the door open
 			IsCooking = true;
 			CookTimer = TickTimer.CreateFromSeconds(Runner, _cookSeconds);
 		}
@@ -81,7 +84,7 @@ namespace Starter.Shooter
 		// Opening the door mid-cook cuts the cycle short (no finish ding), like the real safety cut-off.
 		protected override void OnOpenToggledAuthority()
 		{
-			if (IsOpen && IsCooking) StopCook();
+			if (IsOpen && IsCooking && !_cookWithDoorOpen) StopCook();
 		}
 
 		private void StopCook()
@@ -104,7 +107,7 @@ namespace Starter.Shooter
 
 		// ── Render ───────────────────────────────────────────────────────────────
 		// Interior light is on while open OR cooking (a microwave/oven lights up when you open it AND while it runs).
-		protected override bool LightShouldBeOn => IsOpen || IsCooking;
+		protected override bool LightShouldBeOn => base.LightShouldBeOn || IsCooking;
 
 		private void OnCookingRender()
 		{

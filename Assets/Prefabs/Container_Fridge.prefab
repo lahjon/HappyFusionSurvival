@@ -11,6 +11,9 @@ GameObject:
   - component: {fileID: 8403546243570465797}
   - component: {fileID: 8532689163676018029}
   - component: {fileID: 2057435805760800950}
+  - component: {fileID: 7738730100522993816}
+  - component: {fileID: 980568173802990508}
+  - component: {fileID: 8347410640643342683}
   m_Layer: 0
   m_Name: SM_Prop_Kitchen_Fridge_01_Door_01
   m_TagString: Untagged
@@ -90,6 +93,83 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!64 &7738730100522993816
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 258121493355080906}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 4300002, guid: 858a8a2fe5afd5b46a87e62a939cf025, type: 3}
+--- !u!114 &980568173802990508
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 258121493355080906}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 33fbcde1edeb15a44a6c79075932e898, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ContainerOpenable
+  _interactRange: 2.5
+  _doorIsInteractable: 1
+  _interactionPoint: {fileID: 0}
+  _openLabel: Open
+  _closeLabel: Close
+  _door: {fileID: 0}
+  _doorClosedEuler: {x: 0, y: 0, z: 0}
+  _doorOpenEuler: {x: 0, y: -110, z: 0}
+  _doorLerpSpeed: 10
+  _extraDoors: []
+  _interiorVolume: {fileID: 0}
+  _light: {fileID: 0}
+  _lightWhenOpen: 1
+  _openClip: {fileID: 0}
+  _closeClip: {fileID: 0}
+  _doorVolume: 1
+  _hostValidationRange: 2.5
+  _onOpenChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  _IsOpen:
+    _value: 0
+--- !u!114 &8347410640643342683
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 258121493355080906}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a01df1db20125445860eb1cc6f7f19f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Interactions.InteractionPrompt
+  LocalOffset: {x: 0, y: 0, z: 0}
+  CenterLabelText: 
+  SuppressLabel: 0
+  HideWhenLocked: 0
+  ActiveColor: {r: 0.3, g: 0.65, b: 1, a: 1}
+  InactiveColor: {r: 0.3, g: 0.65, b: 1, a: 0.35}
+  HoldColor: {r: 1, g: 0.85, b: 0.2, a: 1}
+  InteractSound: {fileID: 0}
+  InteractVolume: 1
 --- !u!1 &946294289387914291
 GameObject:
   m_ObjectHideFlags: 0
@@ -259,6 +339,9 @@ GameObject:
   - component: {fileID: 8226445006259195310}
   - component: {fileID: 6778335974738602288}
   - component: {fileID: 4981863927722145583}
+  - component: {fileID: 8916221598835971188}
+  - component: {fileID: 9125776573379347941}
+  - component: {fileID: 8299500606105059170}
   m_Layer: 0
   m_Name: SM_Prop_Kitchen_Fridge_01_Door_02
   m_TagString: Untagged
@@ -338,6 +421,83 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!64 &8916221598835971188
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5322023798395352233}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 5
+  m_Convex: 0
+  m_CookingOptions: 30
+  m_Mesh: {fileID: 4300004, guid: 858a8a2fe5afd5b46a87e62a939cf025, type: 3}
+--- !u!114 &9125776573379347941
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5322023798395352233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 33fbcde1edeb15a44a6c79075932e898, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ContainerOpenable
+  _interactRange: 2.5
+  _doorIsInteractable: 1
+  _interactionPoint: {fileID: 0}
+  _openLabel: Open
+  _closeLabel: Close
+  _door: {fileID: 0}
+  _doorClosedEuler: {x: 0, y: 0, z: 0}
+  _doorOpenEuler: {x: 0, y: -110, z: 0}
+  _doorLerpSpeed: 10
+  _extraDoors: []
+  _interiorVolume: {fileID: 0}
+  _light: {fileID: 0}
+  _lightWhenOpen: 1
+  _openClip: {fileID: 0}
+  _closeClip: {fileID: 0}
+  _doorVolume: 1
+  _hostValidationRange: 2.5
+  _onOpenChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  _IsOpen:
+    _value: 0
+--- !u!114 &8299500606105059170
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5322023798395352233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a01df1db20125445860eb1cc6f7f19f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Interactions.InteractionPrompt
+  LocalOffset: {x: 0, y: 0, z: 0}
+  CenterLabelText: 
+  SuppressLabel: 0
+  HideWhenLocked: 0
+  ActiveColor: {r: 0.3, g: 0.65, b: 1, a: 1}
+  InactiveColor: {r: 0.3, g: 0.65, b: 1, a: 0.35}
+  HoldColor: {r: 1, g: 0.85, b: 0.2, a: 1}
+  InteractSound: {fileID: 0}
+  InteractVolume: 1
 --- !u!1 &7023887841961012778
 GameObject:
   m_ObjectHideFlags: 0
@@ -404,8 +564,6 @@ GameObject:
   - component: {fileID: 5531423636512935554}
   - component: {fileID: 446843071283161180}
   - component: {fileID: 3944393084878728535}
-  - component: {fileID: 6671718219477436441}
-  - component: {fileID: 968615902004669803}
   m_Layer: 0
   m_Name: Container_Fridge
   m_TagString: Untagged
@@ -529,60 +687,6 @@ MonoBehaviour:
   Flags: 262145
   NestedObjects: []
   NetworkedBehaviours:
-  - {fileID: 6671718219477436441}
+  - {fileID: 980568173802990508}
+  - {fileID: 9125776573379347941}
   ForceRemoteRenderTimeframe: 0
---- !u!114 &6671718219477436441
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8651831266642741077}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 33fbcde1edeb15a44a6c79075932e898, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ContainerOpenable
-  _interactRange: 2.5
-  _doorIsInteractable: 1
-  _interactionPoint: {fileID: 2405629784174836905}
-  _openLabel: Open
-  _closeLabel: Close
-  _door: {fileID: 8403546243570465797}
-  _doorClosedEuler: {x: 0, y: 0, z: 0}
-  _doorOpenEuler: {x: 0, y: -110, z: 0}
-  _doorLerpSpeed: 10
-  _extraDoors:
-  - Door: {fileID: 8226445006259195310}
-    ClosedEuler: {x: 0, y: 0, z: 0}
-    OpenEuler: {x: 0, y: -110, z: 0}
-  _interiorVolume: {fileID: 2980928323253923259}
-  _light: {fileID: 655758078123657491}
-  _openClip: {fileID: 0}
-  _closeClip: {fileID: 0}
-  _doorVolume: 1
-  _hostValidationRange: 2.5
-  _onOpenChanged:
-    m_PersistentCalls:
-      m_Calls: []
-  _IsOpen:
-    _value: 0
---- !u!114 &968615902004669803
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8651831266642741077}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6a01df1db20125445860eb1cc6f7f19f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Interactions.InteractionPrompt
-  LocalOffset: {x: 0, y: 0, z: 0}
-  CenterLabelText: 
-  SuppressLabel: 0
-  HideWhenLocked: 0
-  ActiveColor: {r: 0.3, g: 0.65, b: 1, a: 1}
-  InactiveColor: {r: 0.3, g: 0.65, b: 1, a: 0.35}
-  HoldColor: {r: 1, g: 0.85, b: 0.2, a: 1}

@@ -31,6 +31,34 @@ namespace Starter.Shooter.EditorTools
 				Debug.Log("[HappyHub] No saved test config yet — save one from the Testing tab first.");
 		}
 
+		// ---- MCP server ----
+
+		// The MCP For Unity plugin's own EditorPref. Its [InitializeOnLoad] HttpAutoStartHandler reads this on every
+		// editor launch and auto-starts the bridge/server when true — so toggling here is identical to flipping
+		// "Auto-Start on Editor Load" in the plugin's Advanced Settings. Stored as a literal because the key lives in
+		// the plugin's internal EditorPrefKeys class (not visible to this assembly). Requires HTTP transport enabled.
+		private const string McpAutoStartKey = "MCPForUnity.AutoStartOnLoad";
+
+		[TitleGroup("MCP Server")]
+		[InfoBox("Requires the MCP For Unity HTTP transport. The plugin auto-starts the server only when HTTP transport " +
+			"is selected — flip transport in its settings if auto-start doesn't kick in.", InfoMessageType.None,
+			VisibleIf = nameof(AutoStartMcp))]
+		[ShowInInspector, ToggleLeft, LabelText("Auto-Start MCP on Project Open")]
+		[Tooltip("When enabled, the MCP For Unity server/bridge starts automatically every time you open this project.")]
+		private bool AutoStartMcp
+		{
+			get => EditorPrefs.GetBool(McpAutoStartKey, false);
+			set => EditorPrefs.SetBool(McpAutoStartKey, value);
+		}
+
+		[TitleGroup("MCP Server")]
+		[Button("Open MCP For Unity Settings")]
+		private void OpenMcpWindow()
+		{
+			if (!EditorApplication.ExecuteMenuItem("Window/MCP For Unity/Toggle MCP Window"))
+				Debug.LogWarning("[HappyHub] Could not open the MCP For Unity window — is the plugin installed?");
+		}
+
 		private static void OpenRepoFile(string relative)
 		{
 			var path = Path.GetFullPath(Path.Combine(Application.dataPath, "..", relative));
