@@ -50,10 +50,14 @@ public class PlayerEmotes : MonoBehaviour
         if (emote == null || emote.Clip == null || _player == null) return;
         if (_player.IsEmoting) return;
 
+        // Fire locally for immediate response, and via RPC so all other clients see it.
         _player.BodyAnimator?.SetTrigger(emote.TriggerName);
         _player.NoHeadAnimator?.SetTrigger(emote.TriggerName);
         if (_player.BodyAnimator   != null) _player.BodyAnimator.speed   = emote.AnimationSpeed;
         if (_player.NoHeadAnimator != null) _player.NoHeadAnimator.speed = emote.AnimationSpeed;
+
+        int index = System.Array.IndexOf(Emotes, emote);
+        if (index >= 0) _player.TriggerEmoteForAll(index);
 
         if (_restoreCoroutine != null) StopCoroutine(_restoreCoroutine);
         _restoreCoroutine = StartCoroutine(Suppress(emote.Duration, emote));

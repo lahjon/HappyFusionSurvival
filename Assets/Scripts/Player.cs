@@ -383,6 +383,11 @@ namespace Starter.Shooter
 		// Secondary (RMB) attack feedback counter — mirrors _fireCount for the throw swing.
 		[Networked]
 		private int _secondaryFireCount { get; set; }
+		/// <summary>Incremented each time an emote is triggered. OnChangedRender fires SetTrigger on all clients.</summary>
+		[Networked, OnChangedRender(nameof(OnEmoteCountChanged))]
+		private int _emoteCount { get; set; }
+		[Networked]
+		private byte _emoteIndex { get; set; }
 		/// <summary>True while the player holds the aim (ADS) stance with an Aim-mode weapon. Drives
 		/// FOV zoom (local), sway/recoil steadying (PlayerInput), and hitscan spread tightening.</summary>
 		[Networked]
@@ -2264,15 +2269,52 @@ namespace Starter.Shooter
 		/// <summary>True while an emote is playing. Blocks movement and attack input.</summary>
 		public bool IsEmoting { get; private set; }
 
-		/// <summary>Called by PlayerEmotes to play emote audio on all clients by index into the Emotes list.</summary>
+		/// <summary>Called by PlayerEmotes to network the emote animation trigger to all clients.</summary>
+		public void TriggerEmoteForAll(int emoteIndex)
+		{
+			RpcTriggerEmote((byte)emoteIndex);
+		}
+
+		[Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
+		private void RpcTriggerEmote(byte emoteIndex)
+		{
+			_emoteIndex = emoteIndex;
+			_emoteCount++;
+		}
+
+		private void OnEmoteCountChanged()
+		{
+			var emotes = GetComponent<PlayerEmotes>()?.Emotes;
+			if (emotes == null || _emoteIndex >= emotes.Length) return;
+			var emote = emotes[_emoteIndex];
+			if (emote == null) return;
+			BodyAnimator?  .SetTrigger(emote.TriggerName);
+			NoHeadAnimator?.SetTrigger(emote.TriggerName);
+		}
+
+		/// <summary>
+		/// Called by PlayerEmotes to play emote audio.
+		/// Plays locally immediately, then RPC to Others so the sender doesn't hear it twice.
+		/// </summary>
 		public void PlayEmoteAudioForAll(int emoteIndex, float delay)
 		{
+			// Play locally on the emoting client directly.
+			var emotes = GetComponent<PlayerEmotes>()?.Emotes;
+			if (emotes != null && emoteIndex >= 0 && emoteIndex < emotes.Length)
+			{
+				var emote = emotes[emoteIndex];
+				if (emote?.EmoteAudio != null)
+					StartCoroutine(PlayEmoteAudioCoroutine(emote.EmoteAudio, transform.position, emote.AudioVolume, delay));
+			}
+			// Tell all OTHER clients to also play it.
 			RpcPlayEmoteAudio(emoteIndex, delay);
 		}
 
 		[Rpc(RpcSources.InputAuthority, RpcTargets.All)]
 		private void RpcPlayEmoteAudio(int emoteIndex, float delay)
 		{
+			// Sender already played it locally in PlayEmoteAudioForAll — skip to avoid double play.
+			if (HasInputAuthority) return;
 			var emotes = GetComponent<PlayerEmotes>()?.Emotes;
 			if (emotes == null || emoteIndex < 0 || emoteIndex >= emotes.Length) return;
 			var emote = emotes[emoteIndex];
