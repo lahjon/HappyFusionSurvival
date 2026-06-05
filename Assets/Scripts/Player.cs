@@ -966,8 +966,9 @@ namespace Starter.Shooter
 
 			// Per-hand IK toggle — live so each can be flipped independently during play.
 
-			// IK is suppressed while climbing or during an emote.
-			bool ikSuppressed = IsClimbing || _ikSuppressedByEmote;
+			// IK is suppressed while climbing, during an emote, or when no item is held.
+			bool hasHeldItem = _inventory?.HeldInstance != null;
+			bool ikSuppressed = IsClimbing || _ikSuppressedByEmote || !hasHeldItem;
 			bool rightIK = UseRightArmIK && !ikSuppressed;
 			bool leftIK  = UseLeftArmIK  && !ikSuppressed;
 
