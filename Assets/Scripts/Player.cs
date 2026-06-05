@@ -1022,11 +1022,13 @@ namespace Starter.Shooter
 		/// <summary>Marks this Player as an AI bot and stamps its synthetic <see cref="Owner"/> ref. Called by
 		/// <see cref="GameManager.AddBots"/> inside <c>Runner.Spawn</c>'s <c>onBeforeSpawned</c> on the host, so the
 		/// [Networked] state is valid before <see cref="Spawned"/> runs. No-op off the state authority.</summary>
-		public void ConfigureAsBot(PlayerRef syntheticOwner)
+		public void ConfigureAsBot(PlayerRef syntheticOwner, string botName = null)
 		{
 			if (HasStateAuthority == false) return;
 			IsBot = true;
 			Owner = syntheticOwner;
+			if (string.IsNullOrEmpty(botName) == false)
+				Nickname = botName;
 		}
 
 		/// <summary>Single input seam for <see cref="FixedUpdateNetwork"/>. Bots pull a freshly-computed
@@ -2676,7 +2678,14 @@ namespace Starter.Shooter
 			if (HasInputAuthority)
 				return; // Do not show nickname for local player
 
-			Nameplate.SetNickname(Nickname);
+			// The Nameplate GameObject ships INACTIVE on the prefab (so the local player never renders one).
+			// Every remote view — bots and other humans alike — has to switch it on, otherwise the indicator
+			// never appears no matter how the nickname is set.
+			if (Nameplate != null)
+			{
+				Nameplate.gameObject.SetActive(true);
+				Nameplate.SetNickname(Nickname);
+			}
 		}
 
 		private void OnCanClimbChanged()

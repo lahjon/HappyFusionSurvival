@@ -9,7 +9,7 @@ using UnityEngine;
 /// Visual rotation is smoothly lerped on every client in Render().
 /// Audio plays locally via AudioManager when the networked state flips.
 /// </summary>
-public class Door : NetworkBehaviour, IInteractable
+public class Door : NetworkBehaviour, IInteractable, IDoorBarrier
 {
     [Header("Door Settings")]
     public Transform doorPivotTransform;
@@ -66,6 +66,16 @@ public class Door : NetworkBehaviour, IInteractable
     public void OnInteract(InteractionScanner scanner)
     {
         RpcToggleDoor();
+    }
+
+    // ── IDoorBarrier (AI path-clearing) ─────────────────────────────────────────
+    // Bots run on the state authority and have no connection / NetworkRunner.GetPlayerObject entry, so they
+    // can't drive the player-validated RpcToggleDoor path — they flip the networked state directly.
+    public bool IsPassable => IsOpen;
+    public void AuthorityForceOpen()
+    {
+        if (HasStateAuthority && IsOpen == false)
+            IsOpen = true;
     }
 
     // ── RPC ────────────────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@ using Fusion;
 using Fusion.Addons.SimpleKCC;
 using UnityEngine;
 using UnityEngine.AI;
+using Starter.Common.Interactions;
 using Starter.Common.Inventory;
 
 namespace Starter.Shooter
@@ -60,6 +61,12 @@ namespace Starter.Shooter
 		[Tooltip("Min/max idle pause (seconds) between wander destinations.")]
 		public float WanderIdleMin = 1.5f;
 		public float WanderIdleMax = 4f;
+		[Tooltip("Abandon a wander destination this many seconds after picking it, so the bot never pins forever against unreachable geometry.")]
+		[Min(1f)] public float WanderGiveUpSeconds = 6f;
+
+		[Header("Doors")]
+		[Tooltip("How far ahead (metres) the bot probes for a closed door in its path and opens it.")]
+		[Min(0.5f)] public float DoorProbeDistance = 1.6f;
 
 		// Cached siblings / managers (host only).
 		private Player _player;
@@ -84,6 +91,9 @@ namespace Starter.Shooter
 		private Vector3 _wanderDest;
 		private bool _haveWanderDest;
 		private float _wanderIdleUntil;
+		private float _wanderDeadline;       // give up on the current dest at this sim time
+		private Vector3 _wanderProgressPos;  // body position at the last progress sample
+		private float _wanderProgressAt;     // next sim time to sample wander progress
 
 		/// <summary>True when this brain should drive the Player (it's a bot, on the authority). Read by
 		/// <see cref="Player.TryGetTickInput"/>.</summary>
@@ -187,6 +197,7 @@ namespace Starter.Shooter
 			{
 				Vector3 worldDir = SteerToward(target.transform.position, flatToTarget);
 				input.MoveDirection = WorldToLocalMove(worldDir);
+				TryOpenBlockingDoor(worldDir);
 				if (dist > SprintDistance)
 					input.Buttons.Set(EInputButton.Sprint, true);
 			}
@@ -242,9 +253,16 @@ namespace Starter.Shooter
 			if (_haveWanderDest == false)
 			{
 				if (now >= _wanderIdleUntil && TryPickWanderDestination(out _wanderDest, leashToHome))
+				{
 					_haveWanderDest = true;
+					_wanderDeadline = now + WanderGiveUpSeconds;
+					_wanderProgressPos = _kcc.Position;
+					_wanderProgressAt = now + 1.5f;
+				}
 				else
+				{
 					return input; // idling
+				}
 			}
 
 			Vector3 flat = _wanderDest - _kcc.Position;
@@ -252,12 +270,33 @@ namespace Starter.Shooter
 			if (flat.magnitude <= 1f)
 			{
 				// Arrived — idle, then pick a new spot.
-				_haveWanderDest = false;
-				_wanderIdleUntil = now + RandRange(WanderIdleMin, WanderIdleMax);
+				EndWanderDest(now);
 				return input;
 			}
 
 			Vector3 worldDir = SteerToward(_wanderDest, flat);
+
+			// Clearing a door in our path counts as making progress: the body naturally pauses for a beat against
+			// the door before it swings open, so refresh the stuck timers while a door is right in front. Without
+			// this the no-progress check abandons the destination the instant the bot reaches a door — it would
+			// open the door and then stop instead of walking through.
+			bool atDoor = TryOpenBlockingDoor(worldDir);
+			if (atDoor)
+			{
+				_wanderProgressPos = _kcc.Position;
+				_wanderProgressAt = now + 1.5f;
+				_wanderDeadline = now + WanderGiveUpSeconds;
+			}
+			// Give up on a destination the bot can't reach so it never pins forever against geometry: a hard
+			// timeout, plus a no-progress check (barely moved over the sample window → blocked). Without this the
+			// very first unreachable pick (a wander point behind a wall, or an isolated navmesh island) latches
+			// _haveWanderDest and the bot pushes into the obstacle for good — "moves once, then stops forever".
+			else if (now >= _wanderDeadline || NoWanderProgress(now))
+			{
+				EndWanderDest(now);
+				return input;
+			}
+
 			if (worldDir.sqrMagnitude > 0.001f)
 			{
 				// Face the direction of travel while wandering.
@@ -267,6 +306,24 @@ namespace Starter.Shooter
 				input.MoveDirection = WorldToLocalMove(worldDir);
 			}
 			return input;
+		}
+
+		// Drop the current wander destination and schedule the next idle pause.
+		private void EndWanderDest(float now)
+		{
+			_haveWanderDest = false;
+			_wanderIdleUntil = now + RandRange(WanderIdleMin, WanderIdleMax);
+		}
+
+		// Sampled every ~1.5s while pursuing a destination: true when the bot has barely moved since the last
+		// sample (i.e. it's blocked / pinned), so the caller can abandon the destination and pick another.
+		private bool NoWanderProgress(float now)
+		{
+			if (now < _wanderProgressAt) return false;
+			bool stuck = (_kcc.Position - _wanderProgressPos).sqrMagnitude < 0.25f; // < 0.5 m in the window
+			_wanderProgressPos = _kcc.Position;
+			_wanderProgressAt = now + 1.5f;
+			return stuck;
 		}
 
 		private bool TryPickWanderDestination(out Vector3 result, bool leashToHome)
@@ -310,6 +367,30 @@ namespace Starter.Shooter
 
 			// Fallback: straight at the target.
 			return flatToTarget.sqrMagnitude > 0.001f ? flatToTarget.normalized : Vector3.zero;
+		}
+
+		// If a door-like barrier sits directly ahead within reach, force it open when it's impassable. Bots are on
+		// the state authority, so they shove through any IDoorBarrier directly (a Door opens, an NpcExit breaches)
+		// rather than the human RPC/interaction path. The navmesh doesn't model doors, so this physical forward
+		// probe is what actually clears them from the bot's path.
+		//
+		// Returns true while a door is right in front of the bot — whether it just forced it open or is walking
+		// through an already-open one — so the wander stuck-detection treats "at a doorway" as progress and
+		// doesn't abandon the destination mid-pass.
+		private bool TryOpenBlockingDoor(Vector3 worldDir)
+		{
+			if (worldDir.sqrMagnitude < 0.0001f) return false;
+			Vector3 origin = _kcc.Position + Vector3.up * 1.0f; // chest height — clears low thresholds/steps
+			if (Physics.Raycast(origin, worldDir.normalized, out RaycastHit hit, DoorProbeDistance, ~0, QueryTriggerInteraction.Ignore))
+			{
+				var barrier = hit.collider.GetComponentInParent<IDoorBarrier>();
+				if (barrier != null)
+				{
+					if (barrier.IsPassable == false) barrier.AuthorityForceOpen();
+					return true;
+				}
+			}
+			return false;
 		}
 
 		// Keep the planning agent co-located with the KCC body so its path/desiredVelocity stay relevant.

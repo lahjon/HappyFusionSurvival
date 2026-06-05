@@ -321,6 +321,44 @@ namespace Starter.Shooter
 
 		private int _nextBotIndex;
 
+		/// <summary>Themed pool of bot display names. Picked from (without immediate repeats) in <see cref="NextBotName"/>
+		/// so nameplates / team previews read like real opponents instead of "Bot 1". Host-only — the chosen name is
+		/// written to the networked <see cref="Player.Nickname"/> in <see cref="Player.ConfigureAsBot"/>.</summary>
+		private static readonly string[] BotNames =
+		{
+			"Mabel", "Cletus", "Pernilla", "Dorian", "Gunhild", "Bartholomew", "Saffron", "Ozzie",
+			"Henrietta", "Murdoch", "Clementine", "Festus", "Wilhelmina", "Barnaby", "Prudence", "Gideon",
+			"Esmeralda", "Thaddeus", "Bridget", "Cornelius", "Winnifred", "Horace", "Agnes", "Linus",
+			"Drusilla", "Mortimer", "Beatrix", "Ignatius", "Lavinia", "Percival", "Tabitha", "Augustus",
+		};
+
+		/// <summary>Working copy of <see cref="BotNames"/> that we draw from without replacement, refilling (reshuffled)
+		/// once exhausted, so a single match avoids duplicate bot names until the pool runs dry.</summary>
+		private readonly List<string> _botNamePool = new List<string>();
+
+		/// <summary>Host-only: next unique-ish random bot name. Falls back to "Bot N" only if the pool is somehow empty.</summary>
+		private string NextBotName(int botIndex)
+		{
+			if (_botNamePool.Count == 0)
+			{
+				_botNamePool.AddRange(BotNames);
+				// Fisher–Yates shuffle so the draw order differs each refill.
+				for (int i = _botNamePool.Count - 1; i > 0; i--)
+				{
+					int j = Random.Range(0, i + 1);
+					(_botNamePool[i], _botNamePool[j]) = (_botNamePool[j], _botNamePool[i]);
+				}
+			}
+
+			if (_botNamePool.Count == 0)
+				return $"Bot {botIndex + 1}";
+
+			int last = _botNamePool.Count - 1;
+			var name = _botNamePool[last];
+			_botNamePool.RemoveAt(last);
+			return name;
+		}
+
 		/// <summary>Host-only: spawn <paramref name="count"/> AI bots as Player objects with synthetic Owner refs. They
 		/// join <see cref="Players"/> (so the win scan counts them) and are teamed onto bot-only (enemy) teams when a
 		/// round is already underway, or at the next <see cref="MatchManager.BeginMatch"/> when added in the lobby.
@@ -336,6 +374,7 @@ namespace Starter.Shooter
 			for (int i = 0; i < count; i++)
 			{
 				var owner = PlayerRef.FromIndex(BotRefBase + _nextBotIndex);
+				var botName = NextBotName(_nextBotIndex);
 				_nextBotIndex++;
 
 				GetSpawnPose(out var botPos, out var botRot);
@@ -343,7 +382,7 @@ namespace Starter.Shooter
 					(runner, obj) =>
 					{
 						var player = obj.GetComponent<Player>();
-						if (player != null) player.ConfigureAsBot(owner);
+						if (player != null) player.ConfigureAsBot(owner, botName);
 					});
 				if (bot == null) continue;
 

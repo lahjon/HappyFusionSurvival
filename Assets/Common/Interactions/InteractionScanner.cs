@@ -417,7 +417,15 @@ namespace Starter.Common.Interactions
 				// the player root carries the (downed-state) IInteractable. Without this filter
 				// a downed player could trigger their own revive prompt.
 				if (candidate is Component cmp && cmp.transform == selfRoot) continue;
-				if (!includeLocked && !candidate.CanInteract) continue;
+				if (!candidate.CanInteract)
+				{
+					// Not actionable right now. Keep it as a candidate only when we're scanning locked targets
+					// AND it has something to surface (a LockedReason toast). A dormant IInteractable with nothing
+					// to act on and nothing to say — e.g. a healthy player/bot whose downed-revive interface is
+					// inactive — is pure noise; dropping it stops it from shadowing a real target (like a Door)
+					// behind it when it happens to be more centered in view.
+					if (!includeLocked || string.IsNullOrEmpty(candidate.LockedReason)) continue;
+				}
 
 				Vector3 point = candidate.InteractionPoint;
 				float range = candidate.InteractRange;

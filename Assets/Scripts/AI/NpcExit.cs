@@ -21,7 +21,7 @@ namespace Starter.Shooter
 	/// closer-claim bookkeeping is authority-local because only the state authority simulates AI.
 	/// </summary>
 	[RequireComponent(typeof(Health))]
-	public sealed class NpcExit : NetworkBehaviour, IInteractable, IHoldInteractable
+	public sealed class NpcExit : NetworkBehaviour, IInteractable, IHoldInteractable, IDoorBarrier
 	{
 		[Header("Door visual")]
 		[Tooltip("Pivot rotated between the open and closed angles. Defaults to this transform.")]
@@ -60,6 +60,17 @@ namespace Starter.Shooter
 		public NetworkBool IsBreached { get; private set; }
 
 		public bool IsOpen => IsClosed == false;
+
+		// ── IDoorBarrier (AI path-clearing) ──────────────────────────────────────
+		// A bot shoving through a building exit breaches it — the same outcome as a player smashing it. NPCs
+		// close these, so "opening" without a breach would just let them re-shut it; breaching is permanent for
+		// the round and matches how the door is meant to be forced. No-op if already open/breached.
+		public bool IsPassable => IsOpen;
+		public void AuthorityForceOpen()
+		{
+			if (HasStateAuthority && IsClosed && IsBreached == false)
+				Breach();
+		}
 
 		private Health _health;
 		private float _swingVel; // SmoothDamp scratch for the visual swing.

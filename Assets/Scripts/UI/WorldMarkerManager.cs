@@ -37,7 +37,7 @@ namespace Starter.Shooter
 		[Tooltip("Metres above the zone centre the house beacon floats.")]
 		public float HouseMarkerHeight = 4f;
 		[Tooltip("Base world size of the house beacon (read at map distance, so larger than player markers).")]
-		public float HouseMarkerScale = 1.1f;
+		public float HouseMarkerScale = 0.55f;
 
 		[Header("Placement / feel")]
 		[Tooltip("Metres above the player root the marker floats.")]
