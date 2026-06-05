@@ -154,6 +154,12 @@ namespace Starter.Shooter
 		[Tooltip("Constant deceleration (m/s²) applied to incoming knockback. Higher = snappier push. Peak push speed = sqrt(2 * deceleration * distance), duration = peakSpeed / deceleration.")]
 		public float KnockbackDeceleration = 20f;
 
+		[Header("Soft player push")]
+		[Tooltip("Players (and bots) within this radius gently push each other apart so bodies can't hard-block doorways / entrances. 0 disables.")]
+		[Min(0f)] public float PlayerPushRadius = 1f;
+		[Tooltip("Max separation speed (m/s) at full overlap. Keep small — this is a nudge to clear bodies, not knockback.")]
+		[Min(0f)] public float PlayerPushStrength = 2.5f;
+
 		[Header("Ragdoll")]
 		[Tooltip("Knockback peak speed (m/s) at or above which the player goes ragdoll. Smaller hits just nudge.")]
 		public float RagdollImpactThreshold = 5f;
@@ -2333,7 +2339,7 @@ namespace Starter.Shooter
 			if (reeling) KCC.SetGravity(0f);
 
 			Vector3 grappleVelocity = reeling ? ComputeGrappleVelocity() : Vector3.zero;
-			KCC.Move(_moveVelocity + ComputeKnockbackVelocity() + ComputeRagdollRollVelocity() + grappleVelocity, jumpImpulse);
+			KCC.Move(_moveVelocity + ComputeKnockbackVelocity() + ComputeRagdollRollVelocity() + grappleVelocity + ComputePlayerPushVelocity(), jumpImpulse);
 		}
 
 		// Rolling-body translation: while knocked out, derive a horizontal velocity from the
@@ -2487,6 +2493,52 @@ namespace Starter.Shooter
 			if (_knockbackDuration <= 0f) return false;
 			float? remaining = _knockbackTimer.RemainingTime(Runner);
 			return remaining.HasValue && remaining.Value > 0f;
+		}
+
+		/// <summary>
+		/// Gentle mutual separation from other living players/bots so nobody can hard-block a doorway / entrance:
+		/// each player nudges itself away from bodies inside <see cref="PlayerPushRadius"/>, stronger the closer
+		/// they are. Symmetric (both sides push apart), so walking into someone slides them aside while they slide
+		/// you. Derived purely from networked positions, so every predicting peer computes the same nudge; folded
+		/// into <see cref="KCC.Move"/> next to knockback. Cosmetic-magnitude — never an attack.
+		/// </summary>
+		private Vector3 ComputePlayerPushVelocity()
+		{
+			if (PlayerPushRadius <= 0f || PlayerPushStrength <= 0f) return Vector3.zero;
+			// Only an upright, in-control body pushes: skip while dead, ragdolled, downed, or seated in a vehicle.
+			if (Health == null || Health.IsAlive == false) return Vector3.zero;
+			if (RagdollState != ERagdollState.Normal || IsDowned || IsSeated) return Vector3.zero;
+
+			Vector3 myPos = KCC.Position;
+			float radius = PlayerPushRadius;
+			float radiusSqr = radius * radius;
+			Vector3 push = Vector3.zero;
+
+			for (int i = 0; i < All.Count; i++)
+			{
+				var other = All[i];
+				if (other == null || other == this || other.Object == null) continue;
+				if (other.Health == null || other.Health.IsAlive == false || other.IsSeated) continue;
+
+				Vector3 away = myPos - other.KCC.Position;
+				away.y = 0f;
+				float distSqr = away.sqrMagnitude;
+				if (distSqr >= radiusSqr) continue;
+
+				if (distSqr < 1e-4f)
+				{
+					// Bodies are exactly stacked — separate along a deterministic per-pair axis so the two peers
+					// agree on opposite directions instead of jittering. PlayerId tiebreak keeps it stable.
+					push += new Vector3(Owner.PlayerId > other.Owner.PlayerId ? 1f : -1f, 0f, 0f);
+					continue;
+				}
+
+				float dist = Mathf.Sqrt(distSqr);
+				push += (away / dist) * (1f - dist / radius); // closer → stronger
+			}
+
+			if (push.sqrMagnitude < 1e-6f) return Vector3.zero;
+			return Vector3.ClampMagnitude(push, 1f) * PlayerPushStrength;
 		}
 
 		private void Fire(CombatAction action, bool charged, float chargeNormalized = 0f)
