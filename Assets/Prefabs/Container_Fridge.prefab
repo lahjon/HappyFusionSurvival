@@ -552,6 +552,10 @@ MonoBehaviour:
   _doorClosedEuler: {x: 0, y: 0, z: 0}
   _doorOpenEuler: {x: 0, y: -110, z: 0}
   _doorLerpSpeed: 10
+  _extraDoors:
+  - Door: {fileID: 8226445006259195310}
+    ClosedEuler: {x: 0, y: 0, z: 0}
+    OpenEuler: {x: 0, y: -110, z: 0}
   _interiorVolume: {fileID: 2980928323253923259}
   _light: {fileID: 655758078123657491}
   _openClip: {fileID: 0}
