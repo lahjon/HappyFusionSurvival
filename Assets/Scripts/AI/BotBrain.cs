@@ -23,10 +23,18 @@ namespace Starter.Shooter
 	/// is dormant there. <see cref="ProduceInput"/> is pulled synchronously from <see cref="Player.FixedUpdateNetwork"/>,
 	/// so there is no tick-ordering race — the brain "thinks" exactly when the Player asks for input.</para>
 	///
-	/// Lives on the Player prefab alongside <see cref="BotBrain"/>'s sibling components; only matters when the Player
-	/// was spawned via <see cref="GameManager.AddBots"/> (i.e. <see cref="Player.IsBot"/> is true).
+	/// <para><b>Plain <see cref="MonoBehaviour"/> by design.</b> The brain holds <i>no</i> <c>[Networked]</c> state — it
+	/// only reads siblings and emits a local input struct — so it is deliberately NOT a <see cref="NetworkBehaviour"/>.
+	/// That keeps it out of the Fusion bake entirely (no behaviour-index / state-word allocation, no bake corruption
+	/// risk when the component is added to the prefab) and lets <see cref="Player"/> own its lifecycle via
+	/// <see cref="Initialize"/> instead of a networked <c>Spawned()</c> callback.</para>
+	///
+	/// <para><b>Runtime-attached, bots only.</b> The shared Player prefab carries NO BotBrain — a human player is not
+	/// an AI. <see cref="Player.Spawned"/> calls <c>gameObject.AddComponent&lt;BotBrain&gt;()</c> + <see cref="Initialize"/>
+	/// on the host exclusively when <see cref="Player.IsBot"/> is true (bots spawned via <see cref="GameManager.AddBots"/>).
+	/// Humans and proxies therefore never have this component at all.</para>
 	/// </summary>
-	public sealed class BotBrain : NetworkBehaviour
+	public sealed class BotBrain : MonoBehaviour
 	{
 		[Header("Aim")]
 		[Tooltip("How fast the bot swings its aim toward a target (degrees/second).")]
@@ -55,6 +63,8 @@ namespace Starter.Shooter
 
 		// Cached siblings / managers (host only).
 		private Player _player;
+		private NetworkObject _object;
+		private NetworkRunner _runner;
 		private SimpleKCC _kcc;
 		private Inventory _inventory;
 		private ActionInvoker _invoker;
@@ -77,25 +87,31 @@ namespace Starter.Shooter
 
 		/// <summary>True when this brain should drive the Player (it's a bot, on the authority). Read by
 		/// <see cref="Player.TryGetTickInput"/>.</summary>
-		public bool IsActive => _player != null && _player.IsBot && Object != null && Object.HasStateAuthority;
+		public bool IsActive => _player != null && _player.IsBot && _object != null && _object.HasStateAuthority;
 
-		public override void Spawned()
+		/// <summary>Called by <see cref="Player.Spawned"/> on the state authority once the Player is spawned and its KCC
+		/// is positioned. Caches siblings and — only for an authoritative bot — spins up the planning NavMeshAgent.
+		/// This is a plain MonoBehaviour (no networked state), so the owning Player drives its lifecycle instead of a
+		/// Fusion <c>Spawned()</c> callback.</summary>
+		public void Initialize()
 		{
 			_player = GetComponent<Player>();
 			_inventory = GetComponent<Inventory>();
 			_invoker = GetComponent<ActionInvoker>();
+			_object = _player != null ? _player.Object : GetComponent<NetworkObject>();
+			_runner = _object != null ? _object.Runner : null;
 			_kcc = _player != null ? _player.KCC : null;
 
 			// Only an authoritative bot needs a brain — and a NavMeshAgent. Humans and proxies get neither: the
 			// agent is added here at runtime, exclusively for bots, so it can never touch a normal player's
 			// SimpleKCC movement (which was the whole problem with baking it onto the shared Player prefab).
-			if (HasStateAuthority == false || _player == null || _player.IsBot == false)
+			if (_object == null || _object.HasStateAuthority == false || _player == null || _player.IsBot == false)
 				return;
 
 			_gameManager = GameManager.Instance;
 			_home = _kcc != null ? _kcc.Position : transform.position;
 			_aimLook = new Vector2(0f, _player.transform.eulerAngles.y);
-			_rng = new System.Random(unchecked((int)(Object.Id.Raw * 2654435761u + 1013904223u)));
+			_rng = new System.Random(unchecked((int)(_object.Id.Raw * 2654435761u + 1013904223u)));
 
 			// Planning-only agent: computes paths but never drives the transform — the KCC moves the body.
 			_agent = gameObject.AddComponent<NavMeshAgent>();
@@ -155,7 +171,7 @@ namespace Starter.Shooter
 
 			// Aim: ease the running look toward the target bearing.
 			Vector2 desired = LookToward(toTarget);
-			float dt = Runner.DeltaTime;
+			float dt = _runner.DeltaTime;
 			_aimLook.x = Mathf.MoveTowardsAngle(_aimLook.x, desired.x, AimTurnSpeed * dt);
 			_aimLook.y = Mathf.MoveTowardsAngle(_aimLook.y, desired.y, AimTurnSpeed * dt);
 			input.LookRotation = _aimLook;
@@ -222,7 +238,7 @@ namespace Starter.Shooter
 
 			// Sim clock (not Time.time): the brain runs inside FixedUpdateNetwork on the host, so timing
 			// must advance with the simulation tick to stay deterministic under re-simulation / time-scale.
-			float now = (float)Runner.SimulationTime;
+			float now = (float)_runner.SimulationTime;
 			if (_haveWanderDest == false)
 			{
 				if (now >= _wanderIdleUntil && TryPickWanderDestination(out _wanderDest, leashToHome))
@@ -245,8 +261,8 @@ namespace Starter.Shooter
 			if (worldDir.sqrMagnitude > 0.001f)
 			{
 				// Face the direction of travel while wandering.
-				_aimLook.y = Mathf.MoveTowardsAngle(_aimLook.y, Mathf.Atan2(worldDir.x, worldDir.z) * Mathf.Rad2Deg, AimTurnSpeed * Runner.DeltaTime);
-				_aimLook.x = Mathf.MoveTowardsAngle(_aimLook.x, 0f, AimTurnSpeed * Runner.DeltaTime);
+				_aimLook.y = Mathf.MoveTowardsAngle(_aimLook.y, Mathf.Atan2(worldDir.x, worldDir.z) * Mathf.Rad2Deg, AimTurnSpeed * _runner.DeltaTime);
+				_aimLook.x = Mathf.MoveTowardsAngle(_aimLook.x, 0f, AimTurnSpeed * _runner.DeltaTime);
 				input.LookRotation = _aimLook;
 				input.MoveDirection = WorldToLocalMove(worldDir);
 			}
@@ -279,7 +295,7 @@ namespace Starter.Shooter
 			if (_agent != null && _agent.enabled && _agent.isOnNavMesh)
 			{
 				WarpAgentToBody();
-				float now = (float)Runner.SimulationTime;
+				float now = (float)_runner.SimulationTime;
 				if (now >= _nextRepathTime)
 				{
 					_agent.SetDestination(destPos);

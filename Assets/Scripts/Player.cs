@@ -747,6 +747,16 @@ namespace Starter.Shooter
 				// Give bots a readable name so nameplates / team previews don't show a blank.
 				if (HasStateAuthority && string.IsNullOrEmpty(Nickname))
 					Nickname = $"Bot {Owner.PlayerId - GameManager.BotRefBase + 1}";
+
+				// Attach the AI brain at runtime — ONLY for an authoritative bot. The shared Player prefab carries
+				// no BotBrain (a human player is not an AI), so humans and proxies never get one. BotBrain is a plain
+				// MonoBehaviour with no networked state (like the planning NavMeshAgent it spins up), so adding it here
+				// is safe and never touches the Fusion bake. KCC is already active + positioned above, so _home is correct.
+				if (HasStateAuthority)
+				{
+					_botBrain = gameObject.AddComponent<BotBrain>();
+					_botBrain.Initialize();
+				}
 			}
 			else if (HasInputAuthority)
 			{
@@ -1005,7 +1015,8 @@ namespace Starter.Shooter
 			AssignAnimationIDs();
 			_inventory = GetComponent<Inventory>();
 			if (ActionInvoker == null) ActionInvoker = GetComponent<ActionInvoker>();
-			_botBrain = GetComponent<BotBrain>();
+			// _botBrain is intentionally NOT fetched here — the shared prefab has no BotBrain. It is added at
+			// runtime in Spawned() only for authoritative bots (see the IsBot block), so humans never carry one.
 		}
 
 		/// <summary>Marks this Player as an AI bot and stamps its synthetic <see cref="Owner"/> ref. Called by

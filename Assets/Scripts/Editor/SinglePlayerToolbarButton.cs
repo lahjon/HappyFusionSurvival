@@ -79,7 +79,8 @@ namespace Starter.Shooter.EditorTools
 		{
 			var icon = EditorGUIUtility.IconContent("PlayButton").image as Texture2D;
 			var content = new MainToolbarContent("Solo", icon,
-				"Play Single Player — enters Play mode with UIGameMenu.ForceSinglePlayer on (isolated host).");
+				"Play Single Player — enters Play mode with UIGameMenu.ForceSinglePlayer on (isolated host), applying the " +
+				"Happy Hub Testing-tab scenario (team size, bots, loadout, phase).");
 			return new MainToolbarButton(content, OnSoloClicked);
 		}
 
@@ -111,6 +112,9 @@ namespace Starter.Shooter.EditorTools
 					"OK");
 				return;
 			}
+
+			// Apply the Happy Hub Testing-tab scenario on top of the isolated-host launch (bots, loadout, phase, …).
+			HappyTestLauncher.ArmTestConfig();
 
 			SessionState.SetBool(SessionKey, true);
 			EditorApplication.EnterPlaymode();
