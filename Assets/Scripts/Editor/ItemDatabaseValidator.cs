@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Starter.Shooter.EditorTools
 {
 	/// <summary>
-	/// Editor utility that keeps item ids sane. Item <see cref="ItemDefinition.Id"/> is a stable
+	/// Editor utility that keeps item ids sane. Item <see cref="ItemData.Id"/> is a stable
 	/// network key (InventorySlot.ItemId is a short), so duplicates silently drop an item at runtime
 	/// (ItemDatabase.BuildLookup logs and skips the collision). This validator reports duplicates and
 	/// zero ids across the ItemDatabase and auto-assigns the smallest free positive id to each,

@@ -100,7 +100,7 @@ namespace Starter.Shooter
 
 		/// <summary>
 		/// Destroy one unit from the player's inventory <paramref name="slotIndex"/> and grant the
-		/// item's <see cref="ItemDefinition.ScrapValue"/> in scraps. Authoritative + host-range gated,
+		/// item's <see cref="ItemData.ScrapValue"/> in scraps. Authoritative + host-range gated,
 		/// mirroring <see cref="RPC_RequestCraft"/>. Scavenging is only possible at a bench.
 		/// </summary>
 		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]

@@ -38,7 +38,7 @@ namespace Starter.Shooter
 
 		[Header("Ammo")]
 		[Tooltip("Optional. When null, consumes one unit from the holder's selected hotbar slot (throwing-knife pattern). When set, the holder must have at least one of this item in any slot — the first matching stack is decremented (bow-and-arrow pattern).")]
-		public ItemDefinition AmmoItem;
+		public ItemData AmmoItem;
 
 		public override float EffectiveRange
 		{

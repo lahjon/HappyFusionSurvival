@@ -158,7 +158,7 @@ namespace Starter.Shooter
 
 		/// <summary>Resolve a typed name to an item: DisplayName first, then asset name; case-insensitive (mirrors the
 		/// <c>add_item</c> console command's resolution).</summary>
-		private static ItemDefinition FindItem(string name)
+		private static ItemData FindItem(string name)
 		{
 			if (ItemDatabase.Instance == null || string.IsNullOrWhiteSpace(name)) return null;
 			var all = ItemDatabase.Instance.All;

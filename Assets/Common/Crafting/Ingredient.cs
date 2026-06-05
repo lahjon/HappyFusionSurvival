@@ -6,7 +6,7 @@ namespace Starter.Common.Crafting
 	[System.Serializable]
 	public struct Ingredient
 	{
-		public ItemDefinition Item;
+		public ItemData Item;
 		[Min(1)] public short Count;
 	}
 }

@@ -40,26 +40,26 @@ namespace Starter.Shooter
 		public Transform HandAnchor;
 
 		[Tooltip("Item seeded into slot 0 the first time the inventory spawns (state authority only). Usually the starting weapon.")]
-		[SerializeField] private ItemDefinition _startingItem;
+		[SerializeField] private ItemData _startingItem;
 
 		[Tooltip("Local-only hand prefab shown when the selected slot is empty (e.g. fists for the punch attack).")]
 		[SerializeField] private GameObject _fallbackHandPrefab;
 
 		[Tooltip("Item supplying the unarmed (empty-hand) WeaponCapability — i.e. the fist punch action. " +
 		         "Read by Player.GetActiveAction when no item is selected. Not placed in the hotbar.")]
-		[SerializeField] private ItemDefinition _unarmedItem;
+		[SerializeField] private ItemData _unarmedItem;
 
 		[Tooltip("Optional ammo item seeded into the inventory on first spawn (state authority only), so a " +
 		         "magazine-fed starting weapon isn't bricked before the shop/crafting loop exists. Leave null for none.")]
-		[SerializeField] private ItemDefinition _startingAmmo;
+		[SerializeField] private ItemData _startingAmmo;
 		[Tooltip("How many _startingAmmo units to seed on first spawn.")]
 		[SerializeField, Min(0)] private int _startingAmmoCount = 0;
 
 		[Tooltip("Shared world-pickup prefab (NetworkObject + PickupableItem) spawned for any dropped item whose " +
-		         "ItemDefinition has no bespoke WorldPrefab override. Builds its visual from the item's ItemVisual.")]
+		         "ItemData has no bespoke WorldPrefab override. Builds its visual from the item's ItemVisual.")]
 		[SerializeField] private GameObject _genericWorldPrefab;
 
-		[Tooltip("Shared in-hand rig (HeldWeapon + Mesh + MuzzleAnchor) used for any held item whose ItemDefinition " +
+		[Tooltip("Shared in-hand rig (HeldWeapon + Mesh + MuzzleAnchor) used for any held item whose ItemData " +
 		         "has no bespoke HandPrefab override. Configured from the item's Visual + WeaponCapability at equip.")]
 		[SerializeField] private GameObject _genericHandPrefab;
 
@@ -118,7 +118,7 @@ namespace Starter.Shooter
 		}
 		private bool _suppressHeldVisual;
 
-		public ItemDefinition SelectedDefinition
+		public ItemData SelectedDefinition
 		{
 			get
 			{
@@ -199,7 +199,7 @@ namespace Starter.Shooter
 		}
 
 		/// <summary>Item currently carried in-hand, or null. Independent of any hotbar slot.</summary>
-		public ItemDefinition CarriedDefinition
+		public ItemData CarriedDefinition
 		{
 			get
 			{
@@ -773,7 +773,7 @@ namespace Starter.Shooter
 		}
 
 		/// <summary>Bespoke WorldPrefab override if the item sets one, else the shared generic pickup. Null if neither exists.</summary>
-		private GameObject ResolveWorldPrefab(ItemDefinition def)
+		private GameObject ResolveWorldPrefab(ItemData def)
 		{
 			if (def == null) return null;
 			return def.WorldPrefab != null ? def.WorldPrefab : _genericWorldPrefab;
@@ -931,7 +931,7 @@ namespace Starter.Shooter
 		}
 
 		/// <summary>Ammo item a combat action draws from (projectile/grenade actions), or null.</summary>
-		private static ItemDefinition AmmoOf(CombatAction action)
+		private static ItemData AmmoOf(CombatAction action)
 		{
 			return action switch
 			{
@@ -946,7 +946,7 @@ namespace Starter.Shooter
 		/// shortfall via <see cref="TryAdd"/>. No-op (returns false) for null ammo or a type already handled
 		/// this refill — <paramref name="seen"/> dedupes weapons that share an ammo type.
 		/// </summary>
-		private bool TopUpAmmoReserve(ItemDefinition ammo, HashSet<short> seen)
+		private bool TopUpAmmoReserve(ItemData ammo, HashSet<short> seen)
 		{
 			if (ammo == null || ammo.Id == 0) return false;
 			if (seen.Add(ammo.Id) == false) return false;
@@ -1016,7 +1016,7 @@ namespace Starter.Shooter
 			if (Object == null || Object.IsValid == false) return;
 
 			GameObject prefab = null;
-			ItemDefinition heldDef = null;
+			ItemData heldDef = null;
 
 			// Carried placeable wins over the selected slot's visual.
 			if (CarriedPlaceableId != 0 && ItemDatabase.Instance != null)

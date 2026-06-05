@@ -11,7 +11,7 @@ namespace Starter.Shooter
 	/// <summary>
 	/// Designer-authored "NPC type". Holds all behavior tuning for an NPC and the
 	/// prefab to spawn for it. Mirrors the project's other data-driven configs
-	/// (<see cref="ItemDefinition"/>, RecipeDefinition). Read by <see cref="NpcAgent"/>
+	/// (<see cref="ItemData"/>, RecipeDefinition). Read by <see cref="NpcAgent"/>
 	/// (behavior) and <see cref="NpcSpawner"/> (which prefab, which phases).
 	/// </summary>
 	[CreateAssetMenu(fileName = "Npc", menuName = "AI/NPC Definition", order = 0)]

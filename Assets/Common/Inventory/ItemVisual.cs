@@ -7,7 +7,7 @@ namespace Starter.Common.Inventory
 	/// <summary>
 	/// Per-item visual description read by the shared generic prefabs (Pickup_Generic, Hand_Generic)
 	/// at spawn, so an ordinary item needs no bespoke prefab — just this data on its
-	/// <see cref="ItemDefinition"/>. Both the world pickup and the hand rig instantiate
+	/// <see cref="ItemData"/>. Both the world pickup and the hand rig instantiate
 	/// <see cref="Prefab"/> as their visual child and position it via the scale/offset fields below
 	/// (<see cref="WorldScale"/> in the world, <see cref="HeldScale"/>/<see cref="HeldLocalPosition"/>/
 	/// <see cref="HeldLocalEuler"/> in the hand). <see cref="Prefab"/> is visual-only — no gameplay
@@ -15,7 +15,7 @@ namespace Starter.Common.Inventory
 	///
 	/// If <see cref="Prefab"/> is null the generic rig falls back to its own placeholder primitive
 	/// (a plain cube). Items needing real functional components in a context set
-	/// <c>ItemDefinition.WorldPrefab</c>/<c>HandPrefab</c> instead — those replace the generic prefab
+	/// <c>ItemData.WorldPrefab</c>/<c>HandPrefab</c> instead — those replace the generic prefab
 	/// entirely for that context.
 	/// </summary>
 	[Serializable]

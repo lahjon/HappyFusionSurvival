@@ -23,7 +23,7 @@ namespace Starter.Common.Crafting
 		public Ingredient[] Ingredients;
 
 		[Tooltip("Item granted on successful craft.")]
-		public ItemDefinition Output;
+		public ItemData Output;
 
 		[Min(1)]
 		[Tooltip("Count of Output produced per craft.")]

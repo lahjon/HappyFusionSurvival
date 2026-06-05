@@ -10,8 +10,8 @@ namespace Starter.Common.Inventory
 		public string Value;
 	}
 
-	[CreateAssetMenu(fileName = "Item", menuName = "Inventory/Item Definition", order = 0)]
-	public class ItemDefinition : ScriptableObject
+	[CreateAssetMenu(fileName = "Item", menuName = "Inventory/Item Data", order = 0)]
+	public class ItemData : ScriptableObject
 	{
 		[Tooltip("Stable network id. Must be non-zero and unique within the ItemDatabase.")]
 		public short Id = 1;

@@ -26,7 +26,7 @@ namespace Starter.Common.Inventory
 		[Tooltip("If true, the player can hold Interact to pick up this container (only when empty and not in use).")]
 		public bool IsPickupable = false;
 		[Tooltip("Item granted to the player when pickup completes. Must carry a PlaceableCapability. Required when IsPickupable is on.")]
-		public ItemDefinition PickupItem;
+		public ItemData PickupItem;
 		[Tooltip("Seconds the player must hold Interact to pick this up.")]
 		[Min(0.1f)] public float PickupHoldSeconds = 2f;
 
@@ -57,7 +57,7 @@ namespace Starter.Common.Inventory
 		[Serializable]
 		public struct InitialSlot
 		{
-			public ItemDefinition Item;
+			public ItemData Item;
 			[Min(1)] public short Count;
 		}
 
@@ -155,7 +155,7 @@ namespace Starter.Common.Inventory
 		// --- IPickupableStation ---
 
 		bool IPickupableStation.IsPickupable => IsPickupable && PickupItem != null;
-		ItemDefinition IPickupableStation.AsItem => PickupItem;
+		ItemData IPickupableStation.AsItem => PickupItem;
 		float IPickupableStation.PickupHoldSeconds => PickupHoldSeconds;
 
 		string IPickupableStation.PickupBlockedReason

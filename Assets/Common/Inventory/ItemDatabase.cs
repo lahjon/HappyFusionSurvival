@@ -13,15 +13,15 @@ namespace Starter.Common.Inventory
 	{
 		public static ItemDatabase Instance { get; private set; }
 
-		[SerializeField] private List<ItemDefinition> _items = new();
+		[SerializeField] private List<ItemData> _items = new();
 
 		[Tooltip("Shared world-pickup prefab spawned for any item without a bespoke WorldPrefab override " +
 		         "(e.g. a thrown weapon landing). Same Pickup_Generic the Inventory uses; builds its visual from ItemVisual.")]
 		public GameObject GenericWorldPrefab;
 
-		private Dictionary<short, ItemDefinition> _byId;
+		private Dictionary<short, ItemData> _byId;
 
-		public IReadOnlyList<ItemDefinition> All => _items;
+		public IReadOnlyList<ItemData> All => _items;
 
 		public void Bind()
 		{
@@ -29,7 +29,7 @@ namespace Starter.Common.Inventory
 			Instance = this;
 		}
 
-		public ItemDefinition GetById(short id)
+		public ItemData GetById(short id)
 		{
 			if (id == 0) return null;
 			if (_byId == null) BuildLookup();
@@ -43,7 +43,7 @@ namespace Starter.Common.Inventory
 		/// null) when no database is bound or the id is unknown. Lets call sites drop the repetitive
 		/// <c>Instance == null ? ... : Instance.GetById(...)</c> guard scattered across inventory/UI code.
 		/// </summary>
-		public static bool TryGet(short id, out ItemDefinition def)
+		public static bool TryGet(short id, out ItemData def)
 		{
 			def = Instance != null ? Instance.GetById(id) : null;
 			return def != null;
@@ -51,7 +51,7 @@ namespace Starter.Common.Inventory
 
 		private void BuildLookup()
 		{
-			_byId = new Dictionary<short, ItemDefinition>(_items.Count);
+			_byId = new Dictionary<short, ItemData>(_items.Count);
 			for (int i = 0; i < _items.Count; i++)
 			{
 				var def = _items[i];

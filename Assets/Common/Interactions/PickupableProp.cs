@@ -22,7 +22,7 @@ namespace Starter.Common.Interactions
 		[Header("Pickup")]
 		public bool IsPickupable = true;
 		[Tooltip("Item granted to the player when pickup completes. Must carry a PlaceableCapability.")]
-		public ItemDefinition PickupItem;
+		public ItemData PickupItem;
 		[Min(0.1f)] public float PickupHoldSeconds = 2f;
 
 		// --- IInteractable ---
@@ -38,7 +38,7 @@ namespace Starter.Common.Interactions
 		// --- IPickupableStation ---
 
 		bool IPickupableStation.IsPickupable => IsPickupable && PickupItem != null;
-		ItemDefinition IPickupableStation.AsItem => PickupItem;
+		ItemData IPickupableStation.AsItem => PickupItem;
 		float IPickupableStation.PickupHoldSeconds => PickupHoldSeconds;
 		string IPickupableStation.PickupBlockedReason => string.Empty;
 

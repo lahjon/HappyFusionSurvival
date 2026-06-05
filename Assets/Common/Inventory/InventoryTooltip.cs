@@ -8,7 +8,7 @@ namespace Starter.Common.Inventory
 {
 	/// <summary>
 	/// Local-only tooltip widget that follows the cursor and renders an
-	/// ItemDefinition's name, description, and stat rows. Built procedurally so
+	/// ItemData's name, description, and stat rows. Built procedurally so
 	/// the scene only needs a CanvasGroup-friendly parent.
 	/// </summary>
 	public sealed class InventoryTooltip : MonoBehaviour
@@ -41,7 +41,7 @@ namespace Starter.Common.Inventory
 			PositionAtCursor();
 		}
 
-		public void Show(ItemDefinition def, short count)
+		public void Show(ItemData def, short count)
 		{
 			if (def == null)
 			{

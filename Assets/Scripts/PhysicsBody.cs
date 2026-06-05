@@ -43,7 +43,7 @@ namespace Starter.Shooter
 
 		[Header("Water")]
 		[Tooltip("ON: this body floats to the surface of any WaterVolume it enters and self-rights there. " +
-		         "OFF (default): it sinks. PickupableItem overrides this to read the item's ItemDefinition.")]
+		         "OFF (default): it sinks. PickupableItem overrides this to read the item's ItemData.")]
 		[SerializeField] protected bool _floats = false;
 
 		[Header("Hit Response (shoot / melee / explosion)")]
@@ -68,7 +68,7 @@ namespace Starter.Shooter
 		[Tooltip("ON: override the Rigidbody's center of mass with the offset below. A low COM (negative Y) " +
 		         "makes the body bottom-heavy so it self-rights and floats upright instead of tumbling. " +
 		         "Only honored when Floats is on — a sinker/land prop keeps Unity's auto-computed COM. " +
-		         "PickupableItem sources this from the ItemDefinition.")]
+		         "PickupableItem sources this from the ItemData.")]
 		[SerializeField] protected bool _overrideCenterOfMass = false;
 		[Tooltip("Local-space center of mass when the override is on.")]
 		[SerializeField] protected Vector3 _centerOfMass = Vector3.zero;
@@ -89,7 +89,7 @@ namespace Starter.Shooter
 		private static readonly Collider[] s_pushBuffer = new Collider[8];
 
 		/// <summary>Whether this body floats in water. Virtual so a subclass can source it elsewhere
-		/// (PickupableItem reads the item's ItemDefinition, since the generic pickup prefab is shared).</summary>
+		/// (PickupableItem reads the item's ItemData, since the generic pickup prefab is shared).</summary>
 		public virtual bool Floats => _floats;
 
 		/// <summary>
@@ -116,7 +116,7 @@ namespace Starter.Shooter
 		}
 
 		/// <summary>The center-of-mass override for this body. Virtual so PickupableItem can source it
-		/// from the ItemDefinition rather than the shared prefab. Returns false to use Unity's default.</summary>
+		/// from the ItemData rather than the shared prefab. Returns false to use Unity's default.</summary>
 		protected virtual bool TryGetCenterOfMass(out Vector3 com)
 		{
 			com = _centerOfMass;

@@ -11,7 +11,7 @@ namespace Starter.Common.Inventory
 	[Serializable]
 	public struct LootEntry
 	{
-		public ItemDefinition Item;
+		public ItemData Item;
 
 		[Min(0f)]
 		public float Weight;
@@ -19,7 +19,7 @@ namespace Starter.Common.Inventory
 		[Min(1)]
 		public short Count;
 
-		public static LootEntry Default(ItemDefinition item) =>
+		public static LootEntry Default(ItemData item) =>
 			new() { Item = item, Weight = 1f, Count = 1 };
 	}
 }

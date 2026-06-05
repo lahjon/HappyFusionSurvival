@@ -14,7 +14,7 @@ namespace Starter.Shooter
 	[System.Serializable]
 	public struct ShopOffer
 	{
-		public ItemDefinition Item;
+		public ItemData Item;
 
 		[Min(0)] public int BuyPrice;
 
@@ -59,7 +59,7 @@ namespace Starter.Shooter
 		/// <summary>
 		/// Resolved item id per offer slot (0 = empty). State authority writes this at spawn from
 		/// either the rolled profile or the authored <see cref="Offers"/> list, so every peer reads
-		/// the same stock through one networked source. Resolved to an ItemDefinition via ItemDatabase.
+		/// the same stock through one networked source. Resolved to an ItemData via ItemDatabase.
 		/// </summary>
 		[Networked, Capacity(MaxOffers)]
 		public NetworkArray<short> OfferItemId => default;

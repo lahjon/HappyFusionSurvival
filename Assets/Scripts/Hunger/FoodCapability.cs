@@ -7,7 +7,7 @@ namespace Starter.Hunger
 	/// <summary>
 	/// Consumable facet that restores hunger (fullness) on use. Targets the <see cref="HungerSystem"/> on the consumer;
 	/// if hunger is currently disabled (no HungerSystem on the player) the effect simply no-ops. Part of the dormant
-	/// Starter.Hunger module — see <see cref="HungerSystem"/>. Composes onto any <c>ItemDefinition</c> like the other
+	/// Starter.Hunger module — see <see cref="HungerSystem"/>. Composes onto any <c>ItemData</c> like the other
 	/// <see cref="ConsumableCapability"/> facets (healing, recipe scrolls).
 	/// </summary>
 	[System.Serializable]

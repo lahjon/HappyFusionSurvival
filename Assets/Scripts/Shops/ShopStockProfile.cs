@@ -33,7 +33,7 @@ namespace Starter.Shooter
 		[Range(1, 1000)] public int BuyMarkupPercent = 100;
 
 		/// <summary>Buy price for one unit of the given item under this profile's markup (min 1).</summary>
-		public int BuyPriceFor(ItemDefinition item)
+		public int BuyPriceFor(ItemData item)
 		{
 			if (item == null) return 0;
 			return Mathf.Max(1, (item.BaseValue * BuyMarkupPercent) / 100);

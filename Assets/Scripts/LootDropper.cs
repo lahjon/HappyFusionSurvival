@@ -31,7 +31,7 @@ namespace Starter.Shooter
 
 		[Header("Spawn")]
 		[Tooltip("Shared world-pickup prefab (NetworkObject + PickupableItem) used for any loot item that " +
-		         "has no bespoke WorldPrefab override on its ItemDefinition. Wire Pickup_Generic here.")]
+		         "has no bespoke WorldPrefab override on its ItemData. Wire Pickup_Generic here.")]
 		[SerializeField] private GameObject _genericPickupPrefab;
 		[Tooltip("Vertical offset (m) above this object's origin where loot spawns before being tossed.")]
 		[SerializeField] private float _spawnHeight = 0.3f;
@@ -85,7 +85,7 @@ namespace Starter.Shooter
 		}
 
 		/// <summary>Item's bespoke WorldPrefab if it sets one, else the shared generic pickup. Null if neither resolves.</summary>
-		private GameObject ResolvePickupPrefab(ItemDefinition def)
+		private GameObject ResolvePickupPrefab(ItemData def)
 		{
 			if (def == null) return null;
 

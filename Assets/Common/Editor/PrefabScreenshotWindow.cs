@@ -15,7 +15,7 @@ namespace Starter.Common.EditorTools
 		private const string DefaultSaveFolder = "Assets/Screenshots";
 
 		[SerializeField] private GameObject _prefab;
-		[SerializeField] private ItemDefinition _itemDefinition;
+		[SerializeField] private ItemData _itemDefinition;
 		[SerializeField] private int _width = 256;
 		[SerializeField] private int _height = 256;
 		[SerializeField] private Color _backgroundColor = Color.white;
@@ -40,7 +40,7 @@ namespace Starter.Common.EditorTools
 		{
 			EditorGUILayout.LabelField("Source", EditorStyles.boldLabel);
 			_prefab = (GameObject)EditorGUILayout.ObjectField("Prefab", _prefab, typeof(GameObject), false);
-			_itemDefinition = (ItemDefinition)EditorGUILayout.ObjectField("Item Definition", _itemDefinition, typeof(ItemDefinition), false);
+			_itemDefinition = (ItemData)EditorGUILayout.ObjectField("Item Definition", _itemDefinition, typeof(ItemData), false);
 			if (_itemDefinition != null)
 				EditorGUILayout.HelpBox("Save will import the screenshot as a Sprite and assign it to this item's Icon.", MessageType.Info);
 
@@ -269,7 +269,7 @@ namespace Starter.Common.EditorTools
 
 		private void AssignSpriteToItem(string path)
 		{
-			// Re-import as a Sprite so it can be referenced by ItemDefinition.Icon. The PNG was
+			// Re-import as a Sprite so it can be referenced by ItemData.Icon. The PNG was
 			// just imported synchronously, so the importer is guaranteed available here.
 			var importer = AssetImporter.GetAtPath(path) as TextureImporter;
 			if (importer == null)

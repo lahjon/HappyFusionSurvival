@@ -20,7 +20,7 @@ namespace Starter.Shooter
 	/// Optionally phase-gated via <see cref="ActivePhases"/> (e.g. loot only during Day), reading the
 	/// networked <see cref="MatchManager"/> phase exactly like <see cref="NpcSpawner"/> — never a local clock.
 	/// Reuses <see cref="LootRoll"/> for the weighted pick and the item's bespoke
-	/// <see cref="ItemDefinition.WorldPrefab"/> override (falling back to the shared generic pickup),
+	/// <see cref="ItemData.WorldPrefab"/> override (falling back to the shared generic pickup),
 	/// the same resolution <see cref="LootDropper"/> uses.
 	/// </summary>
 	public sealed class ItemSpawner : NetworkBehaviour
@@ -38,7 +38,7 @@ namespace Starter.Shooter
 
 		[Header("Prefab")]
 		[Tooltip("Shared world-pickup prefab (NetworkObject + PickupableItem) used for any item that has no bespoke " +
-		         "WorldPrefab override on its ItemDefinition. Wire Pickup_Generic here.")]
+		         "WorldPrefab override on its ItemData. Wire Pickup_Generic here.")]
 		[SerializeField] private GameObject _genericPickupPrefab;
 
 		[Header("Respawn")]
@@ -183,7 +183,7 @@ namespace Starter.Shooter
 		}
 
 		/// <summary>Item's bespoke WorldPrefab if it sets one, else the shared generic pickup. Null if neither resolves.</summary>
-		private GameObject ResolvePickupPrefab(ItemDefinition def)
+		private GameObject ResolvePickupPrefab(ItemData def)
 		{
 			if (def == null) return null;
 

@@ -113,7 +113,7 @@ namespace Starter.Shooter
 		}
 
 		/// <summary>Resolve a typed name to an item: DisplayName first (what autocomplete offers), then asset name; case-insensitive.</summary>
-		private static ItemDefinition FindItem(string name)
+		private static ItemData FindItem(string name)
 		{
 			var all = ItemDatabase.Instance.All;
 			for (int i = 0; i < all.Count; i++)

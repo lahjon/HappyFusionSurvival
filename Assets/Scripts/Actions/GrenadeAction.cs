@@ -45,7 +45,7 @@ namespace Starter.Shooter
 
 		[Header("Ammo")]
 		[Tooltip("Optional. Null = consume one from the holder's selected slot (the grenade stack itself). When set, the first slot holding this item is decremented instead.")]
-		public ItemDefinition AmmoItem;
+		public ItemData AmmoItem;
 
 		// Rough hint so AI keeps targets within lobbing distance; not an exact ballistic range.
 		public override float EffectiveRange => ThrowSpeed;

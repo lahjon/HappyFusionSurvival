@@ -11,7 +11,7 @@ namespace Starter.Common.Inventory
 	///
 	/// Apply runs on every predicting peer during FixedUpdateNetwork; any networked mutation inside
 	/// the effect must guard on HasStateAuthority itself. Mirrors the old <c>ConsumableDefinition</c>
-	/// SO contract, relocated from an ItemDefinition subclass to a composable capability.
+	/// SO contract, relocated from an ItemData subclass to a composable capability.
 	/// </summary>
 	[Serializable]
 	public abstract class ConsumableCapability : ItemCapability

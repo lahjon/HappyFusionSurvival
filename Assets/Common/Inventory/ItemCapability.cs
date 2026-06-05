@@ -3,7 +3,7 @@ using System;
 namespace Starter.Common.Inventory
 {
 	/// <summary>
-	/// A composable behavior module attached to an <see cref="ItemDefinition"/> through its
+	/// A composable behavior module attached to an <see cref="ItemData"/> through its
 	/// <c>[SerializeReference] Capabilities</c> list. Each subclass adds the data + behavior for
 	/// one facet of an item (weapon, placeable, consumable, ...). An item gains a facet by adding
 	/// the matching capability, and facets compose freely on a single item asset — a weapon that
@@ -18,7 +18,7 @@ namespace Starter.Common.Inventory
 	{
 		/// <summary>
 		/// Initial <c>InventorySlot.Loaded</c> for a fresh unit carrying this capability — e.g. a gadget's
-		/// charge count. 0 means "no per-slot load". <see cref="ItemDefinition.InitialLoaded"/> takes the max
+		/// charge count. 0 means "no per-slot load". <see cref="ItemData.InitialLoaded"/> takes the max
 		/// across an item's capabilities and seeds the slot with it on add. Weapons deliberately stay 0 here:
 		/// magazines are seeded explicitly at spawn and refilled by the reload cycle, so picked-up guns arrive
 		/// empty by design.

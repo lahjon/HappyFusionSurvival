@@ -16,7 +16,7 @@ namespace Starter.Common.Inventory
 	{
 		[Header("Authoring (scene-placed pickups)")]
 		[Tooltip("Used when a pickup is placed in the scene. Programmatic spawns call Initialize() instead.")]
-		[SerializeField] private ItemDefinition _initialItem;
+		[SerializeField] private ItemData _initialItem;
 		[SerializeField, Min(1)] private short _initialCount = 1;
 
 		[Header("Procedural Loot")]
@@ -47,16 +47,16 @@ namespace Starter.Common.Inventory
 		[Networked] public Vector3 AttachLocalPos { get; set; }
 		[Networked] public Quaternion AttachLocalRot { get; set; }
 
-		public ItemDefinition Definition =>
+		public ItemData Definition =>
 			ItemDatabase.TryGet(ItemId, out var def) ? def : null;
 
 		// A dropped item's float behaviour is a property of the item type, not the (shared) generic pickup
-		// prefab, so source it from the ItemDefinition. Falls back to the base prefab flag when the item
+		// prefab, so source it from the ItemData. Falls back to the base prefab flag when the item
 		// can't resolve yet (e.g. before ItemId replicates).
 		public override bool Floats => Definition != null ? Definition.Floats : _floats;
 
 		// Center of mass is likewise per-item (a low COM keeps a floating item upright), so read it from
-		// the ItemDefinition; fall back to the prefab override when the item can't resolve.
+		// the ItemData; fall back to the prefab override when the item can't resolve.
 		protected override bool TryGetCenterOfMass(out Vector3 com)
 		{
 			var def = Definition;
@@ -122,7 +122,7 @@ namespace Starter.Common.Inventory
 
 		// ItemId is the single networked input for the visual — every peer builds the same model
 		// deterministically from it (no networked visual state). Fires on SA when Initialize/loot sets
-		// it, and on proxies when it replicates. It also resolves the ItemDefinition's physics tuning,
+		// it, and on proxies when it replicates. It also resolves the ItemData's physics tuning,
 		// so re-apply the center of mass here.
 		private void OnItemIdChanged()
 		{

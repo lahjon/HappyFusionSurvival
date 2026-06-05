@@ -42,7 +42,7 @@ namespace Starter.Shooter
 
 		[Header("Ammo (magazine-fed)")]
 		[Tooltip("Ammo item this weapon consumes. Null = no ammo (infinite — melee, fists). When set together with MagazineSize > 0 the weapon is magazine-fed: firing draws from the loaded magazine and auto-reloads from this item's inventory stacks when empty. (Projectile weapons like the Bow keep their own ProjectileAction.AmmoItem and ignore this.)")]
-		public ItemDefinition AmmoItem;
+		public ItemData AmmoItem;
 		[Tooltip("Rounds held in one magazine. 0 = not magazine-fed (no reload). >0 enables the magazine + auto-reload cycle for this hitscan weapon.")]
 		[Min(0)]
 		public int MagazineSize = 0;

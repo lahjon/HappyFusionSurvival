@@ -20,7 +20,7 @@ namespace Starter.Common.Interactions
 		/// <summary>Item granted to the player when the pickup completes. Must carry a
 		/// <see cref="PlaceableCapability"/> so the picked-up object can be re-placed via the
 		/// same ghost-preview flow.</summary>
-		ItemDefinition AsItem { get; }
+		ItemData AsItem { get; }
 
 		/// <summary>Seconds the player must hold Interact to convert this object.</summary>
 		float PickupHoldSeconds { get; }

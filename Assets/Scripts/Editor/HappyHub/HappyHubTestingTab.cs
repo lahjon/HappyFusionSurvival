@@ -147,7 +147,7 @@ namespace Starter.Shooter.EditorTools
 
 		[TitleGroup("Live (in Play Mode)")]
 		[HorizontalGroup("Live (in Play Mode)/item"), LabelText("Item"), AssetsOnly]
-		public ItemDefinition LiveItem;
+		public ItemData LiveItem;
 
 		[HorizontalGroup("Live (in Play Mode)/item", Width = 70), LabelText("Count"), MinValue(1)]
 		public int LiveItemCount = 1;
@@ -230,17 +230,17 @@ namespace Starter.Shooter.EditorTools
 		}
 
 		// =====================================================================
-		// Item dropdown (edit-mode: enumerate ItemDefinition assets directly, since ItemDatabase only binds at runtime)
+		// Item dropdown (edit-mode: enumerate ItemData assets directly, since ItemDatabase only binds at runtime)
 		// =====================================================================
 
 		private static IEnumerable<string> AllItemNames()
 		{
 			var names = new List<string>();
-			var guids = AssetDatabase.FindAssets("t:" + nameof(ItemDefinition));
+			var guids = AssetDatabase.FindAssets("t:" + nameof(ItemData));
 			foreach (var guid in guids)
 			{
 				var path = AssetDatabase.GUIDToAssetPath(guid);
-				var def = AssetDatabase.LoadAssetAtPath<ItemDefinition>(path);
+				var def = AssetDatabase.LoadAssetAtPath<ItemData>(path);
 				if (def == null) continue;
 				var display = !string.IsNullOrEmpty(def.DisplayName) ? def.DisplayName : def.name;
 				if (!names.Contains(display)) names.Add(display);
