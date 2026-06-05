@@ -1143,7 +1143,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5919370ffdeff1142a99c451c3a826d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerEmotes
-  _emoteTrigger: WavingRightArm
+  _emoteWheelPrefab: {fileID: 1634922898309468765, guid: ed7511e798992fb4aa64b6c9a618661b, type: 3}
 --- !u!1 &3226221424221943437
 GameObject:
   m_ObjectHideFlags: 0
