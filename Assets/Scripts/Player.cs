@@ -38,6 +38,10 @@ namespace Starter.Shooter
 		public bool UseRightArmIK = false;
 		[Tooltip("Enable IK on the left hand — move LeftHandTarget to the off-hand grip point.")]
 		public bool UseLeftArmIK = false;
+		[Tooltip("When on, arm IK only applies to PlayerFullBody (other players' view) and not PlayerNoHead (local view).")]
+		public bool UseIKOnlyOnFullBody = false;
+		[Tooltip("Anchor under which the held item visual lives at runtime. Children are hidden during emotes.")]
+		public Transform HandItemAnchor;
 		[Tooltip("Right hand IK target — move this to where the held item's grip is.")]
 		public Transform RightHandTarget;
 		[Tooltip("Left hand IK target — move this to where the off-hand grip is.")]
@@ -487,6 +491,9 @@ namespace Starter.Shooter
 		private static readonly int _bodyAnimIDJump        = Animator.StringToHash("Jump");
 		private static readonly int _bodyAnimIDIsClimbing   = Animator.StringToHash("IsClimbing");
 
+		// Set by PlayerEmotes to suppress IK while an emote plays.
+		private bool _ikSuppressedByEmote;
+
 		private int _visibleFireCount;
 		private int _visibleSecondaryFireCount;
 		private Inventory _inventory;
@@ -863,7 +870,7 @@ namespace Starter.Shooter
 				// animation finishing the climb-up onto the ledge. Input is locked via IsInputLocked.
 				ProcessMantle();
 			}
-			else if (Health.IsAlive && RagdollState == ERagdollState.Normal && IsSleeping == false && TryGetTickInput(out var input, out var previousButtons))
+			else if (Health.IsAlive && RagdollState == ERagdollState.Normal && IsSleeping == false && IsEmoting == false && TryGetTickInput(out var input, out var previousButtons))
 			{
 				drainedThisTick = IsClimbing
 					? ProcessClimbInput(input, previousButtons)
@@ -923,8 +930,9 @@ namespace Starter.Shooter
 
 			if (HasInputAuthority)
 			{
-				// Set look rotation for Render.
-				KCC.SetLookRotation(Input.LookRotation, -90f, 90f);
+				if (!ShowFullBodyForEmote)
+					KCC.SetLookRotation(Input.LookRotation, -90f, 90f);
+				// Camera orbit during ShowFullBody emotes is handled in LateUpdate.
 			}
 
 			// Hide the held weapon visual whenever the player is on a wall or mantling. Driven every
@@ -957,23 +965,38 @@ namespace Starter.Shooter
 			}
 
 			// Per-hand IK toggle — live so each can be flipped independently during play.
+
+			// IK is suppressed while climbing or during an emote.
+			bool ikSuppressed = IsClimbing || _ikSuppressedByEmote;
+			bool rightIK = UseRightArmIK && !ikSuppressed;
+			bool leftIK  = UseLeftArmIK  && !ikSuppressed;
+
+			// Track RightHandTarget to HandAnchor so the arm reaches the held item position.
+			if (rightIK && RightHandTarget != null && _inventory?.HandAnchor != null)
+			{
+				RightHandTarget.position = _inventory.HandAnchor.position;
+				RightHandTarget.rotation = _inventory.HandAnchor.rotation;
+			}
+
 			foreach (var anim in new[] { BodyAnimator, NoHeadAnimator })
 			{
 				if (anim == null) continue;
 
-				// Enable the RigBuilder if either hand needs IK.
+				// Skip NoHeadAnimator if IK should only apply to PlayerFullBody.
+				bool isNoHead = anim == NoHeadAnimator;
+				bool applyIK  = !isNoHead || !UseIKOnlyOnFullBody;
+
 				var rb = anim.GetComponent<UnityEngine.Animations.Rigging.RigBuilder>();
-				bool needsIK = UseRightArmIK || UseLeftArmIK;
+				bool needsIK = applyIK && (rightIK || leftIK);
 				if (rb != null && rb.enabled != needsIK) rb.enabled = needsIK;
 
-				// Drive individual constraint weights — only active when the bool is on AND an item with a grip is held.
 				var constraints = anim.GetComponentsInChildren<UnityEngine.Animations.Rigging.TwoBoneIKConstraint>(true);
 				foreach (var c in constraints)
 				{
 					if (c.gameObject.name == "Right_Arm_IK")
-						c.weight = UseRightArmIK ? 1f : 0f;
+						c.weight = (applyIK && rightIK) ? 1f : 0f;
 					else if (c.gameObject.name == "Left_Arm_IK")
-						c.weight = UseLeftArmIK  ? 1f : 0f;
+						c.weight = (applyIK && leftIK)  ? 1f : 0f;
 				}
 			}
 
@@ -981,14 +1004,15 @@ namespace Starter.Shooter
 			// Local player sees NoHead; others see FullBody. Debug flag shows both.
 			if (BodyAnimator != null)
 			{
-				bool hideFullBody = HasInputAuthority && !ShowBothBodiesDebug;
+				bool hideFullBody = HasInputAuthority && !ShowBothBodiesDebug && !ShowFullBodyForEmote;
 				var mode = hideFullBody ? ShadowCastingMode.ShadowsOnly : ShadowCastingMode.On;
 				foreach (var r in BodyAnimator.GetComponentsInChildren<Renderer>(true))
 					if (r.shadowCastingMode != mode) r.shadowCastingMode = mode;
 			}
 			if (NoHeadAnimator != null)
 			{
-				bool hideNoHead = !HasInputAuthority && !ShowBothBodiesDebug;
+				bool hideNoHead = HasInputAuthority ? ShowFullBodyForEmote && !ShowBothBodiesDebug
+				                                   : !ShowBothBodiesDebug;
 				var mode = hideNoHead ? ShadowCastingMode.ShadowsOnly : ShadowCastingMode.On;
 				foreach (var r in NoHeadAnimator.GetComponentsInChildren<Renderer>(true))
 					if (r.shadowCastingMode != mode) r.shadowCastingMode = mode;
@@ -1124,7 +1148,17 @@ namespace Starter.Shooter
 			if (HasInputAuthority && ComputerSession.IsAnyAtComputer == false && SleepSession.IsAnySleeping == false)
 			{
 				// Transfer properties from camera handle to Main Camera.
-				Camera.main.transform.SetPositionAndRotation(CameraHandle.position, CameraHandle.rotation);
+				if (ShowFullBodyForEmote && Input != null && EmoteCameraOffset != Vector3.zero)
+				{
+					// Orbit mode: camera driven entirely from mouse look, bypassing CameraPivot/KCC.
+					Quaternion orbitRot = Quaternion.Euler(Input.LookRotation.x, Input.LookRotation.y, 0f);
+					Vector3 orbitPos    = transform.position + Vector3.up * 1.5f + orbitRot * EmoteCameraOffset;
+					Camera.main.transform.SetPositionAndRotation(orbitPos, orbitRot);
+				}
+				else
+				{
+					Camera.main.transform.SetPositionAndRotation(CameraHandle.position, CameraHandle.rotation);
+				}
 
 				// Headbob is applied on top of the main camera only — CameraHandle stays untouched
 				// so the fire raycast origin (which reads CameraHandle.position) is unaffected.
@@ -2204,6 +2238,53 @@ namespace Starter.Shooter
 		// Origin used for both entry and re-probe raycasts. Using the chest bone keeps the probe at the
 		// same in-world position the body occupies on every peer, so authority and proxies probe identically.
 		// Falls back to a fixed offset above the root when no ChestBone is wired.
+
+		/// <summary>True while an emote is playing. Blocks movement and attack input.</summary>
+		public bool IsEmoting { get; private set; }
+
+		/// <summary>Called by PlayerEmotes to play emote audio on all clients by index into the Emotes list.</summary>
+		public void PlayEmoteAudioForAll(int emoteIndex, float delay)
+		{
+			RpcPlayEmoteAudio(emoteIndex, delay);
+		}
+
+		[Rpc(RpcSources.InputAuthority, RpcTargets.All)]
+		private void RpcPlayEmoteAudio(int emoteIndex, float delay)
+		{
+			var emotes = GetComponent<PlayerEmotes>()?.Emotes;
+			if (emotes == null || emoteIndex < 0 || emoteIndex >= emotes.Length) return;
+			var emote = emotes[emoteIndex];
+			if (emote == null || emote.EmoteAudio == null) return;
+			StartCoroutine(PlayEmoteAudioCoroutine(emote.EmoteAudio, transform.position, emote.AudioVolume, delay));
+		}
+
+		private System.Collections.IEnumerator PlayEmoteAudioCoroutine(AudioClip clip, Vector3 pos, float volume, float delay)
+		{
+			if (delay > 0f) yield return new WaitForSeconds(delay);
+			AudioManager.Instance?.PlaySFX(clip, pos, volume);
+		}
+
+		/// <summary>
+		/// Local-space camera offset added during a ShowFullBody emote.
+		/// PlayerEmotes lerps this toward ThirdPersonOffset then back to zero.
+		/// </summary>
+		public Vector3 EmoteCameraOffset { get; set; }
+
+		/// <summary>
+		/// When true, PlayerFullBody is shown for the local player (overriding the normal NoHead-only view).
+		/// PlayerNoHead is hidden so only the full body is visible.
+		/// </summary>
+		public bool ShowFullBodyForEmote { get; set; }
+
+		/// <summary>
+		/// Called by PlayerEmotes to suppress arm IK while an emote plays and lock player input.
+		/// Pass false when the emote ends to restore normal behaviour.
+		/// </summary>
+		public void SetIKSuppressedByEmote(bool suppressed)
+		{
+			_ikSuppressedByEmote = suppressed;
+			IsEmoting            = suppressed;
+		}
 
 		/// <summary>Fires an Animator trigger on both BodyAnimator and NoHeadAnimator simultaneously.</summary>
 		[Sirenix.OdinInspector.Button]
