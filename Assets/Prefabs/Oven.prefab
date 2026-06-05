@@ -42,9 +42,9 @@ Light:
   m_Enabled: 1
   serializedVersion: 13
   m_Type: 2
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_Intensity: 1
-  m_Range: 10
+  m_Color: {r: 1, g: 0.92, b: 0.75, a: 1}
+  m_Intensity: 1.5
+  m_Range: 0.6
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
   m_CookieSize2D: {x: 0.5, y: 0.5}
@@ -252,16 +252,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.Oven
   _interactRange: 2.5
   _doorIsInteractable: 1
-  _interactionPoint: {fileID: 0}
+  _interactionPoint: {fileID: 5904776452159916625}
   _openLabel: Open
   _closeLabel: Close
-  _door: {fileID: 0}
+  _door: {fileID: 7055657411393077689}
   _doorClosedEuler: {x: 0, y: 0, z: 0}
-  _doorOpenEuler: {x: 0, y: -110, z: 0}
+  _doorOpenEuler: {x: 80, y: 0, z: 0}
   _doorLerpSpeed: 10
   _extraDoors: []
-  _interiorVolume: {fileID: 0}
-  _light: {fileID: 0}
+  _interiorVolume: {fileID: 7453454025156583307}
+  _light: {fileID: 4056552271697562597}
   _openClip: {fileID: 0}
   _closeClip: {fileID: 0}
   _doorVolume: 1
@@ -272,7 +272,7 @@ MonoBehaviour:
   _IsOpen:
     _value: 0
   _cookSeconds: 10
-  _humSource: {fileID: 0}
+  _humSource: {fileID: 142477336464157920}
   _finishClip: {fileID: 0}
   _finishVolume: 1
   _activeWhileCooking: []
@@ -311,10 +311,10 @@ AudioSource:
   OutputAudioMixerGroup: {fileID: 0}
   m_audioClip: {fileID: 0}
   m_Resource: {fileID: 0}
-  m_PlayOnAwake: 1
+  m_PlayOnAwake: 0
   m_Volume: 1
   m_Pitch: 1
-  Loop: 0
+  Loop: 1
   Mute: 0
   Spatialize: 0
   SpatializePostEffects: 0
@@ -534,11 +534,11 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
+  m_Size: {x: 0.5, y: 0.4, z: 0.4}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &6389469551646183053
 GameObject:
@@ -589,11 +589,11 @@ BoxCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
+  m_IsTrigger: 1
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
+  m_Size: {x: 0.15, y: 0.15, z: 0.15}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &8993693221273067783
 MonoBehaviour:
