@@ -28,7 +28,7 @@ namespace Starter.Shooter
 		// gizmo path, so the per-draw FindObjectsByType scan is acceptable.
 		private Color GizmoColor()
 		{
-			var zones = FindObjectsByType<Zone>(FindObjectsSortMode.None);
+			var zones = FindObjectsByType<Zone>(FindObjectsInactive.Exclude);
 			for (int i = 0; i < zones.Length; i++)
 				if (zones[i] != null && zones[i].Contains(transform.position))
 					return Zone.ColorForId(zones[i].ZoneId);

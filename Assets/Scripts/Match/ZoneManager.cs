@@ -62,7 +62,7 @@ namespace Starter.Shooter
 			_zonesById.Clear();
 			_sortedZones.Clear();
 
-			var zones = FindObjectsByType<Zone>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+			var zones = FindObjectsByType<Zone>(FindObjectsInactive.Exclude);
 			for (int i = 0; i < zones.Length; i++)
 			{
 				var z = zones[i];
@@ -84,7 +84,7 @@ namespace Starter.Shooter
 		// Distribute every scene SpawnPoint to the first zone (by ascending ZoneId) whose footprint contains it.
 		private void AssignSpawnPointsToZones()
 		{
-			var spawnPoints = FindObjectsByType<SpawnPoint>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+			var spawnPoints = FindObjectsByType<SpawnPoint>(FindObjectsInactive.Exclude);
 			for (int i = 0; i < spawnPoints.Length; i++)
 			{
 				var sp = spawnPoints[i];

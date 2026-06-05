@@ -103,7 +103,7 @@ namespace Starter.Shooter.EditorTools
 
 			// Sanity-check that the scene actually has a UIGameMenu to react to the flag, so the button
 			// doesn't silently do nothing on, say, the main-menu scene.
-			var menus = UnityEngine.Object.FindObjectsByType<UIGameMenu>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+			var menus = UnityEngine.Object.FindObjectsByType<UIGameMenu>(FindObjectsInactive.Include);
 			if (menus == null || menus.Length == 0)
 			{
 				EditorUtility.DisplayDialog("Play Single Player",

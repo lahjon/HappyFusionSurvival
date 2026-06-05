@@ -68,7 +68,7 @@ namespace Starter.Shooter
 		private void EditorGatherSpawnPoints()
 		{
 			_spawnPoints.Clear();
-			var all = FindObjectsByType<SpawnPoint>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+			var all = FindObjectsByType<SpawnPoint>(FindObjectsInactive.Include);
 			for (int i = 0; i < all.Length; i++)
 				if (all[i] != null && Contains(all[i].transform.position))
 					_spawnPoints.Add(all[i]);
@@ -99,13 +99,13 @@ namespace Starter.Shooter
 			_idFixupScheduled = false;
 			if (Application.isPlaying) return;
 
-			var zones = FindObjectsByType<Zone>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+			var zones = FindObjectsByType<Zone>(FindObjectsInactive.Include);
 			// Stable order: by current id, then instance id — so the first holder of an id keeps it and later
 			// duplicates are the ones bumped, giving a deterministic, churn-free result.
 			System.Array.Sort(zones, (a, b) =>
 			{
 				int c = a.ZoneId.CompareTo(b.ZoneId);
-				return c != 0 ? c : a.GetInstanceID().CompareTo(b.GetInstanceID());
+				return c != 0 ? c : a.GetEntityId().CompareTo(b.GetEntityId());
 			});
 
 			var used = new HashSet<int>();
@@ -133,7 +133,7 @@ namespace Starter.Shooter
 		private void EditorRenumberAllZoneIds()
 		{
 			// Compact, predictable renumber by name — use when ids have drifted and you want a clean 0..n set.
-			var zones = FindObjectsByType<Zone>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+			var zones = FindObjectsByType<Zone>(FindObjectsInactive.Include);
 			System.Array.Sort(zones, (a, b) => string.CompareOrdinal(a.name, b.name));
 			for (int i = 0; i < zones.Length; i++)
 			{

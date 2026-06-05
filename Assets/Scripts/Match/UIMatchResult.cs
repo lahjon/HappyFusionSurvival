@@ -94,7 +94,7 @@ namespace Starter.Shooter
 			label.fontSize = size;          // TMP falls back to the default font asset when none is assigned
 			label.fontStyle = style;
 			label.alignment = TextAlignmentOptions.Center;
-			label.enableWordWrapping = true;
+			label.textWrappingMode = TextWrappingModes.Normal;
 			return label;
 		}
 

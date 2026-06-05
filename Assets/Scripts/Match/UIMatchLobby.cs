@@ -184,7 +184,7 @@ namespace Starter.Shooter
 			int size = team != null ? Mathf.Clamp(team.TeamSize, TeamManager.MinTeamSize, TeamManager.MaxTeamSize) : 1;
 
 			_roster.Clear();
-			foreach (var p in FindObjectsByType<Player>(FindObjectsSortMode.None))
+			foreach (var p in FindObjectsByType<Player>(FindObjectsInactive.Exclude))
 			{
 				if (p != null && p.Object != null) _roster.Add(p);
 			}

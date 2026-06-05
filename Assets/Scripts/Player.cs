@@ -135,8 +135,10 @@ namespace Starter.Shooter
 		public float LedgeReachDistance = 0.8f;
 		[Tooltip("Grace window (seconds) after the wall probe loses contact before the player drops. Gives them time to physically round a sharp corner where the wall briefly isn't in front of the chest. The player coasts with their climb intent during this window.")]
 		public float ClimbCornerGraceDuration = 0.25f;
+		[Tooltip("After the corner search adopts a new face, the wall normal is locked to it for this long (seconds) so it can't flip back to the previous face. Prevents the apex 'flicker'/freeze when two faces meet at a sharp corner. Should be long enough to physically clear the corner apex (~0.3s).")]
+		public float ClimbWrapCommitDuration = 0.3f;
 		[Tooltip("DEBUG: draw climb wall/corner probes in the Scene view and log probe outcomes. Turn off for release.")]
-		public bool DebugClimbProbes = true;
+		public bool DebugClimbProbes = false;
 
 		[Header("Movement Accelerations")]
 		public float GroundAcceleration = 55f;
@@ -332,6 +334,12 @@ namespace Starter.Shooter
 		// a wall they drop. Reset to default the moment any probe finds a wall again.
 		[Networked]
 		private TickTimer _climbGraceTimer { get; set; }
+		// Starts when the corner-wrap search adopts a NEW face. While it ticks, the wrap search is
+		// suppressed so the wall normal can't flip back to the previous face — this stops the apex
+		// ping-pong (normal oscillating between the two faces) that froze the player and flickered the
+		// body rotation. The straight probe along the committed normal still keeps the player anchored.
+		[Networked]
+		private TickTimer _climbWrapCommitTimer { get; set; }
 		// Non-default _mantleTimer means a mantle is in progress.
 		[Networked]
 		private TickTimer _mantleTimer { get; set; }
@@ -564,6 +572,7 @@ namespace Starter.Shooter
 			_climbJumpTimer = default;
 			_climbSlideTimer = default;
 			_climbGraceTimer = default;
+			_climbWrapCommitTimer = default;
 			_mantleTimer = default;
 			_mantleStart = Vector3.zero;
 			_mantleEnd = Vector3.zero;
@@ -1730,19 +1739,30 @@ namespace Starter.Shooter
 			// Re-probe the wall to update the normal (handles convex curves and segmented geometry)
 			// and detect when the player has climbed off the side.
 			float probeLen = ClimbWallProbeDistance + ClimbStickRange;
-			Vector3 probeDir = -_climbWallNormal;
 			Vector3 origin = GetClimbProbeOrigin();
-			bool wallFound = Physics.Raycast(origin, probeDir, out RaycastHit hit, probeLen, ClimbableMask, QueryTriggerInteraction.Ignore);
+
+			// First, try to RE-ANCHOR to the current wall (straight + tolerant fan). This holds the player
+			// on the wall they're already on — including a tick or two at a corner apex where the dead-
+			// straight probe just misses — without invoking the wide corner search. That keeps the normal
+			// stable (no oscillation, no flicker) and stops the apex drop.
+			bool wallFound = TryReacquireCurrentWall(origin, probeLen, out RaycastHit hit);
 			if (DebugClimbProbes)
-				Debug.DrawRay(origin, probeDir * probeLen, wallFound ? Color.green : Color.red, 2f);
+				Debug.DrawRay(origin, -_climbWallNormal * probeLen, wallFound ? Color.green : Color.red, 2f);
+
 			if (wallFound == false)
 			{
-				// A missed straight probe doesn't always mean the player left the wall — when moving
-				// around a vertical 90° edge the old face simply ends. Try wrapping around the corner
-				// (in the move direction) onto the perpendicular face before giving up the climb.
-				wallFound = TryWrapClimbCorner(input, out hit);
-				if (DebugClimbProbes)
-					Debug.Log($"[Climb] straight probe MISS at {origin:F2} normal={_climbWallNormal:F2} -> wrap {(wallFound ? $"HIT {hit.collider.name} n={hit.normal:F2}" : "MISS")}");
+				// The current wall is genuinely gone. Search wide for a wrapped corner face — but only if
+				// we're not still inside a fresh wrap-commit window (belt-and-suspenders against flipping
+				// back to the previous face the instant after a wrap).
+				bool committed = _climbWrapCommitTimer.IsRunning && _climbWrapCommitTimer.Expired(Runner) == false;
+				if (committed == false)
+				{
+					wallFound = TryWrapClimbCorner(input, out hit);
+					if (wallFound)
+						_climbWrapCommitTimer = TickTimer.CreateFromSeconds(Runner, ClimbWrapCommitDuration);
+					if (DebugClimbProbes)
+						Debug.Log($"[Climb] continuity MISS at {origin:F2} normal={_climbWallNormal:F2} -> wrap {(wallFound ? $"HIT {hit.collider.name} n={hit.normal:F2}" : "MISS")}");
+				}
 			}
 			if (wallFound == false)
 			{
@@ -1964,6 +1984,7 @@ namespace Starter.Shooter
 			_climbJumpTimer = default;
 			_climbSlideTimer = default;
 			_climbGraceTimer = default;
+			_climbWrapCommitTimer = default;
 			_moveVelocity = Vector3.zero;
 		}
 
@@ -1972,6 +1993,36 @@ namespace Starter.Shooter
 		// camera's climb yaw is clamped to ±90° from the wall facing, so a span to ±110° comfortably
 		// covers any 90° corner regardless of where the player is looking.
 		private static readonly float[] _cornerSweepAngles = { 30f, -30f, 55f, -55f, 80f, -80f, 105f, -105f };
+
+		// Small horizontal fan used to RE-ANCHOR to the current wall when the dead-straight probe just
+		// misses (player drifted slightly off-axis at the apex). Tolerant enough to hold the wall without
+		// dropping, but narrow enough — combined with the normal-deviation gate — to never grab the
+		// perpendicular face of a corner (that's the wide-search wrap's job).
+		private static readonly float[] _continuityFanAngles = { 20f, -20f, 40f, -40f };
+
+		// Re-anchor to the CURRENT wall: dead-straight probe along -normal, then a small fan, accepting a
+		// fan hit only if its face stays within ~55° of the current normal. Holding the current wall this
+		// way (instead of bare straight-only) stops the player from dropping at a corner apex, and the
+		// angle gate keeps it from latching the perpendicular face (which would oscillate).
+		private bool TryReacquireCurrentWall(Vector3 origin, float probeLen, out RaycastHit hit)
+		{
+			Vector3 baseDir = -_climbWallNormal;
+			if (Physics.Raycast(origin, baseDir, out hit, probeLen, ClimbableMask, QueryTriggerInteraction.Ignore))
+				return true; // exact straight hit — same (or continuously curving) wall
+
+			Vector3 intoH = new Vector3(baseDir.x, 0f, baseDir.z);
+			if (intoH.sqrMagnitude < 0.0001f) return false;
+			intoH.Normalize();
+			foreach (float ang in _continuityFanAngles)
+			{
+				Vector3 d = Quaternion.AngleAxis(ang, Vector3.up) * intoH;
+				if (Physics.Raycast(origin, d, out hit, probeLen, ClimbableMask, QueryTriggerInteraction.Ignore)
+					&& Vector3.Angle(hit.normal, _climbWallNormal) <= 55f)
+					return true;
+			}
+			hit = default;
+			return false;
+		}
 
 		// When the straight wall re-probe (locked to the old wall normal) misses, the player may be
 		// wrapping around a vertical corner rather than leaving the wall. Find where the surface continues
@@ -2162,7 +2213,15 @@ namespace Starter.Shooter
 			{
 				Vector3 faceDir = new Vector3(-_climbWallNormal.x, 0f, -_climbWallNormal.z);
 				if (faceDir.sqrMagnitude > 0.001f)
-					anim.transform.rotation = Quaternion.LookRotation(faceDir, Vector3.up);
+				{
+					// Ease toward the wall-facing rotation rather than snapping. The corner-wrap turn is a
+					// one-shot ~90° change; smoothing it (frame-rate-independent) keeps the body from
+					// popping as the normal flips between faces. Commit-locking already stops oscillation;
+					// this just polishes the single turn.
+					Quaternion target = Quaternion.LookRotation(faceDir, Vector3.up);
+					float t = 1f - Mathf.Exp(-14f * Time.deltaTime);
+					anim.transform.rotation = Quaternion.Slerp(anim.transform.rotation, target, t);
+				}
 			}
 			else
 			{

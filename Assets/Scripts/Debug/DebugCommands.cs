@@ -321,7 +321,7 @@ namespace Starter.Shooter
 		/// <summary>The Player this peer controls — the one carrying input authority.</summary>
 		private static Player FindLocalPlayer()
 		{
-			var players = Object.FindObjectsByType<Player>(FindObjectsSortMode.None);
+			var players = Object.FindObjectsByType<Player>(FindObjectsInactive.Exclude);
 			foreach (var p in players)
 			{
 				if (p.HasInputAuthority) return p;

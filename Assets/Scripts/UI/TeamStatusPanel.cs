@@ -204,7 +204,7 @@ namespace Starter.Shooter
 			label.fontSize = RowFontSize;
 			label.color = AliveColor;
 			label.alignment = TextAlignmentOptions.MidlineLeft;
-			label.enableWordWrapping = false;
+			label.textWrappingMode = TextWrappingModes.NoWrap;
 			label.raycastTarget = false;
 
 			return new Row { Go = rowGo, Skull = skull, Name = label };
