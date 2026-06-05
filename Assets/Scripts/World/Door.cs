@@ -16,6 +16,8 @@ public class Door : NetworkBehaviour, IInteractable, IDoorBarrier
     public float     pivotAngle  = 90f;
     public float     openSpeed   = 2f;
     public bool      openInwards = false;
+    [Tooltip("When enabled, the door always swings away from the player who opened it.")]
+    public bool      dynamicOpenDirection = false;
 
     public string openInteractLabel  = "Open door";
     public string closeInteractLabel = "Close door";
@@ -35,7 +37,10 @@ public class Door : NetworkBehaviour, IInteractable, IDoorBarrier
     [Networked, OnChangedRender(nameof(OnIsOpenChanged))]
     public bool IsOpen { get; set; }
 
-    // ── Local rotation cache ───────────────────────────────────────────────────
+    // ── Networked & local state ────────────────────────────────────────────────
+    /// <summary>Networked open angle (degrees). Set by state authority when dynamicOpenDirection is on.</summary>
+    [Networked] private float _networkedOpenAngle { get; set; }
+
     Quaternion _closedRotation;
     Quaternion _openRotation;
 
@@ -46,14 +51,22 @@ public class Door : NetworkBehaviour, IInteractable, IDoorBarrier
             doorPivotTransform = transform;
 
         _closedRotation = doorPivotTransform.localRotation;
-        float angle     = openInwards ? -pivotAngle : pivotAngle;
-        _openRotation   = _closedRotation * Quaternion.Euler(0f, angle, 0f);
+        RefreshOpenRotation();
+    }
+
+    /// <summary>Recomputes _openRotation from the current angle (static or networked).</summary>
+    void RefreshOpenRotation()
+    {
+        float angle   = dynamicOpenDirection ? _networkedOpenAngle : (openInwards ? -pivotAngle : pivotAngle);
+        _openRotation = _closedRotation * Quaternion.Euler(0f, angle, 0f);
     }
 
     /// <summary>Smooth lerp toward the target rotation every render frame (all clients).</summary>
     public override void Render()
     {
         if (doorPivotTransform == null) return;
+
+        if (dynamicOpenDirection) RefreshOpenRotation();
 
         Quaternion target = IsOpen ? _openRotation : _closedRotation;
         doorPivotTransform.localRotation = Quaternion.Lerp(
@@ -86,12 +99,22 @@ public class Door : NetworkBehaviour, IInteractable, IDoorBarrier
     [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
     void RpcToggleDoor(RpcInfo info = default)
     {
+        var source    = info.Source == PlayerRef.None ? Runner.LocalPlayer : info.Source;
+        var playerObj = Runner.GetPlayerObject(source);
+
         // Re-validate that the sender is still in range
-        var playerObj = Runner.GetPlayerObject(info.Source);
         if (playerObj != null)
         {
             float dist = Vector3.Distance(playerObj.transform.position, InteractionPoint);
             if (dist > InteractRange * 1.25f) return;
+        }
+
+        // When opening with dynamic direction, determine which side of the door the player is on
+        // and set the swing angle so the door always opens away from them.
+        if (dynamicOpenDirection && !IsOpen && playerObj != null)
+        {
+            Vector3 localPlayerPos = transform.InverseTransformPoint(playerObj.transform.position);
+            _networkedOpenAngle = localPlayerPos.z >= 0f ? -pivotAngle : pivotAngle;
         }
 
         IsOpen = !IsOpen;

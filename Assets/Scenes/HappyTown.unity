@@ -204,7 +204,7 @@ MonoBehaviour:
   - {x: -5.4439516, y: 11.746328}
   VerticalLeniency: 6
   ZoneId: 0
-  _indicatorAnchor: {fileID: 746780920}
+  _indicatorAnchor: {fileID: 0}
   _spawnPoints: []
 --- !u!4 &21149433
 Transform:
@@ -1028,60 +1028,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1758071967}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!21 &410129918
-Material:
-  serializedVersion: 8
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: SunVisualMat
-  m_Shader: {fileID: 4800000, guid: 650dd9526735d5b46b79224bc6e94025, type: 3}
-  m_Parent: {fileID: 0}
-  m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
-  m_InvalidKeywords: []
-  m_LightmapFlags: 0
-  m_EnableInstancingVariants: 0
-  m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
-  m_LockedProperties: 
-  m_SavedProperties:
-    serializedVersion: 3
-    m_TexEnvs:
-    - _BaseMap:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _MainTex:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    m_Ints: []
-    m_Floats:
-    - _AddPrecomputedVelocity: 0
-    - _AlphaClip: 0
-    - _AlphaToMask: 0
-    - _Blend: 0
-    - _BlendOp: 0
-    - _Cull: 2
-    - _Cutoff: 0.5
-    - _DstBlend: 0
-    - _DstBlendAlpha: 0
-    - _QueueOffset: 0
-    - _SampleGI: 0
-    - _SrcBlend: 1
-    - _SrcBlendAlpha: 1
-    - _Surface: 0
-    - _XRMotionVectorsPass: 1
-    - _ZWrite: 1
-    m_Colors:
-    - _BaseColor: {r: 15, g: 14.25, b: 12, a: 15}
-    - _Color: {r: 0.5, g: 0.5, b: 0.5, a: 1}
-  m_BuildTextureStacks: []
-  m_AllowLocking: 1
 --- !u!1 &448209154
 GameObject:
   m_ObjectHideFlags: 0
@@ -1184,6 +1130,60 @@ Transform:
   - {fileID: 991100002}
   m_Father: {fileID: 1470279657}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!21 &533846388
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: SunVisualMat
+  m_Shader: {fileID: 4800000, guid: 650dd9526735d5b46b79224bc6e94025, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 0
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _BaseMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AddPrecomputedVelocity: 0
+    - _AlphaClip: 0
+    - _AlphaToMask: 0
+    - _Blend: 0
+    - _BlendOp: 0
+    - _Cull: 2
+    - _Cutoff: 0.5
+    - _DstBlend: 0
+    - _DstBlendAlpha: 0
+    - _QueueOffset: 0
+    - _SampleGI: 0
+    - _SrcBlend: 1
+    - _SrcBlendAlpha: 1
+    - _Surface: 0
+    - _XRMotionVectorsPass: 1
+    - _ZWrite: 1
+    m_Colors:
+    - _BaseColor: {r: 15, g: 14.25, b: 12, a: 15}
+    - _Color: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
 --- !u!1 &537185647
 GameObject:
   m_ObjectHideFlags: 0
@@ -2019,7 +2019,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 410129918}
+  - {fileID: 533846388}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -2110,6 +2110,10 @@ PrefabInstance:
     - target: {fileID: 4605745103885249617, guid: f53eb1643a462d5468104705dbfef655, type: 3}
       propertyPath: SortKey
       value: 2050741744
+      objectReference: {fileID: 0}
+    - target: {fileID: 5409964134616067890, guid: f53eb1643a462d5468104705dbfef655, type: 3}
+      propertyPath: dynamicOpenDirection
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7493935401545438410, guid: f53eb1643a462d5468104705dbfef655, type: 3}
       propertyPath: m_Name
@@ -2728,6 +2732,10 @@ PrefabInstance:
     - target: {fileID: 71678809485884225, guid: 6918430e87b91ab409e417b2dc90cf9e, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4378331967718555015, guid: 6918430e87b91ab409e417b2dc90cf9e, type: 3}
+      propertyPath: dynamicOpenDirection
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7693919370061572853, guid: 6918430e87b91ab409e417b2dc90cf9e, type: 3}
       propertyPath: SortKey
@@ -4950,6 +4958,10 @@ PrefabInstance:
       propertyPath: SortKey
       value: 845561812
       objectReference: {fileID: 0}
+    - target: {fileID: 5243210684481764777, guid: b7c39c6f1641956478c5b990ff3a1ede, type: 3}
+      propertyPath: dynamicOpenDirection
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 6681739790924323697, guid: b7c39c6f1641956478c5b990ff3a1ede, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -5648,6 +5660,10 @@ PrefabInstance:
     - target: {fileID: 3222623564594253732, guid: b7c39c6f1641956478c5b990ff3a1ede, type: 3}
       propertyPath: SortKey
       value: 959194263
+      objectReference: {fileID: 0}
+    - target: {fileID: 5243210684481764777, guid: b7c39c6f1641956478c5b990ff3a1ede, type: 3}
+      propertyPath: dynamicOpenDirection
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6681739790924323697, guid: b7c39c6f1641956478c5b990ff3a1ede, type: 3}
       propertyPath: m_LocalPosition.x
@@ -6850,7 +6866,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 407873948831149771, guid: 39d240c91372e894e951e65c7ff830a7, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: -0.415
       objectReference: {fileID: 0}
     - target: {fileID: 407873948831149771, guid: 39d240c91372e894e951e65c7ff830a7, type: 3}
       propertyPath: m_LocalPosition.z
@@ -6896,6 +6912,10 @@ PrefabInstance:
       propertyPath: SortKey
       value: 977293166
       objectReference: {fileID: 0}
+    - target: {fileID: 5409964134616067890, guid: 39d240c91372e894e951e65c7ff830a7, type: 3}
+      propertyPath: dynamicOpenDirection
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 5570374004336006554, guid: 39d240c91372e894e951e65c7ff830a7, type: 3}
       propertyPath: SortKey
       value: 1593944765
@@ -6936,6 +6956,10 @@ PrefabInstance:
     - target: {fileID: 3222623564594253732, guid: b7c39c6f1641956478c5b990ff3a1ede, type: 3}
       propertyPath: SortKey
       value: 488798624
+      objectReference: {fileID: 0}
+    - target: {fileID: 5243210684481764777, guid: b7c39c6f1641956478c5b990ff3a1ede, type: 3}
+      propertyPath: dynamicOpenDirection
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6681739790924323697, guid: b7c39c6f1641956478c5b990ff3a1ede, type: 3}
       propertyPath: m_LocalPosition.x
@@ -7013,6 +7037,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 82323588986810459, guid: 2f4be98e4c8ab80409b06e95a0ccb0b3, type: 3}
+      propertyPath: dynamicOpenDirection
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 2765682782326362431, guid: 2f4be98e4c8ab80409b06e95a0ccb0b3, type: 3}
       propertyPath: m_LocalPosition.x
       value: 16.590002
