@@ -1,6 +1,7 @@
 // Unlit, billboard-friendly marker shader for ally/enemy world indicators.
-// In a Resources folder so WorldMarkerManager can Resources.Load it in builds with no
-// Graphics-settings wiring. The _ZTest property lets the same shader render either
+// Loaded at runtime by WorldMarkerManager via Shader.Find("HappyFusion/Indicator"); listed in
+// Project Settings > Graphics > Always Included Shaders so it survives build stripping (no material
+// references it in a scene). The _ZTest property lets the same shader render either
 // through walls (ZTest Always, ally) or depth-tested (ZTest LEqual, enemy) by picking
 // the compare function per-material. Per-marker colour/alpha comes from a
 // MaterialPropertyBlock overriding _Color (ZTest/renderQueue stay per-material).

@@ -142,11 +142,15 @@ namespace Starter.Shooter
 			{
 				bool isPlayerTarget = TryGetComponent<Player>(out var victimPlayer);
 
+				// Snapshot the victim's downed state BEFORE the hook runs (the hook may flip it true).
+				// Used below to decide whether this is the first takedown or a finishing hit.
+				bool wasAlreadyDowned = isPlayerTarget && victimPlayer.IsDowned;
+
 				// Give the host-side owner a chance to absorb the lethal blow (Player uses this
 				// to enter the downed state). If the hook handles it, clamp HP back to 1 so the
 				// entity remains "alive" for the rest of the gameplay logic; the downed flow owns
-				// the bleed-out timer separately. If no hook or the hook declines, fall through to
-				// the normal death cooldown.
+				// the bleed-out timer separately. If no hook or the hook declines (already downed, or
+				// no teammate who could revive — e.g. Solo), fall through to the normal death cooldown.
 				bool downHandled = AuthorityDownHook != null && AuthorityDownHook();
 				if (downHandled)
 				{
@@ -160,11 +164,12 @@ namespace Starter.Shooter
 				}
 
 				// Credit the elimination to the attacker's team the moment the victim is first taken out of
-				// the fight: either the down-hook just caught the blow (player → downed) or there's no hook at
-				// all (bot / non-downable entity dies outright). A finishing hit on an ALREADY-downed player
-				// (hook present but declined) must not re-credit — that takedown was scored when they went down.
+				// the fight — whether this hit downed them (duo/trio) or killed them outright (Solo, a wiped
+				// team, a bot, or any non-downable entity). The one case that must NOT re-credit is a finishing
+				// hit on an ALREADY-downed player: that takedown was scored when they first went down. So the
+				// rule is simply "they weren't already downed before this hit."
 				// Only counts during Night, only when a real player struck a real player.
-				bool firstTakedown = downHandled || AuthorityDownHook == null;
+				bool firstTakedown = wasAlreadyDowned == false;
 				if (firstTakedown
 					&& isPlayerTarget
 					&& attacker != PlayerRef.None

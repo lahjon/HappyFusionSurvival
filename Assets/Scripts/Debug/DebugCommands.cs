@@ -125,15 +125,15 @@ namespace Starter.Shooter
 			return null;
 		}
 
-		[Command("add_bot", "Spawns N AI bot players on enemy teams so a solo player has someone to fight. Default 1. Routed to the host.")]
-		private static string AddBot(int count = 1)
+		[Command("add_bot", "Spawns N AI bot players on enemy teams so a solo player has someone to fight. Default 1 bot at Medium difficulty (Retarded/Easy/Medium/Hard). Routed to the host.")]
+		private static string AddBot(int count = 1, BotDifficulty difficulty = BotDifficulty.Medium)
 		{
 			if (count <= 0) return $"add_bot: count must be positive (got {count}).";
 			var gm = Object.FindAnyObjectByType<GameManager>();
 			if (gm == null) return "add_bot: no GameManager found (not in a match?).";
 
-			gm.RPC_DebugAddBots(count);
-			return $"add_bot: requested {count} bot(s) on the host.";
+			gm.RPC_DebugAddBots(count, difficulty);
+			return $"add_bot: requested {count} {difficulty} bot(s) on the host.";
 		}
 
 		[Command("remove_bot", "Despawns N AI bots, most-recently-added first. Default 1. Routed to the host.")]
@@ -155,6 +155,17 @@ namespace Starter.Shooter
 
 			gm.RPC_DebugClearBots();
 			return "clear_bots: requested removal of all bots on the host.";
+		}
+
+		[Command("bot_difficulty", "Re-tunes ALL current AI bots to a difficulty tier: 0=Retarded, 1=Easy, 2=Medium, 3=Hard. Out-of-range values clamp to the nearest tier. Routed to the host.")]
+		private static string SetBotDifficulty(int level)
+		{
+			var gm = Object.FindAnyObjectByType<GameManager>();
+			if (gm == null) return "bot_difficulty: no GameManager found (not in a match?).";
+
+			var difficulty = (BotDifficulty)Mathf.Clamp(level, 0, (int)BotDifficulty.Hard);
+			gm.RPC_DebugSetBotDifficulty(difficulty);
+			return $"bot_difficulty: set all bots to {difficulty} (level {(int)difficulty}).";
 		}
 
 		[Command("time_scale", "Sets the networked game speed (Time.timeScale) on every peer. 1 = normal, 0 = paused, >1 = faster. Replicated via the state authority.")]

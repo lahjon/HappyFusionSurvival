@@ -98,9 +98,6 @@ MonoBehaviour:
   - Item: {fileID: 11400000, guid: 9f8e7d6c5b4a39281716052413029f80, type: 2}
     Weight: 1
     Count: 1
-  - Item: {fileID: 11400000, guid: e8d6c4b2a09786543210fedcba987654, type: 2}
-    Weight: 1
-    Count: 1
   - Item: {fileID: 11400000, guid: 6b81b0cd1e2a3b4c5d6e7f8091a2b3c4, type: 2}
     Weight: 1
     Count: 1

@@ -492,6 +492,9 @@ namespace Starter.Shooter
 		private Inventory _inventory;
 		// AI brain for bot-controlled players; dormant (IsActive == false) on humans. Drives TryGetTickInput.
 		private BotBrain _botBrain;
+		// Skill tier for this bot, set in ConfigureAsBot (host only) and handed to the BotBrain on attach in Spawned.
+		// Plain field — only the host runs bot AI, so it never needs to replicate. Ignored for humans.
+		private BotDifficulty _botDifficulty = BotDifficulty.Medium;
 		// Cached renderers under ScalingRoot — populated on Spawned for the local input authority only.
 		// Toggled off while seated so the driver doesn't see their own torso/legs floating in the cab.
 		private Renderer[] _localBodyRenderers;
@@ -761,6 +764,7 @@ namespace Starter.Shooter
 				if (HasStateAuthority)
 				{
 					_botBrain = gameObject.AddComponent<BotBrain>();
+					_botBrain.Difficulty = _botDifficulty;
 					_botBrain.Initialize();
 				}
 			}
@@ -1028,13 +1032,23 @@ namespace Starter.Shooter
 		/// <summary>Marks this Player as an AI bot and stamps its synthetic <see cref="Owner"/> ref. Called by
 		/// <see cref="GameManager.AddBots"/> inside <c>Runner.Spawn</c>'s <c>onBeforeSpawned</c> on the host, so the
 		/// [Networked] state is valid before <see cref="Spawned"/> runs. No-op off the state authority.</summary>
-		public void ConfigureAsBot(PlayerRef syntheticOwner, string botName = null)
+		public void ConfigureAsBot(PlayerRef syntheticOwner, string botName = null, BotDifficulty difficulty = BotDifficulty.Medium)
 		{
 			if (HasStateAuthority == false) return;
 			IsBot = true;
 			Owner = syntheticOwner;
+			_botDifficulty = difficulty;
 			if (string.IsNullOrEmpty(botName) == false)
 				Nickname = botName;
+		}
+
+		/// <summary>Host-only: re-tune this bot's difficulty at runtime (e.g. the <c>bot_difficulty</c> command). Updates
+		/// the live <see cref="BotBrain"/> if attached and remembers the tier. No-op on humans / off the state authority.</summary>
+		public void SetBotDifficulty(BotDifficulty difficulty)
+		{
+			if (HasStateAuthority == false || IsBot == false) return;
+			_botDifficulty = difficulty;
+			if (_botBrain != null) _botBrain.SetDifficulty(difficulty);
 		}
 
 		/// <summary>Single input seam for <see cref="FixedUpdateNetwork"/>. Bots pull a freshly-computed
@@ -1056,6 +1070,10 @@ namespace Starter.Shooter
 
 		private void LateUpdate()
 		{
+			// Keep the remote player's nameplate relation indicator current (team/phase can change at any time).
+			// Done before the early returns below so seated / downed players still show the right colour.
+			UpdateNameplateRelation();
+
 			if (IsSeated)
 			{
 				SeatedLateUpdate();
@@ -2725,6 +2743,32 @@ namespace Starter.Shooter
 			GetComponent<PlayerInput>()?.SetLookRotation(new Vector2(0f, SpawnLookYaw));
 		}
 
+		// Drives the colour of the remote player's nameplate relation circle. Friendly (green) = same team as the
+		// local player; otherwise neutral (blue) during Town/Lobby and hostile (red) once the Purge (Night) begins —
+		// every non-ally is fair game at night. Local player has no nameplate, so this is a no-op for them.
+		private void UpdateNameplateRelation()
+		{
+			if (Nameplate == null || HasInputAuthority)
+				return;
+			if (Nameplate.gameObject.activeSelf == false)
+				return; // Nameplate only switches on once the nickname arrives (OnNicknameChanged).
+
+			Nameplate.SetRelation(ResolveRelation());
+		}
+
+		private UINameplate.NameplateRelation ResolveRelation()
+		{
+			var local = Runner != null ? Runner.LocalPlayer : PlayerRef.None;
+			var teams = TeamManager.Instance;
+			if (teams != null && local != PlayerRef.None && teams.SameTeam(local, Owner))
+				return UINameplate.NameplateRelation.Friendly;
+
+			// Non-ally: hostile once PvP is live (Night, or the debug 'arm' override), neutral otherwise.
+			var match = MatchManager.Instance;
+			bool pvpLive = match != null && (match.IsPvpActive || match.IsPvpForced);
+			return pvpLive ? UINameplate.NameplateRelation.Hostile : UINameplate.NameplateRelation.Neutral;
+		}
+
 		private void OnNicknameChanged()
 		{
 			if (HasInputAuthority)
@@ -2737,6 +2781,7 @@ namespace Starter.Shooter
 			{
 				Nameplate.gameObject.SetActive(true);
 				Nameplate.SetNickname(Nickname);
+				Nameplate.SetRelation(ResolveRelation()); // correct colour from the first frame
 			}
 		}
 
@@ -2901,14 +2946,20 @@ namespace Starter.Shooter
 		}
 
 		/// <summary>Wired into <see cref="Health.AuthorityDownHook"/> on <see cref="Spawned"/>. Fires
-		/// on the state authority just before HP would zero out — if we're not already downed,
-		/// absorb the lethal blow and enter the downed state. Returning false lets the kill go
-		/// through normally (chained hit while already downed = real death; sleeping invulnerability
-		/// is enforced earlier by Health.IsInvulnerable so we don't gate on it here).</summary>
+		/// on the state authority just before HP would zero out — if we're not already downed AND a
+		/// teammate could still revive us, absorb the lethal blow and enter the downed state. Returning
+		/// false lets the kill go through normally (chained hit while already downed = real death; Solo
+		/// or a wiped-out team has no possible reviver, so dying outright avoids a bleed-out nobody can
+		/// interrupt; sleeping invulnerability is enforced earlier by Health.IsInvulnerable so we don't
+		/// gate on it here).</summary>
 		private bool OnLethalDamage()
 		{
 			if (HasStateAuthority == false) return false;
 			if (IsDowned) return false;
+
+			// No teammate who could ever revive us (Solo team, or every ally already dead/downed) →
+			// die outright instead of crawling out a bleed-out nobody can interrupt.
+			if (HasRevivableAlly() == false) return false;
 
 			IsDowned = true;
 			DownedTimeRemaining = DownedBleedOutSeconds;
@@ -2921,6 +2972,29 @@ namespace Starter.Shooter
 			_wasSprinting = false;
 
 			return true;
+		}
+
+		/// <summary>State-authority helper: true when at least one same-team player is alive and not
+		/// themselves downed — i.e. someone who could actually walk over and revive us. A Solo team
+		/// (size 1) never has one, so Solo deaths are always instant; in Duo/Trio a player whose
+		/// teammates are all dead or downed also dies outright rather than entering a futile bleed-out.
+		/// Keys on <see cref="Owner"/> (synthetic for bots) so it matches the team-assignment ref.</summary>
+		private bool HasRevivableAlly()
+		{
+			var team = TeamManager.Instance;
+			if (team == null) return false; // No team system (shouldn't happen mid-match) → no reviver.
+
+			for (int i = 0; i < All.Count; i++)
+			{
+				var other = All[i];
+				if (other == null || other == this) continue;
+				if (other.Health == null || other.Health.IsAlive == false) continue;
+				if (other.IsDowned) continue; // A downed ally can't revive anyone.
+				if (team.SameTeam(Owner, other.Owner) == false) continue;
+				return true;
+			}
+
+			return false;
 		}
 
 		/// <summary>Adds the floating revive prompt to the player root. <see cref="InteractionPrompt.HideWhenLocked"/>

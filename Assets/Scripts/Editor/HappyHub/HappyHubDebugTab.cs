@@ -20,13 +20,17 @@ namespace Starter.Shooter.EditorTools
 		private static bool Playing => Application.isPlaying;
 
 		[TitleGroup("Bots")]
+		[EnumToggleButtons, LabelText("Difficulty"), Tooltip("Skill tier applied to bots spawned with the buttons below.")]
+		public BotDifficulty BotDifficulty = BotDifficulty.Medium;
+
+		[TitleGroup("Bots")]
 		[InfoBox("These act on the running match. Enter Play mode (e.g. via the Testing tab) to use them.",
 			InfoMessageType.None, VisibleIf = "@!" + nameof(Playing))]
 		[HorizontalGroup("Bots/row"), Button("+1 Bot"), EnableIf(nameof(Playing))]
-		private void AddBot() => GameManager.Instance?.RPC_DebugAddBots(1);
+		private void AddBot() => GameManager.Instance?.RPC_DebugAddBots(1, BotDifficulty);
 
 		[HorizontalGroup("Bots/row"), Button("+3 Bots"), EnableIf(nameof(Playing))]
-		private void AddThreeBots() => GameManager.Instance?.RPC_DebugAddBots(3);
+		private void AddThreeBots() => GameManager.Instance?.RPC_DebugAddBots(3, BotDifficulty);
 
 		[HorizontalGroup("Bots/row"), Button("Remove Bot"), EnableIf(nameof(Playing))]
 		private void RemoveBot() => GameManager.Instance?.RPC_DebugRemoveBots(1);

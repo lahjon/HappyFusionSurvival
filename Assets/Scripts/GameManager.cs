@@ -363,7 +363,7 @@ namespace Starter.Shooter
 		/// join <see cref="Players"/> (so the win scan counts them) and are teamed onto bot-only (enemy) teams when a
 		/// round is already underway, or at the next <see cref="MatchManager.BeginMatch"/> when added in the lobby.
 		/// Returns how many actually spawned.</summary>
-		public int AddBots(int count)
+		public int AddBots(int count, BotDifficulty difficulty = BotDifficulty.Medium)
 		{
 			if (HasStateAuthority == false || count <= 0) return 0;
 
@@ -382,7 +382,7 @@ namespace Starter.Shooter
 					(runner, obj) =>
 					{
 						var player = obj.GetComponent<Player>();
-						if (player != null) player.ConfigureAsBot(owner, botName);
+						if (player != null) player.ConfigureAsBot(owner, botName, difficulty);
 					});
 				if (bot == null) continue;
 
@@ -416,16 +416,38 @@ namespace Starter.Shooter
 		/// <summary>Host-only: despawn every bot.</summary>
 		public int ClearBots() => RemoveBots(int.MaxValue);
 
-		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
-		public void RPC_DebugAddBots(int count)
+		/// <summary>Host-only: re-tune every live bot to <paramref name="difficulty"/>. Returns how many bots were updated.</summary>
+		public int SetAllBotsDifficulty(BotDifficulty difficulty)
 		{
-			if (HasStateAuthority) AddBots(count);
+			if (HasStateAuthority == false) return 0;
+
+			int updated = 0;
+			for (int i = 0; i < _players.Count; i++)
+			{
+				var p = _players[i];
+				if (p == null || p.IsBot == false) continue;
+				p.SetBotDifficulty(difficulty);
+				updated++;
+			}
+			return updated;
+		}
+
+		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+		public void RPC_DebugAddBots(int count, BotDifficulty difficulty)
+		{
+			if (HasStateAuthority) AddBots(count, difficulty);
 		}
 
 		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
 		public void RPC_DebugRemoveBots(int count)
 		{
 			if (HasStateAuthority) RemoveBots(count);
+		}
+
+		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+		public void RPC_DebugSetBotDifficulty(BotDifficulty difficulty)
+		{
+			if (HasStateAuthority) SetAllBotsDifficulty(difficulty);
 		}
 
 		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]

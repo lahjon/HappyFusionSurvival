@@ -29,6 +29,7 @@ Anything that changes between phases (vendors, damage rules, music, lighting, AI
 - **Phase-aware.** Day-vs-night behavior reads phase from the single networked `MatchManager` (planned, see `prompt.md`), not per-system timers.
 - **Reuse before adding.** Search for an existing system before writing new. Shared primitives are deliberate (interaction system, `ActionInvoker`/`CombatAction`, `ItemCapability` facets, SimpleKCC `Player.cs`, inventory ops) — plug in, don't reimplement. If you add parallel code, justify why reuse failed.
 - **Debug commands use Quantum Console** (`Assets/Plugins/QFSW/`). Annotate static methods `[Command("name","description")]` (see `Assets/Scripts/Debug/DebugCommands.cs`). No ad-hoc debug keys, IMGUI consoles, or `Debug.Log` cheats. Commands touching networked state route via RPCs (pattern in `DebugCommands.cs`).
+- **Never use `Resources`.** No `Resources.Load` / `Resources.GetBuiltinResource` / `Resources/` folders for app code. Serialize an explicit reference (`[SerializeField]`, ScriptableObject, database asset) and wire it in the Inspector, or generate the asset procedurally in code (e.g. a runtime `Texture2D`/`Sprite`). `Resources.GetBuiltinResource` paths silently return null across Unity versions. (`Resources.FindObjectsOfTypeAll` for enumerating already-loaded editor objects is a different API and fine in Editor tooling.)
 
 ## Build / run
 
@@ -146,3 +147,7 @@ Project uses `com.coplaydev.unity-mcp`. Use MCP (and `unity-mcp-skill`) when a t
 
 - UnityMCP can hang during compilation/domain reload — wait, don't retry.
 - Editor log: `C:/Users/fredr/AppData/Local/Unity/Editor/Editor.log`.
+
+### Multi-instance / test clone
+
+Two editors can be open at once: the **main** project and an isolated **test clone** (a git worktree at `..-TestClone`, managed by the standalone `Tools/Test Clone` window — a self-contained plugin under `Assets/TestCloneKit/`, no project dependencies). UnityMCP exposes both as `Name@hash` instances (`mcpforunity://instances`). **Always target the main project instance** — list instances and pass `unity_instance` (or `set_active_instance`) so your MCP traffic never touches the user's test clone, which they drive manually for isolated play-testing. If only one instance is connected, no pinning needed.

@@ -37,6 +37,14 @@ namespace Starter.Shooter
 	/// </summary>
 	public sealed class BotBrain : MonoBehaviour
 	{
+		[Header("Difficulty")]
+		[Tooltip("Skill tier — set by GameManager.AddBots → Player.ConfigureAsBot before Initialize. Drives fire rate " +
+			"(fraction of the weapon's natural cadence) and aim accuracy (share of shots aimed to hit).")]
+		public BotDifficulty Difficulty = BotDifficulty.Medium;
+		[Tooltip("Sideways/vertical distance (metres) a deliberately-missed shot is aimed off the target's body. Large " +
+			"enough to clear the player capsule at any range, so a 'miss' roll is a geometric miss regardless of distance.")]
+		[Min(0.5f)] public float MissOffsetMeters = 2f;
+
 		[Header("Aim")]
 		[Tooltip("How fast the bot swings its aim toward a target (degrees/second).")]
 		[Min(30f)] public float AimTurnSpeed = 220f;
@@ -83,6 +91,17 @@ namespace Starter.Shooter
 		private NetworkButtons _prevButtons;
 		private Vector2 _aimLook;          // (pitch, yaw) in degrees — the running look the bot drives the KCC with
 
+		// Difficulty-derived tuning (resolved once in Initialize from Difficulty).
+		private float _fireRateFactor;   // shot cadence as a fraction of the weapon's natural rate (1 = full)
+		private float _hitRate;          // probability a planned shot is aimed dead-on (rest aimed to miss)
+		private bool _aimsAtTarget;      // false for Retarded — fires in random directions, never tracks the enemy
+
+		// Per-shot firing state (authority-local).
+		private float _nextFireTime;     // sim time the next trigger pull is allowed
+		private bool _shotPlanned;       // hit/miss has been rolled for the pending shot (aim committed)
+		private Vector3 _shotAimOffset;  // world offset added to the target aim point this shot (zero = hit, off-body = miss)
+		private Vector3 _randomAimDir;   // Retarded: the random world bearing committed for this shot
+
 		// Behaviour bookkeeping (authority-local).
 		private System.Random _rng;
 		private Vector3 _home;
@@ -98,6 +117,17 @@ namespace Starter.Shooter
 		/// <summary>True when this brain should drive the Player (it's a bot, on the authority). Read by
 		/// <see cref="Player.TryGetTickInput"/>.</summary>
 		public bool IsActive => _player != null && _player.IsBot && _object != null && _object.HasStateAuthority;
+
+		/// <summary>Re-tune this bot's skill tier at runtime (e.g. the <c>bot_difficulty</c> console command) and
+		/// re-derive its fire-rate / accuracy profile. Safe to call before or after <see cref="Initialize"/>.</summary>
+		public void SetDifficulty(BotDifficulty difficulty)
+		{
+			Difficulty = difficulty;
+			ApplyDifficultyProfile();
+			_shotPlanned = false; // re-plan the pending shot under the new accuracy
+		}
+
+		private void ApplyDifficultyProfile() => Difficulty.GetProfile(out _fireRateFactor, out _hitRate, out _aimsAtTarget);
 
 		/// <summary>Called by <see cref="Player.Spawned"/> on the state authority once the Player is spawned and its KCC
 		/// is positioned. Caches siblings and — only for an authoritative bot — spins up the planning NavMeshAgent.
@@ -122,6 +152,7 @@ namespace Starter.Shooter
 			_home = _kcc != null ? _kcc.Position : transform.position;
 			_aimLook = new Vector2(0f, _player.transform.eulerAngles.y);
 			_rng = new System.Random(unchecked((int)(_object.Id.Raw * 2654435761u + 1013904223u)));
+			ApplyDifficultyProfile();
 
 			// Planning-only agent: computes paths but never drives the transform — the KCC moves the body.
 			_agent = gameObject.AddComponent<NavMeshAgent>();
@@ -174,18 +205,28 @@ namespace Starter.Shooter
 		private GameplayInput ThinkCombat(Player target)
 		{
 			var input = new GameplayInput();
+			float now = (float)_runner.SimulationTime;
+			float dt = _runner.DeltaTime;
 
 			Vector3 eye = _player.CameraHandle != null ? _player.CameraHandle.position : _kcc.Position + Vector3.up * 1.5f;
-			Vector3 aimPoint = target.transform.position + Vector3.up * TargetAimHeight;
-			Vector3 toTarget = aimPoint - eye;
 
-			// Aim: ease the running look toward the target bearing.
-			Vector2 desired = LookToward(toTarget);
-			float dt = _runner.DeltaTime;
+			// Commit this shot's aim (a single hit/miss roll) once the previous shot's cadence has elapsed, so the bot
+			// settles its look on one committed bearing instead of re-rolling every tick.
+			if (_shotPlanned == false && now >= _nextFireTime)
+				PlanShot(target, eye);
+
+			// Where the bot is currently trying to point. Retarded ignores the target and aims at a random bearing;
+			// the others aim at the body plus this shot's offset (zero on a hit roll, off-body on a miss roll).
+			Vector3 toAim = _aimsAtTarget
+				? (target.transform.position + Vector3.up * TargetAimHeight + _shotAimOffset) - eye
+				: _randomAimDir;
+
+			Vector2 desired = LookToward(toAim);
 			_aimLook.x = Mathf.MoveTowardsAngle(_aimLook.x, desired.x, AimTurnSpeed * dt);
 			_aimLook.y = Mathf.MoveTowardsAngle(_aimLook.y, desired.y, AimTurnSpeed * dt);
 			input.LookRotation = _aimLook;
 
+			// Movement always uses the REAL target position — even a wild-firing bot still advances on the enemy.
 			float fireRange = ActiveActionRange();
 			Vector3 flatToTarget = target.transform.position - _kcc.Position;
 			flatToTarget.y = 0f;
@@ -202,15 +243,54 @@ namespace Starter.Shooter
 					input.Buttons.Set(EInputButton.Sprint, true);
 			}
 
-			// Fire: aimed at the target and within range. CanFire (the weapon cooldown) naturally pulses the
-			// button — after a shot CanFire is false, so Fire releases and re-presses (a fresh edge) when ready.
+			// Fire when the planned shot is due, the aim has settled on its (possibly offset / random) bearing, the
+			// target is in range and the weapon is off cooldown. Setting the button for exactly the firing tick gives
+			// ProcessFireInput a clean press edge; clearing _shotPlanned releases it next tick so the following shot
+			// re-rolls hit/miss and re-presses.
 			bool aimed = Mathf.Abs(Mathf.DeltaAngle(_aimLook.y, desired.y)) <= AimToleranceDeg
 			          && Mathf.Abs(Mathf.DeltaAngle(_aimLook.x, desired.x)) <= AimToleranceDeg;
 			bool inRange = dist <= fireRange;
-			if (aimed && inRange && _invoker != null && _invoker.CanFire)
+			if (_shotPlanned && aimed && inRange && now >= _nextFireTime && _invoker != null && _invoker.CanFire)
+			{
 				input.Buttons.Set(EInputButton.Fire, true);
+				// Pace the next trigger pull by the difficulty's share of the weapon's natural cadence: Hard fires every
+				// cooldown, Medium every other, Easy/Retarded slower still.
+				_nextFireTime = now + ActiveActionCooldown() / Mathf.Max(0.01f, _fireRateFactor);
+				_shotPlanned = false;
+			}
 
 			return input;
+		}
+
+		// Commit the next shot's aim: roll hit vs. miss (per the difficulty's hit rate) and stash the resulting aim
+		// offset. A miss is aimed a couple of metres off the target body so it misses at any range; a Retarded bot picks
+		// a fully random bearing and never tracks the enemy.
+		private void PlanShot(Player target, Vector3 eye)
+		{
+			_shotPlanned = true;
+
+			if (_aimsAtTarget == false)
+			{
+				float yaw = (float)_rng.NextDouble() * 360f;
+				float pitch = ((float)_rng.NextDouble() * 2f - 1f) * 20f; // a little up/down spray, mostly level
+				_randomAimDir = Quaternion.Euler(pitch, yaw, 0f) * Vector3.forward;
+				return;
+			}
+
+			if (_rng.NextDouble() < _hitRate)
+			{
+				_shotAimOffset = Vector3.zero; // aimed to hit
+				return;
+			}
+
+			// Aimed to miss: push the aim point off the body in a random direction around the line of sight.
+			Vector3 los = target.transform.position - eye;
+			los.y = 0f;
+			Vector3 right = los.sqrMagnitude > 0.001f
+				? Vector3.Cross(Vector3.up, los.normalized)
+				: Vector3.right;
+			float ang = (float)_rng.NextDouble() * Mathf.PI * 2f;
+			_shotAimOffset = (Mathf.Cos(ang) * right + Mathf.Sin(ang) * Vector3.up) * MissOffsetMeters;
 		}
 
 		private Player AcquireTarget()
@@ -425,6 +505,14 @@ namespace Starter.Shooter
 			var action = _inventory != null ? _inventory.ActiveAction : null;
 			float range = action != null ? action.EffectiveRange : 0f;
 			return range > 0.1f ? range : MeleeHoldDistance; // fists report a short range; never return ~0
+		}
+
+		// Natural seconds-between-shots of the equipped weapon, used as the base cadence the fire-rate factor scales.
+		private float ActiveActionCooldown()
+		{
+			var action = _inventory != null ? _inventory.ActiveAction : null;
+			float cd = action != null ? action.Cooldown : 0f;
+			return cd > 0.01f ? cd : 0.5f; // floor so a zero-cooldown action still paces bot shots
 		}
 
 		private float RandRange(float a, float b) => a + (float)_rng.NextDouble() * (b - a);

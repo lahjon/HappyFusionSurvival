@@ -36,6 +36,11 @@ namespace Starter.Shooter.EditorTools
 		public int BotCount;
 
 		[TitleGroup("Bots")]
+		[ShowIf("@BotCount > 0")]
+		[EnumToggleButtons, LabelText("Difficulty")]
+		public BotDifficulty BotDifficulty = BotDifficulty.Medium;
+
+		[TitleGroup("Bots")]
 		[ToggleLeft, LabelText("Arm bots with the starting weapon")]
 		public bool ArmBots;
 
@@ -133,6 +138,14 @@ namespace Starter.Shooter.EditorTools
 		private void RefillAmmoNow() => LocalInventory()?.RPC_DebugRefillAmmo();
 
 		[TitleGroup("Live (in Play Mode)")]
+		[EnumToggleButtons, LabelText("Bot Difficulty")]
+		public BotDifficulty LiveBotDifficulty = BotDifficulty.Medium;
+
+		[TitleGroup("Live (in Play Mode)")]
+		[Button("Apply Difficulty to All Bots"), EnableIf(nameof(Playing))]
+		private void ApplyBotDifficulty() => GameManager.Instance?.RPC_DebugSetBotDifficulty(LiveBotDifficulty);
+
+		[TitleGroup("Live (in Play Mode)")]
 		[HorizontalGroup("Live (in Play Mode)/item"), LabelText("Item"), AssetsOnly]
 		public ItemDefinition LiveItem;
 
@@ -177,6 +190,7 @@ namespace Starter.Shooter.EditorTools
 			StartScene = StartScene,
 			StartPhase = StartPhase,
 			BotCount = BotCount,
+			BotDifficulty = BotDifficulty,
 			ArmBots = ArmBots,
 			StartArmed = StartArmed,
 			StartingWeapon = StartingWeapon,
@@ -195,6 +209,7 @@ namespace Starter.Shooter.EditorTools
 			StartScene = c.StartScene;
 			StartPhase = c.StartPhase;
 			BotCount = c.BotCount;
+			BotDifficulty = c.BotDifficulty;
 			ArmBots = c.ArmBots;
 			StartArmed = c.StartArmed;
 			StartingWeapon = c.StartingWeapon;

@@ -285,16 +285,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4ce767afd735d074ca5b9d4ce9fb5762, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.Microwave
-  _runSeconds: 10
+  _doorIsInteractable: 0
   _door: {fileID: 6432178043413810600}
   _doorClosedEuler: {x: 0, y: 0, z: 0}
   _doorOpenEuler: {x: 0, y: -110, z: 0}
   _doorLerpSpeed: 10
   _light: {fileID: 907479347429986736}
   _humSource: {fileID: 4361463001910591197}
-  _plingClip: {fileID: 8300000, guid: 8c58b14774bc97046830afe67ee25aa4, type: 3}
-  _plingVolume: 1
   _hostValidationRange: 2.5
+  _cookSeconds: 10
+  _finishClip: {fileID: 8300000, guid: 8c58b14774bc97046830afe67ee25aa4, type: 3}
+  _finishVolume: 1
   _IsRunning:
     _value: 0
   _DoorOpen:

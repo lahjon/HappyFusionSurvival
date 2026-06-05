@@ -141,6 +141,15 @@ namespace Starter.Shooter
 		// Building retreat bookkeeping (authority-local).
 		private NpcExit _retreatExit;
 
+		// Stuck recovery (authority-local). Abandons a destination the agent can't make progress toward —
+		// e.g. a path the navmesh bake routes through a window/narrow gap the body can't actually traverse —
+		// instead of pinning against it forever. Mirrors BotBrain's wander give-up watchdog.
+		private Vector3 _progressSamplePos;
+		private TickTimer _progressTimer;
+		private bool _wasPursuing;
+		private const float ProgressSampleSeconds = 1.5f;
+		private const float ProgressEpsilonSqr    = 0.5f * 0.5f; // < 0.5 m moved over a full window = pinned
+
 		// Interaction bookkeeping (authority-local).
 		private const float FaceLerpDuration = 0.3f;
 		private bool _wasAttending;
@@ -260,11 +269,29 @@ namespace Starter.Shooter
 				return;
 			}
 
-			if (_agent.enabled == false || _agent.isOnNavMesh == false) return;
+			if (_agent.enabled == false) return;
+
+			// The agent can end up OFF the navmesh — knocked back (NPC base moves the transform directly),
+			// shoved to a mesh edge by players, or left standing on a cell a closing exit's NavMeshObstacle
+			// just carved away at dusk. Without recovery the early-out below would bail every tick and the NPC
+			// would freeze forever. Snap it back onto the nearest navmesh first; only wait a tick if there's
+			// genuinely no mesh nearby to stand on.
+			if (_agent.isOnNavMesh == false)
+			{
+				if (NavMesh.SamplePosition(transform.position, out NavMeshHit navHit, 3f, NavMesh.AllAreas))
+					_agent.Warp(navHit.position);
+				if (_agent.isOnNavMesh == false) return;
+			}
 
 			// Default to moving each tick; the passive crowd-yield re-stops us while a player is close.
 			_agent.isStopped = false;
 			Holding          = false;
+
+			// Restart the no-progress watchdog whenever a fresh pursuit begins (a path issued after idling),
+			// so each new destination gets a clean window before AgentStuck() can abandon it.
+			bool pursuing = _agent.hasPath && _agent.isStopped == false;
+			if (pursuing && _wasPursuing == false) ResetProgressWatch();
+			_wasPursuing = pursuing;
 
 			Player target = (Hostile && Attack != null) ? FindClosestPlayerInAggro() : null;
 
@@ -313,7 +340,9 @@ namespace Starter.Shooter
 		{
 			if (_agent.hasPath)
 			{
-				if (HasArrived())
+				// Arrived, or pinned against a dead-end path (e.g. a wander point the bake routes through a
+				// window the body can't pass) — drop it and idle, then pick a fresh point next time.
+				if (HasArrived() || AgentStuck())
 				{
 					_agent.ResetPath();
 					_idleTimer = TickTimer.CreateFromSeconds(Runner, RandRange(WanderIdleMin, WanderIdleMax));
@@ -372,6 +401,13 @@ namespace Starter.Shooter
 				_waitingAtWaypoint = true;
 				_idleTimer         = TickTimer.CreateFromSeconds(Runner, WaypointWaitSeconds);
 			}
+			else if (AgentStuck())
+			{
+				// Can't reach this waypoint (blocked) — skip to the next so the route doesn't freeze here.
+				_agent.ResetPath();
+				_patrolIndex = Path.NextIndex(_patrolIndex, PatrolMode, ref _patrolDir);
+				GoToCurrentWaypoint();
+			}
 		}
 
 		private void GoToCurrentWaypoint()
@@ -412,7 +448,9 @@ namespace Starter.Shooter
 		private void TickReturnHome(Player target)
 		{
 			if (target != null) { EnterChase(); return; }
-			if (HasArrived()) EnterPassive();
+			// Reached home, or can't path the rest of the way — settle into the passive routine either way
+			// rather than freezing partway back.
+			if (HasArrived() || AgentStuck()) EnterPassive();
 		}
 
 		// ─── Transitions ──────────────────────────────────────────────────────
@@ -507,11 +545,17 @@ namespace Starter.Shooter
 					_retreatExit.ReleaseClaim(this);
 					AdvanceRetreat();
 				}
+				else if (AgentStuck())
+				{
+					// Can't path to this exit — release it for another townsperson and move to the next job.
+					_retreatExit.ReleaseClaim(this);
+					AdvanceRetreat();
+				}
 				return;
 			}
 
-			// Nothing left to close — settle inside and start guarding.
-			if (HasArrived()) EnterGuard();
+			// Nothing left to close — settle inside and start guarding (give up pathing if pinned).
+			if (HasArrived() || AgentStuck()) EnterGuard();
 		}
 
 		private void AdvanceRetreat()
@@ -594,7 +638,7 @@ namespace Starter.Shooter
 		{
 			if (_agent.hasPath)
 			{
-				if (HasArrived())
+				if (HasArrived() || AgentStuck())
 				{
 					_agent.ResetPath();
 					_idleTimer = TickTimer.CreateFromSeconds(Runner, RandRange(WanderIdleMin, WanderIdleMax));
@@ -643,6 +687,30 @@ namespace Starter.Shooter
 		{
 			if (_agent.pathPending) return false;
 			return _agent.remainingDistance <= Mathf.Max(ArrivalTolerance, _agent.stoppingDistance);
+		}
+
+		private void ResetProgressWatch()
+		{
+			_progressSamplePos = transform.position;
+			_progressTimer     = TickTimer.CreateFromSeconds(Runner, ProgressSampleSeconds);
+		}
+
+		/// <summary>
+		/// True when the agent holds a path but has barely moved across a full sample window — i.e. it's pinned
+		/// (a path the navmesh bake routes through a window/gap the body can't traverse, or shoved against
+		/// geometry). The destination-driven states use this to abandon a dead-end path instead of freezing on
+		/// it forever. Always check it AFTER <see cref="HasArrived"/> (<c>HasArrived() || AgentStuck()</c>) so a
+		/// legitimate slow-down into the stopping distance never reads as stuck.
+		/// </summary>
+		private bool AgentStuck()
+		{
+			if (_agent.pathPending) return false;
+			if (_progressTimer.ExpiredOrNotRunning(Runner) == false) return false;
+
+			bool moved         = (transform.position - _progressSamplePos).sqrMagnitude >= ProgressEpsilonSqr;
+			_progressSamplePos = transform.position;
+			_progressTimer     = TickTimer.CreateFromSeconds(Runner, ProgressSampleSeconds);
+			return moved == false;
 		}
 
 		private void FaceTarget(Vector3 targetPos)

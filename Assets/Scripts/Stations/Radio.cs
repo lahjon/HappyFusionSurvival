@@ -1,45 +1,43 @@
 using Fusion;
-using Starter.Common.Interactions;
 using UnityEngine;
 
 namespace Starter.Shooter
 {
 	/// <summary>
-	/// Networked placeable radio. Tap Interact toggles playback for all peers;
-	/// hold Interact picks it up (handled by <see cref="InteractableStation"/>) —
-	/// despawning the radio also tears down the local <see cref="AudioSource"/>,
-	/// which is what "stops playing on pickup" gets us for free.
+	/// Networked radio appliance. Like the <see cref="Microwave"/>, it's a fixed station with all
+	/// interactions on physical button children (a <see cref="RadioButton"/> wired via its kind to
+	/// one of the public request methods here) — the body itself is not interactable:
 	///
-	/// Sync model: a single <c>[Networked]</c> bool driven via state-authority RPC,
-	/// with <c>OnChangedRender</c> starting/stopping the local source. Per
-	/// CLAUDE.md, this tolerates lost ticks better than an RPC-to-All for a
-	/// cosmetic on/off effect.
+	/// - <b>Power button</b> → <see cref="RequestTogglePlay"/>: toggles playback for all peers.
+	/// - <b>Next-song button</b> → <see cref="RequestNextSong"/>: advances to the next clip in
+	///   <see cref="_songs"/> (wraps around), synced for everyone.
+	///
+	/// Sync model (per CLAUDE.md): <see cref="IsPlaying"/> and <see cref="SongIndex"/> are single
+	/// <c>[Networked]</c> values driven by state-authority RPCs and applied on every peer via
+	/// <c>OnChangedRender</c> — tolerates lost ticks better than RPC-to-All for a cosmetic
+	/// on/off + clip-select effect.
 	/// </summary>
+	[RequireComponent(typeof(NetworkObject))]
 	[RequireComponent(typeof(AudioSource))]
-	public sealed class Radio : InteractableStation
+	public sealed class Radio : NetworkBehaviour
 	{
 		[Header("Audio")]
-		[Tooltip("AudioSource driven by the networked IsPlaying flag. Author the clip / loop / volume on this source — Radio only calls Play()/Stop().")]
+		[Tooltip("AudioSource driven by the networked state. Author loop / volume here — Radio sets the clip from the song list and only calls Play()/Stop().")]
 		[SerializeField] private AudioSource _source;
 
-		[Header("Button feedback")]
-		[Tooltip("The physical on/off button mesh. Pushed inward briefly each time playback is toggled. Purely local/cosmetic — toggling is networked via IsPlaying.")]
-		[SerializeField] private Transform _button;
+		[Tooltip("Songs the Next button cycles through. When empty, the clip authored on the AudioSource is used as-is.")]
+		[SerializeField] private AudioClip[] _songs;
 
-		[Tooltip("Local-space direction the button travels when pressed (into the radio body). Normalized at runtime.")]
-		[SerializeField] private Vector3 _pressAxis = new Vector3(0f, 0f, -1f);
-
-		[Tooltip("How far the button sinks at the deepest point of the press, in the button's parent-local units.")]
-		[Min(0f)] [SerializeField] private float _pressDepth = 0.15f;
-
-		[Tooltip("Seconds for the full press-and-release dip.")]
-		[Min(0.01f)] [SerializeField] private float _pressDuration = 0.12f;
+		[Header("Authority")]
+		[Tooltip("Host re-validates the requesting player is within this range before applying a button press. 0 = skip the check.")]
+		[Min(0f)] [SerializeField] private float _hostValidationRange = 2.5f;
 
 		[Networked, OnChangedRender(nameof(OnPlayingChanged))]
 		public NetworkBool IsPlaying { get; private set; }
 
-		private Vector3 _buttonRest;
-		private float _pressTimer;
+		/// <summary>Index into <see cref="_songs"/> of the current track. State authority writes; peers render via OnChangedRender.</summary>
+		[Networked, OnChangedRender(nameof(OnSongChanged))]
+		public int SongIndex { get; private set; }
 
 		private void Reset()
 		{
@@ -54,60 +52,69 @@ namespace Starter.Shooter
 		public override void Spawned()
 		{
 			if (_source == null) _source = GetComponent<AudioSource>();
-			if (_button != null) _buttonRest = _button.localPosition;
+			ApplyClip();
 			ApplySourceState();
 		}
 
-		private void Update()
-		{
-			if (_button == null) return;
+		// =====================================================================
+		// Drive points — wired from the RadioButton IInteractable children
+		// =====================================================================
 
-			if (_pressTimer > 0f)
-			{
-				_pressTimer -= Time.deltaTime;
-				// Ease in and back out: push peaks at the midpoint of the press window.
-				float progress = Mathf.Clamp01(1f - _pressTimer / _pressDuration);
-				float push = Mathf.Sin(progress * Mathf.PI);
-				_button.localPosition = _buttonRest + _pressAxis.normalized * (_pressDepth * push);
-			}
-			else if (_button.localPosition != _buttonRest)
-			{
-				_button.localPosition = _buttonRest;
-			}
-		}
+		/// <summary>Power button. Toggles playback; sends a state-authority RPC.</summary>
+		public void RequestTogglePlay() => RPC_RequestToggle();
 
-		/// <summary>Kicks off the local inward-push dip. Ignored while a dip is already playing so it can't pop mid-animation.</summary>
-		private void PlayPressFeedback()
-		{
-			if (_button != null && _pressTimer <= 0f) _pressTimer = _pressDuration;
-		}
-
-		protected override void OnInteract(InteractionScanner scanner)
-		{
-			// Immediate local feedback — the networked flip arrives a few ticks later.
-			PlayPressFeedback();
-			RPC_RequestToggle();
-		}
+		/// <summary>Next-song button. Advances to the next clip; sends a state-authority RPC.</summary>
+		public void RequestNextSong() => RPC_RequestNextSong();
 
 		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
 		private void RPC_RequestToggle(RpcInfo info = default)
 		{
-			if (Runner == null) return;
-
-			var source = info.Source == PlayerRef.None ? Runner.LocalPlayer : info.Source;
-			var playerObj = Runner.GetPlayerObject(source);
-			if (playerObj == null) return;
-
-			if (!IsWithinHostRange(playerObj.transform.position)) return;
-
+			if (!ValidateSource(info)) return;
 			IsPlaying = !IsPlaying;
 		}
 
-		private void OnPlayingChanged()
+		[Rpc(RpcSources.All, RpcTargets.StateAuthority)]
+		private void RPC_RequestNextSong(RpcInfo info = default)
 		{
-			// Remote peers (and the local presser, if RTT outran the local dip) see the button press.
-			PlayPressFeedback();
-			ApplySourceState();
+			if (!ValidateSource(info)) return;
+			if (_songs == null || _songs.Length == 0) return;
+
+			SongIndex = (SongIndex + 1) % _songs.Length;
+		}
+
+		private bool ValidateSource(RpcInfo info)
+		{
+			if (Runner == null) return false;
+			if (_hostValidationRange <= 0f) return true;
+
+			var src = info.Source == PlayerRef.None ? Runner.LocalPlayer : info.Source;
+			var playerObj = Runner.GetPlayerObject(src);
+			if (playerObj == null) return false;
+
+			float allowed = _hostValidationRange * 1.25f;
+			return (transform.position - playerObj.transform.position).sqrMagnitude <= allowed * allowed;
+		}
+
+		private void OnPlayingChanged() => ApplySourceState();
+
+		private void OnSongChanged()
+		{
+			ApplyClip();
+			// If we're mid-playback, restart on the new clip so the change is audible immediately.
+			if (IsPlaying && _source != null)
+			{
+				_source.Stop();
+				_source.Play();
+			}
+		}
+
+		private void ApplyClip()
+		{
+			if (_source == null) return;
+			if (_songs == null || _songs.Length == 0) return;
+
+			int idx = Mathf.Clamp(SongIndex, 0, _songs.Length - 1);
+			if (_source.clip != _songs[idx]) _source.clip = _songs[idx];
 		}
 
 		private void ApplySourceState()

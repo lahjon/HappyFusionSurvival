@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Starter.Common.Input;
+using Starter.Shooter;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -28,6 +29,11 @@ namespace Starter.Common.Interactions
 
 		[Tooltip("Toast cooldown so locked-prompt messages don't spam.")]
 		public float ToastCooldown = 1f;
+
+		[Header("Prompt HUD")]
+		[Tooltip("Fallback InteractionPromptVisuals prefab, instantiated under the main canvas when a scene doesn't " +
+			"already place one. Wired on the Player prefab; leave unset to require a scene-placed InteractionPromptVisuals.")]
+		[SerializeField] private GameObject _promptHudPrefab;
 
 		[Header("Feedback")]
 		[Tooltip("Seconds the prompt's scale-punch pop lasts when an interaction fires.")]
@@ -239,6 +245,7 @@ namespace Starter.Common.Interactions
 				_pickupFired = true;
 				InteractConsumedFrame = Time.frameCount;
 				TriggerPromptPunch();
+				PlayInteractSound(_pressTarget);
 
 				if (_pressPickup != null)
 				{
@@ -339,12 +346,28 @@ namespace Starter.Common.Interactions
 			_punchStartTime = Time.unscaledTime;
 		}
 
+		/// <summary>
+		/// Play the target's per-interactable interaction sound (authored on its <see cref="InteractionPrompt"/>),
+		/// if any. Local one-shot — this is UX feedback for the local presser, like the old per-button click.
+		/// </summary>
+		private void PlayInteractSound(IInteractable target)
+		{
+			var comp = target as Component;
+			if (comp == null) return;
+
+			var prompt = comp.GetComponent<InteractionPrompt>();
+			if (prompt == null || prompt.InteractSound == null) return;
+
+			AudioManager.Instance?.PlaySFX(prompt.InteractSound, comp.transform.position, prompt.InteractVolume);
+		}
+
 		private void FireTap(IInteractable target)
 		{
 			if (target.CanInteract)
 			{
 				InteractConsumedFrame = Time.frameCount;
 				TriggerPromptPunch();
+				PlayInteractSound(target);
 				target.OnInteract(this);
 			}
 			else if (!string.IsNullOrEmpty(target.LockedReason))
@@ -431,6 +454,11 @@ namespace Starter.Common.Interactions
 				float range = candidate.InteractRange;
 				if ((point - playerPos).sqrMagnitude > range * range) continue;
 
+				// Sealed inside a closed appliance (fridge/chest/pantry/oven)? Its contents can't be
+				// reached until the door is opened. The appliance's own door point sits outside its
+				// interior volume, so the door itself stays interactable. Live, per-peer check off networked state.
+				if (!Starter.Shooter.OpenableAppliance.IsPointAccessible(point)) continue;
+
 				// OverlapSphere can return several colliders that resolve to the same interactable
 				// (multi-collider rigs); de-dupe so it isn't scored twice and group reps are sane.
 				if (_scanCandidates.Contains(candidate)) continue;
@@ -506,18 +534,14 @@ namespace Starter.Common.Interactions
 			_canvasRT = FindMainCanvasRT();
 
 			// Fallback: if the scene doesn't already place an InteractionPromptVisuals,
-			// instantiate the shipped Resources prefab under the main canvas so prompts
+			// instantiate the serialized prompt-HUD prefab under the main canvas so prompts
 			// still render. Lets new scenes work without manual canvas setup.
-			if (visuals == null && _canvasRT != null)
+			if (visuals == null && _canvasRT != null && _promptHudPrefab != null)
 			{
-				var prefab = Resources.Load<GameObject>("InteractionPromptHUD");
-				if (prefab != null)
-				{
-					var instance = Instantiate(prefab);
-					instance.name = prefab.name;
-					instance.transform.SetParent(_canvasRT, false);
-					visuals = instance.GetComponent<InteractionPromptVisuals>();
-				}
+				var instance = Instantiate(_promptHudPrefab);
+				instance.name = _promptHudPrefab.name;
+				instance.transform.SetParent(_canvasRT, false);
+				visuals = instance.GetComponent<InteractionPromptVisuals>();
 			}
 
 			if (visuals == null) { Debug.LogWarning("[InteractionScanner] No InteractionPromptVisuals available — prompt will not render."); return; }

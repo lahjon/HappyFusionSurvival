@@ -70,3 +70,6 @@ crashlytics-build.properties
 # OS files
 .DS_Store
 Thumbs.db
+
+# Test Clone Kit — local job queue between Claude sessions and the test-clone editor
+.clone-test-queue/

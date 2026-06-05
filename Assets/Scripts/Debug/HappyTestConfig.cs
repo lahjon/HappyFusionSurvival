@@ -37,6 +37,7 @@ namespace Starter.Shooter
 
 		// ---- Bots ----
 		public int BotCount = 0;
+		public BotDifficulty BotDifficulty = BotDifficulty.Medium;
 		public bool ArmBots = false;
 
 		// ---- Local player loadout ----

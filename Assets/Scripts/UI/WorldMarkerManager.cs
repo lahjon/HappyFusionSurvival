@@ -87,10 +87,12 @@ namespace Starter.Shooter
 			_chevronMesh = BuildChevronMesh();
 			_houseMesh = BuildHouseMesh();
 
-			var shader = Resources.Load<Shader>("Indicator");
+			// Shader.Find (no Resources) — the shader is kept in Graphics > Always Included Shaders so it isn't
+			// stripped from builds (no material references it in a scene, since markers are created at runtime).
+			var shader = Shader.Find("HappyFusion/Indicator");
 			if (shader == null)
 			{
-				Debug.LogError("[WorldMarkerManager] Missing shader Resources/Indicator. Markers disabled.");
+				Debug.LogError("[WorldMarkerManager] Missing shader 'HappyFusion/Indicator' — add it to Project Settings > Graphics > Always Included Shaders. Markers disabled.");
 				enabled = false;
 				return;
 			}

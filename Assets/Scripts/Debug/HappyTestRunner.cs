@@ -86,7 +86,7 @@ namespace Starter.Shooter
 
 			// --- Bots (host-authoritative; lands them on enemy teams since the round is already underway) ---
 			if (_config.BotCount > 0)
-				gm.AddBots(_config.BotCount);
+				gm.AddBots(_config.BotCount, _config.BotDifficulty);
 
 			// --- Local player loadout ---
 			var inventory = localPlayer.GetComponent<Inventory>();

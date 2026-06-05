@@ -880,6 +880,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bab51eb621e26bf4eb38e42e35653bf1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.InteractionScanner
+  _promptHudPrefab: {fileID: 7100000000000000001, guid: 7a3b9c1d4e5f6a8b9c0d1e2f3a4b5c6d,
+    type: 3}
   ScanRadius: 3
   ViewConeDot: 0.3
   ToastCooldown: 1
