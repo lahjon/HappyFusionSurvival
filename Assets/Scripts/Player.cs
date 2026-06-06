@@ -2907,11 +2907,17 @@ namespace Starter.Shooter
 		{
 			if (_isJumping)
 			{
-				AudioSource.PlayClipAtPoint(JumpAudioClip, KCC.Position, 0.5f);
+				if (JumpAudioClip != null)
+					AudioSource.PlayClipAtPoint(JumpAudioClip, KCC.Position, 0.5f);
+				else
+					Debug.LogWarning("Player.JumpAudioClip is not assigned; skipping jump sound.", this);
 			}
 			else
 			{
-				AudioSource.PlayClipAtPoint(LandAudioClip, KCC.Position, 1f);
+				if (LandAudioClip != null)
+					AudioSource.PlayClipAtPoint(LandAudioClip, KCC.Position, 1f);
+				else
+					Debug.LogWarning("Player.LandAudioClip is not assigned; skipping land sound.", this);
 			}
 
 			if (HasInputAuthority == false)
