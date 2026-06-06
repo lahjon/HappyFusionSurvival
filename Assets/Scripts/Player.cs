@@ -1169,10 +1169,10 @@ namespace Starter.Shooter
 				ChestBone.rotation = Quaternion.Lerp(ChestTargetPosition.rotation, ChestBone.rotation, blendAmount);
 			}
 
-			// Only InputAuthority needs to update camera. ComputerSession / SleepSession own
-			// the camera while the local player is docked at a station or sleeping in a bed,
+			// Only InputAuthority needs to update camera. ComputerSession / PadlockSession / SleepSession
+			// own the camera while the local player is docked at a station or sleeping in a bed,
 			// so skip our write to avoid fighting their zoom lerps.
-			if (HasInputAuthority && ComputerSession.IsAnyAtComputer == false && SleepSession.IsAnySleeping == false)
+			if (HasInputAuthority && ComputerSession.IsAnyAtComputer == false && PadlockSession.IsAnyAtPadlock == false && SleepSession.IsAnySleeping == false)
 			{
 				// Transfer properties from camera handle to Main Camera.
 				if (ShowFullBodyForEmote && Input != null && EmoteCameraOffset != Vector3.zero)
@@ -1735,6 +1735,7 @@ namespace Starter.Shooter
 				IsStateAuthority = HasStateAuthority,
 				ChargeNormalized = 0f,
 				IsAiming = IsAiming,
+				ToolTag = _inventory != null ? _inventory.ActiveToolTag : null,
 			};
 
 			var hit = ActionInvoker.TryFire(action, in ctx, false, secondary: true);
@@ -2777,6 +2778,7 @@ namespace Starter.Shooter
 				IsStateAuthority = HasStateAuthority,
 				ChargeNormalized = chargeNormalized,
 				IsAiming = IsAiming,
+				ToolTag = _inventory != null ? _inventory.ActiveToolTag : null,
 			};
 
 			var hit = ActionInvoker.TryFire(action, in ctx, charged);

@@ -1,0 +1,86 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 215c4744854153b4a948021ef1445cc3, type: 3}
+  m_Name: Axe
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ItemDefinition
+  Id: 25
+  DisplayName: Axe
+  Icon: {fileID: 0}
+  Description: Chops wood from trees.
+  Stats: []
+  Visual:
+    Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+    Material: {fileID: 2100000, guid: dcb43ef226a13f945b1fb6347caf2085, type: 2}
+    WorldScale: {x: 0.3, y: 0.3, z: 0.3}
+    WorldBob: 0
+    WorldRotate: 0
+    PromptOffset: {x: 0, y: 0, z: 0}
+    HeldScale: {x: 0.05, y: 0.05, z: 0.6}
+    HeldLocalPosition: {x: 0, y: 0, z: 0}
+    HeldLocalEuler: {x: 0, y: 0, z: 0}
+    VisualOverride: {fileID: 0}
+  WorldPrefab: {fileID: 0}
+  HandPrefab: {fileID: 0}
+  MaxStack: 1
+  Weight: 0
+  ScrapValue: 1
+  BaseValue: 40
+  Floats: 0
+  OverrideCenterOfMass: 0
+  CenterOfMass: {x: 0, y: 0, z: 0}
+  Capabilities:
+  - rid: 1000000000000000001
+  - rid: 1000000000000000002
+  references:
+    version: 2
+    RefIds:
+    - rid: 1000000000000000001
+      type: {class: WeaponCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
+      data:
+        Actions:
+        - {fileID: 11400000, guid: ac0caa11bbccddee0011223344556677, type: 2}
+        SecondaryMode: 0
+        SecondaryAction: {fileID: 0}
+        Aim:
+          FOVReduction: 18
+          FOVLerpSpeed: 10
+          SwayMultiplier: 0.25
+          RecoilMultiplier: 0.5
+          BreathHoldSwayMultiplier: 0
+          BreathDepletionRecoilScale: 0.6
+        AmmoItem: {fileID: 0}
+        MagazineSize: 0
+        ReloadSeconds: 1.5
+        Rig:
+          SwingArcEuler: {x: -80, y: 0, z: 0}
+          SwingDuration: 0.28
+          ChargedBackMultiplier: 0.8
+          ChargePoseLerpSpeed: 12
+          ChargedSwingArcScale: 1.35
+          ChargedSwingDurationScale: 1.2
+          RecoilBackKick: 0.06
+          RecoilPitchDegrees: -8
+          RecoilDuration: 0.12
+          WeaponSway: 0
+          SwayMaxDegrees: 1.25
+          SwayFrequency: 0.9
+          AimRecoil: 0
+          AimRecoilPitchPerShot: 3.5
+          AimRecoilHorizontalRandom: 1.5
+          AimRecoilLerpSpeed: 18
+          AimRecoilRecoverySpeed: 6
+          HasMuzzle: 0
+          MuzzleLocalPosition: {x: 0, y: 0, z: 0}
+    - rid: 1000000000000000002
+      type: {class: ToolCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
+      data:
+        ToolType: {fileID: 11400000, guid: a11ce0aabbccddee0011223344556677, type: 2}

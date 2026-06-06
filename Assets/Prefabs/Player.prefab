@@ -591,6 +591,7 @@ GameObject:
   - component: {fileID: 7099354799689439675}
   - component: {fileID: 3241785420770753567}
   - component: {fileID: 4666435403141643528}
+  - component: {fileID: 7219378092708703565}
   m_Layer: 6
   m_Name: Player
   m_TagString: Player
@@ -1166,6 +1167,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bfbccafe6ed846248a55128095351910, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ComputerSession
+  AutoCloseRangeMultiplier: 1.5
+--- !u!114 &7219378092708703565
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3123905968297068043}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 375b3e41e4c1e2241bfc635b62a7d201, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.PadlockSession
   AutoCloseRangeMultiplier: 1.5
 --- !u!1 &3226221424221943437
 GameObject:

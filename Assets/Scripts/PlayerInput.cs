@@ -129,6 +129,12 @@ namespace Starter.Shooter
 				computerSession.Initialize();
 			}
 
+			var padlockSession = GetComponent<PadlockSession>();
+			if (padlockSession != null)
+			{
+				padlockSession.Initialize();
+			}
+
 			var sleepSession = GetComponent<SleepSession>();
 			if (sleepSession != null)
 			{

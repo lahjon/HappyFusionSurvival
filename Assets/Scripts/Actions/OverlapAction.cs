@@ -35,6 +35,12 @@ namespace Starter.Shooter
 
 			if (count == 0) return result;
 
+			// Resource nodes (trees, rocks) are harvested, not damaged: route the swing to the matching node
+			// with the swinger's tool tag. A node never participates in the Health damage pick below, so the
+			// closest-target logic can't be "absorbed" by a tree the player wasn't aiming to chop. Harvest
+			// mutation is state-authority only; the returned ActionHit still drives swing feedback on the IA.
+			HarvestNodes(in ctx, center, count, ref result);
+
 			if (SingleTarget)
 			{
 				Health closest = null;
@@ -82,9 +88,33 @@ namespace Starter.Shooter
 			return result;
 		}
 
+		// Harvest every matching resource node the swing overlaps. SingleTarget doesn't apply: chopping a tree
+		// shouldn't also "use up" the swing's combat target pick, so nodes are handled independently here and
+		// excluded from ResolveHealth. Each node decides for itself whether the tool matches (wrong tool = no-op).
+		private static void HarvestNodes(in ActorContext ctx, Vector3 center, int count, ref ActionHit result)
+		{
+			if (ctx.IsStateAuthority == false) return; // harvest mutates networked state; SA only
+
+			for (int i = 0; i < count; i++)
+			{
+				var col = _buffer[i];
+				if (col == null) continue;
+				var node = col.GetComponentInParent<ResourceNode>();
+				if (node == null) continue;
+
+				if (node.TryHarvest(ctx.ToolTag, ctx.IgnoreAuthority) && result.DidHit == false)
+				{
+					result.DidHit = true;
+					result.Point = node.transform.position;
+				}
+			}
+		}
+
 		private static Health ResolveHealth(Collider col, GameObject attackerRoot)
 		{
 			if (col == null) return null;
+			// Resource nodes are harvested in HarvestNodes, never damaged via the combat path.
+			if (col.GetComponentInParent<ResourceNode>() != null) return null;
 			var health = col.GetComponentInParent<Health>();
 			if (health == null) return null;
 			if (health.IsAlive == false) return null;

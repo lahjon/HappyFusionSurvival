@@ -158,6 +158,18 @@ namespace Starter.Shooter
 			}
 		}
 
+		/// <summary>Tool tag of the held item (its ToolCapability.ToolType), or null when the held item
+		/// isn't a tool. Stamped into ActorContext.ToolTag at fire time so a ResourceNode can recognize the
+		/// swing as the correct tool. The unarmed (fists) path is never a tool, so it stays null.</summary>
+		public ToolTypeTag ActiveToolTag
+		{
+			get
+			{
+				var def = SelectedDefinition;
+				return def != null ? def.GetCapability<ToolCapability>()?.ToolType : null;
+			}
+		}
+
 		/// <summary>True if the held weapon is magazine-fed (drives the ammo HUD + reload cycle).</summary>
 		public bool ActiveUsesMagazine
 		{

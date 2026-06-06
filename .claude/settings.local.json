@@ -90,7 +90,10 @@
       "Bash(awk -v 'id=&__TRACKED_VAR__' '$0 ~ id\"$\"{f=1} f&&/m_Name:/{print;exit}' Assets/03_Shooter/03_Shooter.unity)",
       "Bash(python3 -)",
       "Bash(awk '/^--- !u!1001 &3653119847157736499/{found=1} found{print; if\\(/^---/ && NR>1 && !/3653119847157736499/\\) exit}')",
-      "Bash(awk '/^--- !u!1001 &3653119847157736499/{found=1} found{print; if\\(/m_SourcePrefab/\\) exit}')"
+      "Bash(awk '/^--- !u!1001 &3653119847157736499/{found=1} found{print; if\\(/m_SourcePrefab/\\) exit}')",
+      "Bash(awk:*)",
+      "Bash(curl -s mcpforunity://instances)",
+      "Bash(tail -n 15 \"C:/Users/fredr/AppData/Local/Unity/Editor/Editor.log\")"
     ]
   }
 }

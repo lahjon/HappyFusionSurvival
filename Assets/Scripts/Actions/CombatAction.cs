@@ -1,5 +1,6 @@
 using System;
 using Fusion;
+using Starter.Common.Inventory;
 using UnityEngine;
 
 namespace Starter.Shooter
@@ -117,6 +118,10 @@ namespace Starter.Shooter
 		public float ChargeNormalized;
 		/// <summary>True iff the attacker is holding the aim stance (ADS) this fire. HitscanAction tightens its spread cone when set. Always false for AI / non-aiming weapons.</summary>
 		public bool IsAiming;
+		/// <summary>Tool tag of the equipped item (ToolCapability.ToolType), or null. Resource nodes match
+		/// against this to decide whether a swing harvests them; ordinary combat ignores it. AI builds its
+		/// context without setting this, so AI can't harvest.</summary>
+		public ToolTypeTag ToolTag;
 	}
 
 	/// <summary>
