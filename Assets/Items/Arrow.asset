@@ -18,9 +18,17 @@ MonoBehaviour:
   Description: "Ammunition for the bow. Sticks where it lands \u2014 recover and
     re-use."
   Stats: []
+  Prefab: {fileID: 0}
+  ConsumeOnPickup: 0
+  PickupAudio: {fileID: 0}
+  OnUseAudio: {fileID: 0}
+  MaxStack: 32
+  Weight: 0.05
+  ScrapValue: 1
+  BaseValue: 3
   Visual:
-    Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-    Material: {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+    WorldPrefab: {fileID: 0}
+    HandPrefab: {fileID: 0}
     WorldScale: {x: 0.05, y: 0.05, z: 0.4}
     WorldBob: 0
     WorldRotate: 0
@@ -28,16 +36,10 @@ MonoBehaviour:
     HeldScale: {x: 1, y: 1, z: 1}
     HeldLocalPosition: {x: 0, y: 0, z: 0}
     HeldLocalEuler: {x: 0, y: 0, z: 0}
-    VisualOverride: {fileID: 7635964688328941486, guid: cb0b31cf79447ac47976918a1f4914b7, type: 3}
-  WorldPrefab: {fileID: 0}
-  HandPrefab: {fileID: 0}
-  MaxStack: 32
-  Weight: 0.05
-  ScrapValue: 1
-  BaseValue: 3
-  Floats: 0
-  OverrideCenterOfMass: 0
-  CenterOfMass: {x: 0, y: 0, z: 0}
+  WorldPhysics:
+    Floats: 0
+    OverrideCenterOfMass: 0
+    CenterOfMass: {x: 0, y: 0, z: 0}
   Capabilities: []
   references:
     version: 2

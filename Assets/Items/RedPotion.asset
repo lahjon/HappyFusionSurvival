@@ -10,18 +10,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 215c4744854153b4a948021ef1445cc3, type: 3}
-  m_Name: Wood
-  m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.ItemDefinition
-  Id: 1
-  DisplayName: Wood
-  Icon: {fileID: 132286653, guid: a6271bc89b55e954aafdfc2301e6f9a2, type: 3}
-  Description: 
+  m_Name: RedPotion
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.ItemData
+  Id: 26
+  DisplayName: Potion
+  Icon: {fileID: 21300000, guid: c513e41d71ad2714084df232cce0bad3, type: 3}
+  Description: This is a potion
   Stats: []
-  Prefab: {fileID: 0}
+  Prefab: {fileID: 3124339606396573936, guid: 7302c324977714240a3414e268f3d896, type: 3}
   ConsumeOnPickup: 0
-  PickupAudio: {fileID: 0}
-  OnUseAudio: {fileID: 0}
-  MaxStack: 99
+  PickupAudio: {fileID: 8300000, guid: b02cb18c86a0f5a4eb146d21077b0e8d, type: 3}
+  OnUseAudio: {fileID: 8300000, guid: 1f6425bed9a7b3b43a7cb3bf7334936f, type: 3}
+  MaxStack: 1
   Weight: 0
   ScrapValue: 1
   BaseValue: 10
@@ -32,7 +32,7 @@ MonoBehaviour:
     WorldBob: 0
     WorldRotate: 0
     PromptOffset: {x: 0, y: 0, z: 0}
-    HeldScale: {x: 0.15, y: 0.15, z: 0.15}
+    HeldScale: {x: 1, y: 1, z: 1}
     HeldLocalPosition: {x: 0, y: 0, z: 0}
     HeldLocalEuler: {x: 0, y: 0, z: 0}
   WorldPhysics:
@@ -40,9 +40,13 @@ MonoBehaviour:
     OverrideCenterOfMass: 0
     CenterOfMass: {x: 0, y: 0, z: 0}
   Capabilities:
-  - rid: -2
+  - rid: 3906572698592477443
   references:
     version: 2
     RefIds:
-    - rid: -2
-      type: {class: , ns: , asm: }
+    - rid: 3906572698592477443
+      type: {class: StatCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
+      data:
+        UseCooldownSeconds: 1
+        Type: 1
+        Amount: 15

@@ -1,5 +1,6 @@
 using Fusion;
 using Fusion.Addons.SimpleKCC;
+using Sirenix.OdinInspector;
 using UnityEngine;
 
 namespace Starter.Shooter
@@ -35,51 +36,64 @@ namespace Starter.Shooter
 			KinematicUntilHit,
 		}
 
+		[FoldoutGroup("Physics")]
 		[Header("Spawn")]
 		[Tooltip("Normal: simulates from spawn (reacts to gravity/forces immediately). " +
 		         "KinematicUntilHit: spawns frozen (no simulation or network traffic) until something hits it — " +
 		         "a shot/melee/explosion or a player walking into it — then it becomes a normal dynamic body.")]
 		[SerializeField] protected StartPhysicsMode _startMode = StartPhysicsMode.Normal;
 
+		[FoldoutGroup("Physics")]
 		[Header("Water")]
 		[Tooltip("ON: this body floats to the surface of any WaterVolume it enters and self-rights there. " +
 		         "OFF (default): it sinks. PickupableItem overrides this to read the item's ItemData.")]
 		[SerializeField] protected bool _floats = false;
 
+		[FoldoutGroup("Physics")]
 		[Header("Hit Response (shoot / melee / explosion)")]
 		[Tooltip("Multiplier converting a CombatAction's KnockbackDistance (meters) into a horizontal impulse. " +
 		         "Because it's an impulse, a heavier Mass produces less velocity — tune against your prop masses.")]
 		[SerializeField] protected float _knockbackImpulseScale = 6f;
+		[FoldoutGroup("Physics")]
 		[Tooltip("Upward impulse added per unit of KnockbackDistance, for a small toss/scatter arc.")]
 		[SerializeField] protected float _knockbackUpScale = 3f;
 
+		[FoldoutGroup("Physics")]
 		[Header("Player Push (walk into it — intentionally weaker than a hit)")]
 		[Tooltip("Extra radius (m) beyond the collider bounds used to detect player overlap. SimpleKCC is " +
 		         "kinematic, so this manual sweep is what makes the body move when you walk into it.")]
 		[SerializeField] protected float _playerPushRadius = 0.2f;
+		[FoldoutGroup("Physics")]
 		[Tooltip("Baseline impulse when a stationary player just leans on the body.")]
 		[SerializeField] protected float _baselinePushImpulse = 0.6f;
+		[FoldoutGroup("Physics")]
 		[Tooltip("Impulse gained per (m/s) of the player's speed moving INTO the body. Lets a running shove move it more.")]
 		[SerializeField] protected float _pushSpeedScale = 0.8f;
+		[FoldoutGroup("Physics")]
 		[Tooltip("Upper bound on the walk-into impulse so a sprinting player can't punt it across the map.")]
 		[SerializeField] protected float _maxPushImpulse = 5f;
 
+		[FoldoutGroup("Physics")]
 		[Header("Center of mass (only used when this body Floats)")]
 		[Tooltip("ON: override the Rigidbody's center of mass with the offset below. A low COM (negative Y) " +
 		         "makes the body bottom-heavy so it self-rights and floats upright instead of tumbling. " +
 		         "Only honored when Floats is on — a sinker/land prop keeps Unity's auto-computed COM. " +
 		         "PickupableItem sources this from the ItemData.")]
 		[SerializeField] protected bool _overrideCenterOfMass = false;
+		[FoldoutGroup("Physics")]
 		[Tooltip("Local-space center of mass when the override is on.")]
 		[SerializeField] protected Vector3 _centerOfMass = Vector3.zero;
 
+		[FoldoutGroup("Physics")]
 		[Header("Settling (auto-sleep so we stop simulating + replicating)")]
 		[Tooltip("Below this linear speed (m/s) the body counts as at rest. Once it's been at rest for the " +
 		         "delay below it's put to sleep, so the host stops moving it and the network stops replicating it.")]
 		[SerializeField] protected float _sleepLinearThreshold = 0.12f;
+		[FoldoutGroup("Physics")]
 		[Tooltip("Below this angular speed (rad/s) the body counts as at rest. Needed because a round prop " +
 		         "(e.g. the duck's sphere collider) can roll indefinitely without its linear speed alone settling.")]
 		[SerializeField] protected float _sleepAngularThreshold = 0.5f;
+		[FoldoutGroup("Physics")]
 		[Tooltip("Seconds the body must stay below both thresholds before it's forced to sleep.")]
 		[SerializeField] protected float _sleepDelay = 1f;
 

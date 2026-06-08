@@ -17,8 +17,17 @@ MonoBehaviour:
   Icon: {fileID: 21300000, guid: 8678380c0c09b2840b0f1ecc5b58fc96, type: 3}
   Description: FRUITS
   Stats: []
+  Prefab: {fileID: 1018286703387208, guid: f85cabee3dfc8074b946c85c6b58c47b, type: 3}
+  ConsumeOnPickup: 0
+  PickupAudio: {fileID: 8300000, guid: b02cb18c86a0f5a4eb146d21077b0e8d, type: 3}
+  OnUseAudio: {fileID: 8300000, guid: 49b7286b51db40b40b306dbe44ccc890, type: 3}
+  MaxStack: 1
+  Weight: 0
+  ScrapValue: 1
+  BaseValue: 10
   Visual:
-    Prefab: {fileID: 1018286703387208, guid: f85cabee3dfc8074b946c85c6b58c47b, type: 3}
+    WorldPrefab: {fileID: 0}
+    HandPrefab: {fileID: 0}
     WorldScale: {x: 0.3, y: 0.3, z: 0.3}
     WorldBob: 0
     WorldRotate: 0
@@ -26,18 +35,10 @@ MonoBehaviour:
     HeldScale: {x: 1, y: 1, z: 1}
     HeldLocalPosition: {x: 0, y: 0, z: 0}
     HeldLocalEuler: {x: 0, y: 0, z: 0}
-  WorldPrefab: {fileID: 0}
-  HandPrefab: {fileID: 0}
-  MaxStack: 1
-  Weight: 0
-  ScrapValue: 1
-  BaseValue: 10
-  Floats: 0
-  OverrideCenterOfMass: 0
-  CenterOfMass: {x: 0, y: 0, z: 0}
-  ConsumeOnPickup: 0
-  PickupAudio: {fileID: 8300000, guid: b02cb18c86a0f5a4eb146d21077b0e8d, type: 3}
-  OnUseAudio: {fileID: 8300000, guid: 49b7286b51db40b40b306dbe44ccc890, type: 3}
+  WorldPhysics:
+    Floats: 0
+    OverrideCenterOfMass: 0
+    CenterOfMass: {x: 0, y: 0, z: 0}
   Capabilities:
   - rid: 3906572698592477381
   references:

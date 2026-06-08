@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Sirenix.OdinInspector;
 using Fusion;
 using Starter.Common.Interactions;
 using Starter.Shooter;
@@ -15,38 +16,41 @@ namespace Starter.Common.Inventory
 	[RequireComponent(typeof(InteractionPrompt))]
 	public sealed class PickupableItem : PhysicsBody, IInteractable
 	{
-		[Header("Authoring (scene-placed pickups)")]
+		[PropertyOrder(-100)]
 		[Tooltip("Used when a pickup is placed in the scene. Programmatic spawns call Initialize() instead.")]
 		[SerializeField] private ItemData _initialItem;
-		[SerializeField, Min(1)] private short _initialCount = 1;
+		[PropertyOrder(-100)]
+		[SerializeField] private short _initialCount = 1;
 
+		[PropertyOrder(-99)]
 		[Header("Procedural Loot")]
 		[Tooltip("Optional list of possible items. If non-empty, takes precedence over _initialItem.")]
 		[SerializeField] private List<LootEntry> _lootTable;
+		[PropertyOrder(-99)]
 		[Tooltip("ON: pick a weighted-random entry at spawn. OFF: take the first entry of the list.")]
 		[SerializeField] private bool _randomize = true;
 
-		[Header("Generic visual")]
+		[FoldoutGroup("Custom Settings")]
 		[Tooltip("Child the item's Prefab is instantiated under (and whose scale/ItemView flair " +
 		         "is set) at spawn. Set on Pickup_Generic; null on bespoke prefabs that bake their own model.")]
 		[SerializeField] private Transform _visualRoot;
 
-		[Header("Interaction")]
+		[FoldoutGroup("Custom Settings")]
 		[Tooltip("Max distance from the player at which this can be picked up.")]
 		public float PickupRange = 2f;
 
-		[Networked, OnChangedRender(nameof(OnItemIdChanged))] public short ItemId { get; set; }
-		[Networked] public short Count { get; set; }
-		[Networked] public Vector3 NetPosition { get; set; }
-		[Networked] public Quaternion NetRotation { get; set; }
-		[Networked] public TickTimer InteractionLockedUntil { get; set; }
+		[FoldoutGroup("Custom Settings")] [Networked, OnChangedRender(nameof(OnItemIdChanged))] public short ItemId { get; set; }
+		[FoldoutGroup("Custom Settings")] [Networked] public short Count { get; set; }
+		[FoldoutGroup("Custom Settings")] [Networked] public Vector3 NetPosition { get; set; }
+		[FoldoutGroup("Custom Settings")] [Networked] public Quaternion NetRotation { get; set; }
+		[FoldoutGroup("Custom Settings")] [Networked] public TickTimer InteractionLockedUntil { get; set; }
 
 		// Set when this pickup is lodged in a damageable target (thrown-knife-in-a-body). While valid the
 		// pickup follows the victim with physics off and its colliders turned into triggers (still
 		// interactable, but can't block or be re-hit); cleared when the victim dies/despawns so it falls.
-		[Networked, OnChangedRender(nameof(OnAttachedChanged))] public NetworkId AttachedTo { get; set; }
-		[Networked] public Vector3 AttachLocalPos { get; set; }
-		[Networked] public Quaternion AttachLocalRot { get; set; }
+		[FoldoutGroup("Custom Settings")] [Networked, OnChangedRender(nameof(OnAttachedChanged))] public NetworkId AttachedTo { get; set; }
+		[FoldoutGroup("Custom Settings")] [Networked] public Vector3 AttachLocalPos { get; set; }
+		[FoldoutGroup("Custom Settings")] [Networked] public Quaternion AttachLocalRot { get; set; }
 
 		public ItemData Definition =>
 			ItemDatabase.TryGet(ItemId, out var def) ? def : null;
