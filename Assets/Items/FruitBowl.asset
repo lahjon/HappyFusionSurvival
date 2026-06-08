@@ -18,7 +18,7 @@ MonoBehaviour:
   Description: FRUITS
   Stats: []
   Visual:
-    Prefab: {fileID: 0}
+    Prefab: {fileID: 1018286703387208, guid: f85cabee3dfc8074b946c85c6b58c47b, type: 3}
     WorldScale: {x: 0.3, y: 0.3, z: 0.3}
     WorldBob: 0
     WorldRotate: 0
@@ -35,27 +35,17 @@ MonoBehaviour:
   Floats: 0
   OverrideCenterOfMass: 0
   CenterOfMass: {x: 0, y: 0, z: 0}
-  ConsumeOnPickup: 1
+  ConsumeOnPickup: 0
   PickupAudio: {fileID: 8300000, guid: b02cb18c86a0f5a4eb146d21077b0e8d, type: 3}
+  OnUseAudio: {fileID: 8300000, guid: 49b7286b51db40b40b306dbe44ccc890, type: 3}
   Capabilities:
-  - rid: 3906572698592477329
-  - rid: 3906572698592477330
-  - rid: 3906572698592477339
+  - rid: 3906572698592477381
   references:
     version: 2
     RefIds:
-    - rid: 3906572698592477329
-      type: {class: HealingCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
+    - rid: 3906572698592477381
+      type: {class: StatCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
       data:
         UseCooldownSeconds: 1
-        HealAmount: 1
-    - rid: 3906572698592477330
-      type: {class: StaminaCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
-      data:
-        UseCooldownSeconds: 1
-        StaminaAmount: 1111
-    - rid: 3906572698592477339
-      type: {class: MoneyCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
-      data:
-        UseCooldownSeconds: 1
-        Amount: 5
+        Type: 1
+        Amount: 555

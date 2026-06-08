@@ -20,6 +20,7 @@ namespace Starter.Shooter
 	/// GetComponentInParent on Spawned.
 	/// </summary>
 	[RequireComponent(typeof(NetworkObject))]
+	[RequireComponent(typeof(InteractionPrompt))]
 	public sealed class Seat : NetworkBehaviour, IInteractable, IInteractableGroup
 	{
 		[Header("Authoring")]

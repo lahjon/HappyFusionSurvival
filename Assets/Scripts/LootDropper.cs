@@ -89,7 +89,7 @@ namespace Starter.Shooter
 		{
 			if (def == null) return null;
 
-			var prefab = def.WorldPrefab != null ? def.WorldPrefab : _genericPickupPrefab;
+			var prefab = def.Visual.WorldPrefab != null ? def.Visual.WorldPrefab : _genericPickupPrefab;
 			if (prefab == null)
 			{
 				Debug.LogWarning($"[LootDropper] '{name}': loot item '{def.DisplayName}' has no WorldPrefab and no " +

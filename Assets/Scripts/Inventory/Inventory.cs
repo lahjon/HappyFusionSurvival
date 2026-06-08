@@ -385,8 +385,7 @@ namespace Starter.Shooter
 					}
 				}
 
-				if (def.PickupAudio != null)
-					AudioSource.PlayClipAtPoint(def.PickupAudio, transform.position);
+				PlayPickupAudio(def);
 
 				if (pickup.Count <= 1)
 					Runner.Despawn(obj);
@@ -401,6 +400,8 @@ namespace Starter.Shooter
 				// is dropped first inside AuthorityStartCarry.
 				if (AuthorityStartCarry(pickup.ItemId) == false) return;
 
+				PlayPickupAudio(def);
+
 				if (pickup.Count <= 1)
 					Runner.Despawn(obj);
 				else
@@ -411,6 +412,8 @@ namespace Starter.Shooter
 			short leftover = TryAdd(pickup.ItemId, pickup.Count);
 			if (leftover >= pickup.Count) return;
 
+			PlayPickupAudio(def);
+
 			if (leftover <= 0)
 			{
 				Runner.Despawn(obj);
@@ -419,6 +422,12 @@ namespace Starter.Shooter
 			{
 				pickup.Count = leftover;
 			}
+		}
+
+		private void PlayPickupAudio(ItemData def)
+		{
+			if (def != null && def.PickupAudio != null)
+				AudioSource.PlayClipAtPoint(def.PickupAudio, transform.position);
 		}
 
 		[Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
@@ -639,6 +648,9 @@ namespace Starter.Shooter
 			}
 			if (!applied) return false;
 
+			if (def.OnUseAudio != null)
+				AudioSource.PlayClipAtPoint(def.OnUseAudio, transform.position);
+
 			_useCooldownTimer = TickTimer.CreateFromSeconds(Runner, cooldown);
 
 			s.Count -= 1;
@@ -828,7 +840,7 @@ namespace Starter.Shooter
 		private GameObject ResolveWorldPrefab(ItemData def)
 		{
 			if (def == null) return null;
-			return def.WorldPrefab != null ? def.WorldPrefab : _genericWorldPrefab;
+			return def.Visual.WorldPrefab != null ? def.Visual.WorldPrefab : _genericWorldPrefab;
 		}
 
 		public void DropSelected()
@@ -1092,7 +1104,7 @@ namespace Starter.Shooter
 
 			// Ordinary items: bespoke HandPrefab override if set, else the shared generic hand rig.
 			if (heldDef != null)
-				prefab = heldDef.HandPrefab != null ? heldDef.HandPrefab : _genericHandPrefab;
+				prefab = heldDef.Visual.HandPrefab != null ? heldDef.Visual.HandPrefab : _genericHandPrefab;
 
 			if (prefab == null) return;
 
@@ -1101,7 +1113,7 @@ namespace Starter.Shooter
 			// Generic rig: build the mesh + copy weapon tuning from the held item's asset BEFORE the
 			// rest-pose reset and overlay-layer sweep so the attached mesh inherits the overlay layer.
 			if (heldDef != null && _heldInstance.TryGetComponent<HeldWeapon>(out var rig))
-				rig.Configure(heldDef.Visual, heldDef.GetCapability<WeaponCapability>());
+				rig.Configure(heldDef.Prefab, heldDef.Visual, heldDef.GetCapability<WeaponCapability>());
 
 			// Gadget items (radar/scanner, …) attach their HeldGadget module to the hand instance from the
 			// item's GadgetCapability — no bespoke HandPrefab needed. Done before the overlay-layer sweep so

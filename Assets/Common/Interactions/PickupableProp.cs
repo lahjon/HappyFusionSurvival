@@ -11,6 +11,7 @@ namespace Starter.Common.Interactions
 	/// for chests, <see cref="Starter.Common.Inventory.LootContainer"/> already handles pickup.
 	/// </summary>
 	[RequireComponent(typeof(NetworkObject))]
+	[RequireComponent(typeof(InteractionPrompt))]
 	public sealed class PickupableProp : NetworkBehaviour, IInteractable, IPickupableStation
 	{
 		[Header("Authoring")]

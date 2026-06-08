@@ -15,6 +15,7 @@ namespace Starter.Shooter
 	/// amount via <see cref="Initialize"/>.
 	/// </summary>
 	[RequireComponent(typeof(NetworkObject))]
+	[RequireComponent(typeof(InteractionPrompt))]
 	public sealed class PickupableMoney : NetworkBehaviour, IInteractable
 	{
 		[Header("Authoring")]

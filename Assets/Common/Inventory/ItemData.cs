@@ -10,6 +10,23 @@ namespace Starter.Common.Inventory
 		public string Value;
 	}
 
+	[System.Serializable]
+	public struct ItemWorldPhysics
+	{
+		[Tooltip("ON: when dropped in a WaterVolume, this item floats to the surface and self-rights " +
+		         "(e.g. a sealed case, a cork). OFF (default): it sinks. Read by the generic pickup; bespoke " +
+		         "WorldPrefab items use this too via PickupableItem.")]
+		public bool Floats;
+
+		[Tooltip("ON: override the dropped item's rigidbody center of mass with the offset below. A low COM " +
+		         "(negative Y) makes the item bottom-heavy so it self-rights and floats the right way up. " +
+		         "Only relevant when Floats is on — a sinking item keeps Unity's auto-computed COM.")]
+		public bool OverrideCenterOfMass;
+
+		[Tooltip("Local-space center of mass when the override is on.")]
+		public Vector3 CenterOfMass;
+	}
+
 	[CreateAssetMenu(fileName = "Item", menuName = "Inventory/Item Data", order = 0)]
 	public class ItemData : ScriptableObject
 	{
@@ -25,18 +42,22 @@ namespace Starter.Common.Inventory
 		[Tooltip("Optional list of stat rows shown in the tooltip (e.g. Damage / 12).")]
 		public ItemStat[] Stats;
 
-		[Header("Visuals")]
-		[Tooltip("Mesh/material/scale the shared generic prefabs use to build this item's world pickup and " +
-		         "in-hand model. A new ordinary item needs only this — no bespoke prefab.")]
-		public ItemVisual Visual = new();
+		[Header("Setup")]
+		[Tooltip("Visual-only prefab instantiated as this item's model on the shared world pickup and hand " +
+		         "rig (Pickup_Generic / Hand_Generic). The single source of an ordinary item's look — no " +
+		         "gameplay components. Leave null to fall back to the generic rig's placeholder primitive.")]
+		public GameObject Prefab;
 
-		[Tooltip("Optional override: a fully bespoke world prefab (NetworkObject + PickupableItem). When set, " +
-		         "it is spawned instead of the generic pickup. Leave null for ordinary items (uses Visual).")]
-		public GameObject WorldPrefab;
+		[Tooltip("ON: picking this item up runs every ConsumableCapability's effect immediately and skips " +
+		         "the inventory entirely (the pickup is consumed/despawned on the spot).")]
+		public bool ConsumeOnPickup = false;
 
-		[Tooltip("Optional override: a fully bespoke in-hand prefab. When set, it is used instead of the generic " +
-		         "hand rig (e.g. the Scanner radar device). Leave null for ordinary items (uses Visual).")]
-		public GameObject HandPrefab;
+		[Tooltip("Optional sound played locally on the player when this item is picked up.")]
+		public AudioClip PickupAudio;
+
+		[Tooltip("Optional sound played locally on the player when this item is used from the inventory " +
+		         "(e.g. drinking a potion, eating food for its healing effect).")]
+		public AudioClip OnUseAudio;
 
 		[Tooltip("Maximum items per inventory slot. 1 = not stackable (each pickup creates a new slot). >1 = stackable up to this count; overflow spills into the next slot.")]
 		[Min(1)]
@@ -55,26 +76,14 @@ namespace Starter.Common.Inventory
 		[Min(0)]
 		public int BaseValue = 10;
 
-		[Header("World physics")]
-		[Tooltip("ON: when dropped in a WaterVolume, this item floats to the surface and self-rights " +
-		         "(e.g. a sealed case, a cork). OFF (default): it sinks. Read by the generic pickup; bespoke " +
-		         "WorldPrefab items use this too via PickupableItem.")]
-		public bool Floats = false;
+		[Tooltip("Scale/offset/flair the shared generic prefabs use to position this item's model " +
+		         "(see Prefab above) on the world pickup and in-hand rig, plus optional bespoke " +
+		         "WorldPrefab/HandPrefab overrides.")]
+		public ItemVisual Visual = new();
 
-		[Tooltip("ON: override the dropped item's rigidbody center of mass with the offset below. A low COM " +
-		         "(negative Y) makes the item bottom-heavy so it self-rights and floats the right way up. " +
-		         "Only relevant when Floats is on — a sinking item keeps Unity's auto-computed COM.")]
-		public bool OverrideCenterOfMass = false;
-		[Tooltip("Local-space center of mass when the override is on.")]
-		public Vector3 CenterOfMass = Vector3.zero;
-
-		[Header("Pickup behaviour")]
-		[Tooltip("ON: picking this item up runs every ConsumableCapability's effect immediately and skips " +
-		         "the inventory entirely (the pickup is consumed/despawned on the spot).")]
-		public bool ConsumeOnPickup = false;
-
-		[Tooltip("Optional sound played locally on the player when this item is picked up.")]
-		public AudioClip PickupAudio;
+		[Tooltip("Floating / center-of-mass tuning for this item's dropped-in-world rigidbody. Collapsed " +
+		         "by default — expand only when this item needs custom water/buoyancy behaviour.")]
+		public ItemWorldPhysics WorldPhysics;
 
 		[Header("Capabilities")]
 		[Tooltip("Composable behavior modules. Add a WeaponCapability to make this item a weapon, a " +

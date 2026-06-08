@@ -101,7 +101,7 @@ namespace Starter.Shooter
 		{
 			if (count <= 0 || Runner == null) return;
 
-			var prefab = item.WorldPrefab != null ? item.WorldPrefab : _genericPickupPrefab;
+			var prefab = item.Visual.WorldPrefab != null ? item.Visual.WorldPrefab : _genericPickupPrefab;
 			if (prefab == null || prefab.GetComponent<NetworkObject>() == null) return;
 
 			Vector3 pos = transform.position + Vector3.up * _dropHeight;

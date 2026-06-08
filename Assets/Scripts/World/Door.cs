@@ -9,6 +9,7 @@ using UnityEngine;
 /// Visual rotation is smoothly lerped on every client in Render().
 /// Audio plays locally via AudioManager when the networked state flips.
 /// </summary>
+[RequireComponent(typeof(InteractionPrompt))]
 public class Door : NetworkBehaviour, IInteractable, IDoorBarrier
 {
     [Header("Door Settings")]

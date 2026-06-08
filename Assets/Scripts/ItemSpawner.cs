@@ -20,7 +20,7 @@ namespace Starter.Shooter
 	/// Optionally phase-gated via <see cref="ActivePhases"/> (e.g. loot only during Day), reading the
 	/// networked <see cref="MatchManager"/> phase exactly like <see cref="NpcSpawner"/> — never a local clock.
 	/// Reuses <see cref="LootRoll"/> for the weighted pick and the item's bespoke
-	/// <see cref="ItemData.WorldPrefab"/> override (falling back to the shared generic pickup),
+	/// <see cref="ItemVisual.WorldPrefab"/> override (falling back to the shared generic pickup),
 	/// the same resolution <see cref="LootDropper"/> uses.
 	/// </summary>
 	public sealed class ItemSpawner : NetworkBehaviour
@@ -187,7 +187,7 @@ namespace Starter.Shooter
 		{
 			if (def == null) return null;
 
-			var prefab = def.WorldPrefab != null ? def.WorldPrefab : _genericPickupPrefab;
+			var prefab = def.Visual.WorldPrefab != null ? def.Visual.WorldPrefab : _genericPickupPrefab;
 			if (prefab == null)
 			{
 				Debug.LogWarning($"[ItemSpawner] '{name}': item '{def.DisplayName}' has no WorldPrefab and no " +

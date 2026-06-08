@@ -21,6 +21,7 @@ namespace Starter.Shooter
 	/// closer-claim bookkeeping is authority-local because only the state authority simulates AI.
 	/// </summary>
 	[RequireComponent(typeof(Health))]
+	[RequireComponent(typeof(InteractionPrompt))]
 	public sealed class NpcExit : NetworkBehaviour, IInteractable, IHoldInteractable, IDoorBarrier
 	{
 		[Header("Door visual")]

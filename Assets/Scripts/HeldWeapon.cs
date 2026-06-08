@@ -103,12 +103,12 @@ namespace Starter.Shooter
 		/// capability. Called by Inventory.RefreshHeldItem right after instantiation. A null
 		/// <paramref name="weapon"/> (non-weapon held item) leaves the rig at rest with no muzzle.
 		/// </summary>
-		public void Configure(ItemVisual visual, WeaponCapability weapon)
+		public void Configure(GameObject prefab, ItemVisual visual, WeaponCapability weapon)
 		{
 			if (_meshChild != null && visual != null)
 			{
-				if (visual.Prefab != null)
-					Instantiate(visual.Prefab, _meshChild);
+				if (prefab != null)
+					Instantiate(prefab, _meshChild);
 				// The generic prefab's _meshChild carries a baked placeholder mesh; the held model is
 				// always the instantiated Prefab, so disable that primitive renderer unconditionally
 				// (a visual-less held item then shows nothing extra in hand).

@@ -18,6 +18,7 @@ namespace Starter.Common.Interactions
 	/// that don't fit a "just open a UI" base. See <c>LootContainer</c> / <c>Seat</c>.
 	/// </summary>
 	[RequireComponent(typeof(NetworkObject))]
+	[RequireComponent(typeof(InteractionPrompt))]
 	public abstract class InteractableStation : NetworkBehaviour, IInteractable, IPickupableStation
 	{
 		[Header("Station")]

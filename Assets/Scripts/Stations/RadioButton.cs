@@ -16,6 +16,7 @@ namespace Starter.Shooter
 	/// the on-screen prompt.
 	/// </summary>
 	[RequireComponent(typeof(Collider))]
+	[RequireComponent(typeof(InteractionPrompt))]
 	public sealed class RadioButton : MonoBehaviour, IInteractable
 	{
 		public enum ButtonKind { TogglePlay, NextSong }

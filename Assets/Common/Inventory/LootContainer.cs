@@ -12,6 +12,7 @@ namespace Starter.Common.Inventory
 	/// State authority owns all slot mutations; clients drive interactions via RPCs.
 	/// </summary>
 	[RequireComponent(typeof(NetworkObject))]
+	[RequireComponent(typeof(InteractionPrompt))]
 	public sealed class LootContainer : NetworkBehaviour, IPlayerLeft, IInteractable, IPickupableStation
 	{
 		public const int Capacity = 6;

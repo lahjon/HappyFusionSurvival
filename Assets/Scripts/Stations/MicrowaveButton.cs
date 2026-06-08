@@ -15,6 +15,7 @@ namespace Starter.Shooter
 	/// <see cref="InteractionPrompt"/> sibling for the on-screen prompt.
 	/// </summary>
 	[RequireComponent(typeof(Collider))]
+	[RequireComponent(typeof(InteractionPrompt))]
 	public sealed class MicrowaveButton : MonoBehaviour, IInteractable
 	{
 		public enum ButtonKind { ToggleDoor, Start }

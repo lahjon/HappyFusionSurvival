@@ -12,6 +12,7 @@ namespace Starter.Common.Inventory
 	/// remote clients read the networked position so they see the same arc.
 	/// </summary>
 	[RequireComponent(typeof(NetworkObject))]
+	[RequireComponent(typeof(InteractionPrompt))]
 	public sealed class PickupableItem : PhysicsBody, IInteractable
 	{
 		[Header("Authoring (scene-placed pickups)")]
@@ -26,7 +27,7 @@ namespace Starter.Common.Inventory
 		[SerializeField] private bool _randomize = true;
 
 		[Header("Generic visual")]
-		[Tooltip("Child the item's ItemVisual.Prefab is instantiated under (and whose scale/ItemView flair " +
+		[Tooltip("Child the item's Prefab is instantiated under (and whose scale/ItemView flair " +
 		         "is set) at spawn. Set on Pickup_Generic; null on bespoke prefabs that bake their own model.")]
 		[SerializeField] private Transform _visualRoot;
 
@@ -53,16 +54,16 @@ namespace Starter.Common.Inventory
 		// A dropped item's float behaviour is a property of the item type, not the (shared) generic pickup
 		// prefab, so source it from the ItemData. Falls back to the base prefab flag when the item
 		// can't resolve yet (e.g. before ItemId replicates).
-		public override bool Floats => Definition != null ? Definition.Floats : _floats;
+		public override bool Floats => Definition != null ? Definition.WorldPhysics.Floats : _floats;
 
 		// Center of mass is likewise per-item (a low COM keeps a floating item upright), so read it from
 		// the ItemData; fall back to the prefab override when the item can't resolve.
 		protected override bool TryGetCenterOfMass(out Vector3 com)
 		{
 			var def = Definition;
-			if (def != null && def.OverrideCenterOfMass)
+			if (def != null && def.WorldPhysics.OverrideCenterOfMass)
 			{
-				com = def.CenterOfMass;
+				com = def.WorldPhysics.CenterOfMass;
 				return true;
 			}
 			return base.TryGetCenterOfMass(out com);
@@ -132,7 +133,7 @@ namespace Starter.Common.Inventory
 
 		/// <summary>
 		/// Configure the generic pickup's Visual child from the item's <see cref="ItemVisual"/>:
-		/// instantiate its <see cref="ItemVisual.Prefab"/> as the model + apply world scale / ItemView
+		/// instantiate the item's <see cref="ItemData.Prefab"/> as the model + apply world scale / ItemView
 		/// flair. When the item has no Prefab the generic primitive renderer stays on as a placeholder.
 		/// No-op on bespoke prefabs (those leave <c>_visualRoot</c> null and bake their own visual).
 		/// </summary>
@@ -144,9 +145,9 @@ namespace Starter.Common.Inventory
 			var v = def != null ? def.Visual : null;
 			if (v == null) return;
 
-			bool hasPrefab = v.Prefab != null;
+			bool hasPrefab = def.Prefab != null;
 			if (hasPrefab && _visualOverrideInstance == null)
-				_visualOverrideInstance = Instantiate(v.Prefab, _visualRoot);
+				_visualOverrideInstance = Instantiate(def.Prefab, _visualRoot);
 
 			// The generic primitive renderer is only the fallback placeholder shown when no Prefab is set.
 			if (_visualRoot.TryGetComponent<MeshRenderer>(out var mr))

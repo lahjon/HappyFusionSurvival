@@ -38,6 +38,7 @@ namespace Starter.Common.Interactions
 	/// Add a sibling <see cref="IInteractableState"/> to override consume/cooldown with networked state.
 	/// </summary>
 	[DisallowMultipleComponent]
+	[RequireComponent(typeof(InteractionPrompt))]
 	public sealed class BaseInteractable : MonoBehaviour, IInteractable, IInteractionPromptAnchor
 	{
 		[Header("Authoring")]

@@ -1,6 +1,5 @@
 using System;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace Starter.Common.Inventory
 {
@@ -15,17 +14,19 @@ namespace Starter.Common.Inventory
 	///
 	/// If <see cref="Prefab"/> is null the generic rig falls back to its own placeholder primitive
 	/// (a plain cube). Items needing real functional components in a context set
-	/// <c>ItemData.WorldPrefab</c>/<c>HandPrefab</c> instead — those replace the generic prefab
+	/// <see cref="WorldPrefab"/>/<see cref="HandPrefab"/> instead — those replace the generic prefab
 	/// entirely for that context.
 	/// </summary>
 	[Serializable]
 	public sealed class ItemVisual
 	{
-		[Tooltip("Visual-only prefab instantiated as this item's model on the shared world pickup and " +
-		         "hand rig. The single source of an ordinary item's look — no gameplay components. " +
-		         "Leave null to fall back to the generic rig's placeholder primitive.")]
-		[FormerlySerializedAs("VisualOverride")]
-		public GameObject Prefab;
+		[Tooltip("Optional override: a fully bespoke world prefab (NetworkObject + PickupableItem). When set, " +
+		         "it is spawned instead of the generic pickup. Leave null for ordinary items (uses Prefab above).")]
+		public GameObject WorldPrefab;
+
+		[Tooltip("Optional override: a fully bespoke in-hand prefab. When set, it is used instead of the generic " +
+		         "hand rig (e.g. the Scanner radar device). Leave null for ordinary items (uses Prefab above).")]
+		public GameObject HandPrefab;
 
 		[Header("World pickup")]
 		[Tooltip("Local scale of the Visual child on the world pickup.")]

@@ -212,7 +212,7 @@ namespace Starter.Shooter
 			{
 				var def = ItemDatabase.Instance.GetById(ItemId);
 				GameObject worldPrefab = def != null
-					? (def.WorldPrefab != null ? def.WorldPrefab : ItemDatabase.Instance.GenericWorldPrefab)
+					? (def.Visual.WorldPrefab != null ? def.Visual.WorldPrefab : ItemDatabase.Instance.GenericWorldPrefab)
 					: null;
 				if (worldPrefab != null && worldPrefab.GetComponent<NetworkObject>() != null)
 				{

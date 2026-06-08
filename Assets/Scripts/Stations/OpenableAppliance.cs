@@ -32,6 +32,7 @@ namespace Starter.Shooter
 	// No [RequireComponent(NetworkObject)]: an appliance's NetworkObject may live on an ANCESTOR, not this
 	// GameObject — e.g. a multi-door fridge puts one ContainerOpenable per door (child) all sharing the
 	// root's single NetworkObject. Ensure the prefab root (or an ancestor) carries a NetworkObject.
+	[RequireComponent(typeof(InteractionPrompt))]
 	public abstract class OpenableAppliance : NetworkBehaviour, IInteractable, IInteractionPromptAnchor
 	{
 		// Every spawned appliance registers here so the local InteractionScanner can ask whether a
