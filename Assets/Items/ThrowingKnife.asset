@@ -19,8 +19,7 @@ MonoBehaviour:
     re-throw."
   Stats: []
   Visual:
-    Mesh: {fileID: 4300000, guid: 9a41c083fc455594495e29589edfe5e3, type: 3}
-    Material: {fileID: 2100000, guid: 28646867ddcf90a4989276acd313ea43, type: 2}
+    Prefab: {fileID: 9186699732066777873, guid: 62c662d8325b32e4ab58ba3b107cd727, type: 3}
     WorldScale: {x: 1, y: 1, z: 1}
     WorldBob: 0
     WorldRotate: 0
@@ -28,7 +27,6 @@ MonoBehaviour:
     HeldScale: {x: 1, y: 1, z: 1}
     HeldLocalPosition: {x: 0, y: 0, z: 0}
     HeldLocalEuler: {x: 0, y: 0, z: 0}
-    VisualOverride: {fileID: 9186699732066777873, guid: 62c662d8325b32e4ab58ba3b107cd727, type: 3}
   WorldPrefab: {fileID: 0}
   HandPrefab: {fileID: 0}
   MaxStack: 8
@@ -47,6 +45,7 @@ MonoBehaviour:
       type: {class: WeaponCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
       data:
         Actions:
+        - {fileID: 11400000, guid: ac1521aa38d2c734684cba1c5b349cc3, type: 2}
         - {fileID: 11400000, guid: ac1521aa38d2c734684cba1c5b349cc3, type: 2}
         SecondaryMode: 0
         SecondaryAction: {fileID: 0}

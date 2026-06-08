@@ -93,7 +93,12 @@
       "Bash(awk '/^--- !u!1001 &3653119847157736499/{found=1} found{print; if\\(/m_SourcePrefab/\\) exit}')",
       "Bash(awk:*)",
       "Bash(curl -s mcpforunity://instances)",
-      "Bash(tail -n 15 \"C:/Users/fredr/AppData/Local/Unity/Editor/Editor.log\")"
+      "Bash(tail -n 15 \"C:/Users/fredr/AppData/Local/Unity/Editor/Editor.log\")",
+      "Read(//c/Game projects/**)",
+      "Read(//c/Game projects/LoomRoom/**)",
+      "Bash(grep -i -n \"crash\\\\|exception\\\\|stack overflow\\\\|fatal\\\\|Aborting\\\\|Native crash\\\\|Receiving unhandled\" \"/c/Users/fredr/AppData/Local/Unity/Editor/Editor.log\" | tail -n 40)",
+      "Bash(find / -path \"*Unity/Editor/Editor.log\" 2>/dev/null)",
+      "Bash(rm \"/c/Game projects/HappyFusionSurvival/Assets/Items/Capabilities/InstantConsumeCapability.cs\"*)"
     ]
   }
 }

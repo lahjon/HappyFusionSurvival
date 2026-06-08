@@ -370,6 +370,31 @@ namespace Starter.Shooter
 			if (distSq > allowed * allowed) return;
 
 			ItemDatabase.TryGet(pickup.ItemId, out var def);
+
+			if (def != null && def.ConsumeOnPickup)
+			{
+				if (def.Capabilities != null)
+				{
+					for (int i = 0; i < def.Capabilities.Count; i++)
+					{
+						if (def.Capabilities[i] is ConsumableCapability c)
+						{
+							Debug.Log($"[Inventory] ConsumeOnPickup: applying {c.GetType().Name} from {def.DisplayName}");
+							c.Apply(gameObject, Runner);
+						}
+					}
+				}
+
+				if (def.PickupAudio != null)
+					AudioSource.PlayClipAtPoint(def.PickupAudio, transform.position);
+
+				if (pickup.Count <= 1)
+					Runner.Despawn(obj);
+				else
+					pickup.Count = (short)(pickup.Count - 1);
+				return;
+			}
+
 			if (def != null && def.HasCapability<PlaceableCapability>())
 			{
 				// Placeables route into the carry channel, not the hotbar. Any existing carry
@@ -595,11 +620,26 @@ namespace Starter.Shooter
 			if (s.IsEmpty || ItemDatabase.Instance == null) return false;
 
 			var def = ItemDatabase.Instance.GetById(s.ItemId);
-			if (def == null || def.TryGetCapability<ConsumableCapability>(out var consumable) == false) return false;
+			if (def == null) return false;
 
-			_useCooldownTimer = TickTimer.CreateFromSeconds(Runner, consumable.UseCooldownSeconds);
+			bool applied = false;
+			float cooldown = 0f;
+			if (def.Capabilities != null)
+			{
+				for (int i = 0; i < def.Capabilities.Count; i++)
+				{
+					if (def.Capabilities[i] is ConsumableCapability consumable)
+					{
+						Debug.Log($"[Inventory] TryUseAt: applying {consumable.GetType().Name} from {def.DisplayName}");
+						consumable.Apply(gameObject, Runner);
+						if (consumable.UseCooldownSeconds > cooldown) cooldown = consumable.UseCooldownSeconds;
+						applied = true;
+					}
+				}
+			}
+			if (!applied) return false;
 
-			consumable.Apply(gameObject, Runner);
+			_useCooldownTimer = TickTimer.CreateFromSeconds(Runner, cooldown);
 
 			s.Count -= 1;
 			Slots.Set(slot, s.Count <= 0 ? InventorySlot.Empty : s);

@@ -68,6 +68,14 @@ namespace Starter.Common.Inventory
 		[Tooltip("Local-space center of mass when the override is on.")]
 		public Vector3 CenterOfMass = Vector3.zero;
 
+		[Header("Pickup behaviour")]
+		[Tooltip("ON: picking this item up runs every ConsumableCapability's effect immediately and skips " +
+		         "the inventory entirely (the pickup is consumed/despawned on the spot).")]
+		public bool ConsumeOnPickup = false;
+
+		[Tooltip("Optional sound played locally on the player when this item is picked up.")]
+		public AudioClip PickupAudio;
+
 		[Header("Capabilities")]
 		[Tooltip("Composable behavior modules. Add a WeaponCapability to make this item a weapon, a " +
 		         "PlaceableCapability to make it placeable, a ConsumableCapability to make it usable, etc. " +

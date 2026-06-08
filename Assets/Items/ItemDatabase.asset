@@ -38,4 +38,5 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 5c0a7b3e9d2f4a1b8c6d0e3f7a9b1c2d, type: 2}
   - {fileID: 11400000, guid: 7e1d9a4c2b6f3e0a8d5c1b7f4a2e9d6c, type: 2}
   - {fileID: 11400000, guid: a8e00a11bbccddee0011223344556677, type: 2}
+  - {fileID: 11400000, guid: df9576ff46ffe764387ae51634c0d5fd, type: 2}
   GenericWorldPrefab: {fileID: 9211657559894916144, guid: d6be30b7870ee414c884bea67ee7e83b, type: 3}

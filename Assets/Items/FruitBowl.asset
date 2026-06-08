@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 215c4744854153b4a948021ef1445cc3, type: 3}
+  m_Name: FruitBowl
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.ItemData
+  Id: 8
+  DisplayName: Fruit Bowl
+  Icon: {fileID: 21300000, guid: 8678380c0c09b2840b0f1ecc5b58fc96, type: 3}
+  Description: FRUITS
+  Stats: []
+  Visual:
+    Prefab: {fileID: 0}
+    WorldScale: {x: 0.3, y: 0.3, z: 0.3}
+    WorldBob: 0
+    WorldRotate: 0
+    PromptOffset: {x: 0, y: 0, z: 0}
+    HeldScale: {x: 1, y: 1, z: 1}
+    HeldLocalPosition: {x: 0, y: 0, z: 0}
+    HeldLocalEuler: {x: 0, y: 0, z: 0}
+  WorldPrefab: {fileID: 0}
+  HandPrefab: {fileID: 0}
+  MaxStack: 1
+  Weight: 0
+  ScrapValue: 1
+  BaseValue: 10
+  Floats: 0
+  OverrideCenterOfMass: 0
+  CenterOfMass: {x: 0, y: 0, z: 0}
+  ConsumeOnPickup: 1
+  PickupAudio: {fileID: 8300000, guid: b02cb18c86a0f5a4eb146d21077b0e8d, type: 3}
+  Capabilities:
+  - rid: 3906572698592477329
+  - rid: 3906572698592477330
+  - rid: 3906572698592477339
+  references:
+    version: 2
+    RefIds:
+    - rid: 3906572698592477329
+      type: {class: HealingCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
+      data:
+        UseCooldownSeconds: 1
+        HealAmount: 1
+    - rid: 3906572698592477330
+      type: {class: StaminaCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
+      data:
+        UseCooldownSeconds: 1
+        StaminaAmount: 1111
+    - rid: 3906572698592477339
+      type: {class: MoneyCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
+      data:
+        UseCooldownSeconds: 1
+        Amount: 5
