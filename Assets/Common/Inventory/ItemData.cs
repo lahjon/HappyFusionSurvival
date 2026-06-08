@@ -233,11 +233,14 @@ namespace Starter.Common.Inventory
 
 					if (Prefab != null)
 					{
+						// _PickupableItem is a "bespoke" template (its _visualRoot is unassigned —
+						// see RedPotion.prefab, which parents its mesh straight under the prefab root).
+						// Fall back to _visualRoot only if a future template actually wires one up.
 						var visualRoot = visualRootProp != null ? visualRootProp.objectReferenceValue as Transform : null;
-						if (visualRoot != null)
-							PrefabUtility.InstantiatePrefab(Prefab, visualRoot);
-						else
-							Debug.LogWarning($"[ItemData] '{template.name}' has no _visualRoot; '{Prefab.name}' was not parented.");
+						if (visualRoot == null) visualRoot = pickup.transform;
+
+						var visualInstance = (GameObject)PrefabUtility.InstantiatePrefab(Prefab, visualRoot);
+						FitCapsuleToVisual(instance, visualInstance);
 					}
 				}
 
@@ -249,6 +252,40 @@ namespace Starter.Common.Inventory
 			{
 				DestroyImmediate(instance);
 			}
+		}
+
+		/// <summary>
+		/// Resizes the generated prefab's CapsuleCollider (the one RedPotion.prefab tunes by hand —
+		/// m_Height/m_Radius/m_Center) to wrap the instantiated visual's render bounds, in the
+		/// collider's local space so it tracks the visual's offset/scale under _visualRoot.
+		/// </summary>
+		private static void FitCapsuleToVisual(GameObject instance, GameObject visualInstance)
+		{
+			var capsule = instance.GetComponentInChildren<CapsuleCollider>(true);
+			if (capsule == null) return;
+			if (!TryGetRenderBounds(visualInstance, out var worldBounds)) return;
+
+			var capsuleTransform = capsule.transform;
+			// Bounds corners -> capsule local space, so scale/rotation under _visualRoot is accounted for.
+			var localMin = new Vector3(float.MaxValue, float.MaxValue, float.MaxValue);
+			var localMax = new Vector3(float.MinValue, float.MinValue, float.MinValue);
+			for (int i = 0; i < 8; i++)
+			{
+				var corner = worldBounds.center + Vector3.Scale(worldBounds.extents, new Vector3(
+					(i & 1) == 0 ? -1f : 1f,
+					(i & 2) == 0 ? -1f : 1f,
+					(i & 4) == 0 ? -1f : 1f));
+				var local = capsuleTransform.InverseTransformPoint(corner);
+				localMin = Vector3.Min(localMin, local);
+				localMax = Vector3.Max(localMax, local);
+			}
+
+			var size = localMax - localMin;
+			var center = (localMin + localMax) * 0.5f;
+
+			capsule.center = center;
+			capsule.radius = Mathf.Max(size.x, size.z) * 0.5f;
+			capsule.height = size.y;
 		}
 
 		// ── Editor-only "Remove from Database" (Odin InlineButton on Id above) ──────
