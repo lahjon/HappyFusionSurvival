@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 215c4744854153b4a948021ef1445cc3, type: 3}
+  m_Name: Radar
+  m_EditorClassIdentifier: Assembly-CSharp::Starter.Common.Inventory.ItemData
+  Type: 2
+  Id: 28
+  DisplayName: Radar
+  Prefab: {fileID: 1441219464415596, guid: 4508291c04a700848a396fd5db04c060, type: 3}
+  Icon: {fileID: 21300000, guid: 8cced403dbe3c4840bdd083f80ec558e, type: 3}
+  Description: radar
+  Stats: []
+  ConsumeOnPickup: 0
+  PickupAudio: {fileID: 0}
+  OnUseAudio: {fileID: 0}
+  MaxStack: 1
+  ScrapValue: 1
+  BaseValue: 10
+  Visual:
+    WorldPrefab: {fileID: 0}
+    HandPrefab: {fileID: 0}
+    WorldScale: {x: 0.3, y: 0.3, z: 0.3}
+    WorldBob: 0
+    WorldRotate: 0
+    PromptOffset: {x: 0, y: 0, z: 0}
+    HeldScale: {x: 1, y: 1, z: 1}
+    HeldLocalPosition: {x: 0, y: 0, z: 0}
+    HeldLocalEuler: {x: 0, y: 0, z: 0}
+  WorldPhysics:
+    Floats: 0
+    OverrideCenterOfMass: 0
+    CenterOfMass: {x: 0, y: 0, z: 0}
+  Weight: 0
+  Capabilities:
+  - rid: 3906572698592477632
+  references:
+    version: 2
+    RefIds:
+    - rid: 3906572698592477632
+      type: {class: RadarGadgetCapability, ns: Starter.Shooter, asm: Assembly-CSharp}
+      data:
+        ScanRange: 10
+        SweepDuration: 10
+        PingLifetime: 3
+        IncludeTeammates: 0
+        RadarLocalOffset: {x: 0, y: 0.5, z: 0.2}
+        RadarLocalEuler: {x: 50, y: 180, z: 0}
+        RadarLocalScale: 0.004
+        DiscColor: {r: 0, g: 0.18, b: 0, a: 0.85}
+        RingColor: {r: 0.4, g: 1, b: 0.4, a: 0.9}
+        SweepColor: {r: 0.4, g: 1, b: 0.4, a: 0.9}
+        SelfColor: {r: 0.85, g: 1, b: 0.85, a: 1}
+        PingColor: {r: 1, g: 0.15, b: 0.15, a: 1}
