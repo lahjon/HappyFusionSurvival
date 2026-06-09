@@ -426,8 +426,11 @@ namespace Starter.Shooter
 
 		private void PlayPickupAudio(ItemData def)
 		{
-			if (def != null && def.PickupAudio != null)
+			if (def == null) return;
+			if (def.PickupAudio != null)
 				AudioSource.PlayClipAtPoint(def.PickupAudio, transform.position);
+			else
+				AudioManager.Instance?.PlayUI("itemPickup");
 		}
 
 		[Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
