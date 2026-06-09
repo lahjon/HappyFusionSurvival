@@ -34,9 +34,21 @@ namespace Starter.Common.Inventory
 		public Vector3 CenterOfMass;
 	}
 
+	public enum ItemType
+	{
+		MeleeWeapon,
+		RangedWeapon,
+		Tool,
+		Consumable,
+		Resource,
+		Key,
+	}
+
 	[CreateAssetMenu(fileName = "Item", menuName = "Inventory/Item Data", order = 0)]
 	public class ItemData : ScriptableObject
 	{
+		public ItemType Type;
+
 		[Tooltip("Stable network id. Must be non-zero and unique within the ItemDatabase.")]
 #if UNITY_EDITOR
 		[InlineButton(nameof(RemoveFromDatabaseEditorOnly), "Remove from Database")]
@@ -46,6 +58,14 @@ namespace Starter.Common.Inventory
 
 		public string DisplayName = "Item";
 
+		[Tooltip("Visual-only prefab instantiated as this item's model on the shared world pickup and hand " +
+		         "rig (Pickup_Generic / Hand_Generic). The single source of an ordinary item's look — no " +
+		         "gameplay components. Leave null to fall back to the generic rig's placeholder primitive.")]
+#if UNITY_EDITOR
+		[InlineButton(nameof(GeneratePrefabEditorOnly), "Generate")]
+#endif
+		public GameObject Prefab;
+
 		[InlineButton(nameof(GenerateIconEditorOnly), "Generate Icon")]
 		public Sprite Icon;
 
@@ -54,15 +74,6 @@ namespace Starter.Common.Inventory
 
 		[Tooltip("Optional list of stat rows shown in the tooltip (e.g. Damage / 12).")]
 		public ItemStat[] Stats;
-
-		[Header("Setup")]
-		[Tooltip("Visual-only prefab instantiated as this item's model on the shared world pickup and hand " +
-		         "rig (Pickup_Generic / Hand_Generic). The single source of an ordinary item's look — no " +
-		         "gameplay components. Leave null to fall back to the generic rig's placeholder primitive.")]
-#if UNITY_EDITOR
-		[InlineButton(nameof(GeneratePrefabEditorOnly), "Generate")]
-#endif
-		public GameObject Prefab;
 
 		[Tooltip("ON: picking this item up runs every ConsumableCapability's effect immediately and skips " +
 		         "the inventory entirely (the pickup is consumed/despawned on the spot).")]
@@ -78,10 +89,6 @@ namespace Starter.Common.Inventory
 		[Tooltip("Maximum items per inventory slot. 1 = not stackable (each pickup creates a new slot). >1 = stackable up to this count; overflow spills into the next slot.")]
 		[Min(1)]
 		public int MaxStack = 1;
-
-		[Tooltip("Weight per unit. Total inventory weight reduces movement speed above the player's WeightLimit.")]
-		[Min(0f)]
-		public float Weight = 0f;
 
 		[Tooltip("Scraps granted when ONE unit of this item is scavenged at a crafting bench. The item is destroyed in exchange for this much of the generic 'scraps' crafting currency.")]
 		[Min(0)]
@@ -100,6 +107,10 @@ namespace Starter.Common.Inventory
 		[Tooltip("Floating / center-of-mass tuning for this item's dropped-in-world rigidbody. Collapsed " +
 		         "by default — expand only when this item needs custom water/buoyancy behaviour.")]
 		public ItemWorldPhysics WorldPhysics;
+
+		[Tooltip("Weight per unit. Total inventory weight reduces movement speed above the player's WeightLimit.")]
+		[Min(0f)]
+		public float Weight = 0f;
 
 		[Tooltip("Composable behavior modules. Add a WeaponCapability to make this item a weapon, a " +
 		         "PlaceableCapability to make it placeable, a ConsumableCapability to make it usable, etc. " +
