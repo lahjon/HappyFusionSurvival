@@ -65,19 +65,43 @@ namespace TestCloneKit
 		private static string Done() => Path.Combine(QueueRoot(), "done");
 		private static string Failed() => Path.Combine(QueueRoot(), "failed");
 
+		private static List<JobInfo> _pendingCache;
+		private static DateTime _lastPendingWrite;
+		private static int _doneCache = -1, _failedCache = -1;
+		private static DateTime _lastDoneWrite, _lastFailedWrite;
+
 		public static List<JobInfo> PendingJobs()
 		{
-			var list = new List<JobInfo>();
 			var p = Pending();
-			if (!Directory.Exists(p)) return list;
+			if (!Directory.Exists(p)) return new List<JobInfo>();
+
+			var writeTime = Directory.GetLastWriteTimeUtc(p);
+			if (_pendingCache != null && writeTime == _lastPendingWrite) return _pendingCache;
+
+			var list = new List<JobInfo>();
 			foreach (var dir in Directory.GetDirectories(p))
 				list.Add(new JobInfo { dir = dir, name = Path.GetFileName(dir), manifest = ReadManifest(dir) });
 			list.Sort((a, b) => string.CompareOrdinal(a.name, b.name));
+
+			_pendingCache = list;
+			_lastPendingWrite = writeTime;
 			return list;
 		}
 
-		public static int DoneCount() => CountDirs(Done());
-		public static int FailedCount() => CountDirs(Failed());
+		public static int DoneCount() => CachedCountDirs(Done(), ref _doneCache, ref _lastDoneWrite);
+		public static int FailedCount() => CachedCountDirs(Failed(), ref _failedCache, ref _lastFailedWrite);
+
+		private static int CachedCountDirs(string p, ref int cache, ref DateTime lastWrite)
+		{
+			if (!Directory.Exists(p)) return 0;
+			var writeTime = Directory.GetLastWriteTimeUtc(p);
+			if (cache >= 0 && writeTime == lastWrite) return cache;
+
+			cache = Directory.GetDirectories(p).Length;
+			lastWrite = writeTime;
+			return cache;
+		}
+
 		private static int CountDirs(string p) => Directory.Exists(p) ? Directory.GetDirectories(p).Length : 0;
 
 		private static JobManifest ReadManifest(string dir)

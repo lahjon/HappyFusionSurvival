@@ -29,6 +29,7 @@ namespace TestCloneKit
 	public static class TestCloneService
 	{
 		private static string _repoRootCache;
+		private static string _mainWorktreeCache;
 
 		// =====================================================================
 		// Paths
@@ -56,15 +57,23 @@ namespace TestCloneKit
 		/// This is where the shared job queue lives, so both sides agree on one location.</summary>
 		public static string MainWorktree()
 		{
+			if (_mainWorktreeCache != null) return _mainWorktreeCache;
+
 			var (code, outp, _) = RunGit("worktree list --porcelain");
 			if (code == 0)
+			{
 				foreach (var raw in outp.Split('\n'))
 				{
 					var line = raw.TrimEnd('\r');
 					if (line.StartsWith("worktree ", StringComparison.Ordinal))
-						return Path.GetFullPath(line.Substring("worktree ".Length).Trim());
+					{
+						_mainWorktreeCache = Path.GetFullPath(line.Substring("worktree ".Length).Trim());
+						return _mainWorktreeCache;
+					}
 				}
-			return RepoRoot() ?? ProjectRoot();
+			}
+			_mainWorktreeCache = RepoRoot() ?? ProjectRoot();
+			return _mainWorktreeCache;
 		}
 
 		/// <summary>Path of the Unity project relative to the repo root (empty when they're the same folder).</summary>
