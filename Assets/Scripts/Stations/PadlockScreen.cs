@@ -63,6 +63,10 @@ namespace Starter.Shooter
 		private float _flashTimer;
 		private Color _displayBaseColor;
 		private bool _locked; // true once unlocked: keypad disabled
+		private bool _idleSynced; // becomes true once the idle label has reflected spawned state
+
+		// Networked state on the Padlock can only be read once its NetworkObject has spawned.
+		private bool PadlockSpawned => _padlock != null && _padlock.Object != null && _padlock.Object.IsValid;
 
 		private void Awake()
 		{
@@ -87,6 +91,14 @@ namespace Starter.Shooter
 
 		private void Update()
 		{
+			// Reflect the networked unlock state as soon as the padlock spawns. This covers the
+			// initial value for late-joiners, where the OnChanged callback may not fire.
+			if (!_idleSynced && PadlockSpawned)
+			{
+				_idleSynced = true;
+				RefreshIdle();
+			}
+
 			if (_session == null)
 			{
 				TryBind();
@@ -209,7 +221,9 @@ namespace Starter.Shooter
 		private void RefreshIdle()
 		{
 			if (_idleLabel == null) return;
-			bool unlocked = _padlock != null && _padlock.IsUnlocked;
+			// IsUnlocked is networked — only readable after the NetworkObject has spawned.
+			// Before spawn, default to the locked appearance; Update() re-syncs once spawned.
+			bool unlocked = PadlockSpawned && _padlock.IsUnlocked;
 			_idleLabel.text = unlocked ? "● UNLOCKED" : "● LOCKED";
 			_idleLabel.color = unlocked ? CorrectColor : new Color(0.8f, 0.7f, 0.3f, 1f);
 		}
