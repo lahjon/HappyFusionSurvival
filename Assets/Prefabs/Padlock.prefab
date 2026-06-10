@@ -193,7 +193,12 @@ MonoBehaviour:
   CorrectColor: {r: 0.2, g: 0.75, b: 0.3, a: 1}
   WrongColor: {r: 0.8, g: 0.2, b: 0.2, a: 1}
   MaskEntry: 0
+  SuccessLightRenderer: {fileID: 2728333312054670518}
+  SuccessLightColor: {r: 0, g: 1, b: 0, a: 1}
+  SuccessSound: {fileID: 8300000, guid: 379293b2ffbe00e43bb6960e43218204, type: 3}
+  FailSound: {fileID: 8300000, guid: 187bfaccd4e676c4f85c3317e2af4878, type: 3}
   FlashDuration: 0.8
+  SuccessCloseDelay: 1
   ReferenceFieldOfView: 60
   FillFraction: 0.8
 --- !u!114 &7518102495453459483
@@ -274,6 +279,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: b595d6d81bb8ba84d87de1dfa93ab9e6, type: 3}
+--- !u!23 &2728333312054670518 stripped
+MeshRenderer:
+  m_CorrespondingSourceObject: {fileID: 8964999477405055834, guid: b595d6d81bb8ba84d87de1dfa93ab9e6, type: 3}
+  m_PrefabInstance: {fileID: 6464617336982228972}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &8361726956049650057 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3295576555883699813, guid: b595d6d81bb8ba84d87de1dfa93ab9e6, type: 3}

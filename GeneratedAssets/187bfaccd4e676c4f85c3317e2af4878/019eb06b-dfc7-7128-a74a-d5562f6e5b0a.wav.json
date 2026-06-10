@@ -1,0 +1,15 @@
+{
+    "asset": "187bfaccd4e676c4f85c3317e2af4878",
+    "fileName": "019eb06b-dfc7-7128-a74a-d5562f6e5b0a.wav",
+    "prompt": "Failure buzz, negative, electronic, error, game ui, short, clean",
+    "negativePrompt": "",
+    "model": "elevenlabs-sound-effects-v2",
+    "modelName": "ElevenLabs Sound Effects V2",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "duration": 10.0,
+    "autoTrim": false,
+    "hasReference": false,
+    "voice": ""
+}

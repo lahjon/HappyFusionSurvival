@@ -1,0 +1,15 @@
+{
+    "asset": "379293b2ffbe00e43bb6960e43218204",
+    "fileName": "019eb06b-dfe7-7bc6-8165-2fb44038670d.wav",
+    "prompt": "Success chime, positive, electronic, game ui, short, clean",
+    "negativePrompt": "",
+    "model": "elevenlabs-sound-effects-v2",
+    "modelName": "ElevenLabs Sound Effects V2",
+    "customSeed": -1,
+    "w3CTraceId": "",
+    "feedback": 0,
+    "duration": 10.0,
+    "autoTrim": false,
+    "hasReference": false,
+    "voice": ""
+}

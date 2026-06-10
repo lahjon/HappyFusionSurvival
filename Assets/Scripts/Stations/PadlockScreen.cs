@@ -44,8 +44,20 @@ namespace Starter.Shooter
 		[Tooltip("Mask entered digits with • instead of showing them.")]
 		public bool MaskEntry = false;
 
+		[Header("Feedback")]
+		[Tooltip("Renderer for the physical status light on the model. Will be flashed SuccessLightColor on correct code.")]
+		public Renderer SuccessLightRenderer;
+		public Color SuccessLightColor = Color.green;
+
+		[Header("Sounds")]
+		public AudioClip SuccessSound;
+		public AudioClip FailSound;
+
 		[Tooltip("Seconds the display stays flashed green/red after a submit.")]
 		[Min(0f)] public float FlashDuration = 0.8f;
+
+		[Tooltip("Delay in seconds after a success before the padlock closes and zooms out.")]
+		public float SuccessCloseDelay = 1.0f;
 
 		private const float PixelsPerMeter = 1200f;
 
@@ -55,6 +67,7 @@ namespace Starter.Shooter
 		private Canvas _canvas;
 		private GameObject _idleRoot;
 		private GameObject _keypadRoot;
+		private Image _keypadBg;
 		private TMP_Text _idleLabel;
 		private TMP_Text _displayText;
 		private Image _displayBg;
@@ -62,6 +75,8 @@ namespace Starter.Shooter
 		private readonly StringBuilder _entry = new();
 		private float _flashTimer;
 		private Color _displayBaseColor;
+		private Color _keypadBaseColor;
+		private Color _lightBaseColor;
 		private bool _locked; // true once unlocked: keypad disabled
 		private bool _idleSynced; // becomes true once the idle label has reflected spawned state
 
@@ -72,6 +87,10 @@ namespace Starter.Shooter
 		{
 			_padlock = GetComponent<Padlock>();
 			_displayBaseColor = DisplayColor;
+			_keypadBaseColor = Background;
+			if (SuccessLightRenderer != null)
+				_lightBaseColor = SuccessLightRenderer.material.color;
+
 			BuildCanvas();
 			ShowKeypad(false);
 			RefreshIdle();
@@ -108,14 +127,20 @@ namespace Starter.Shooter
 			if (_flashTimer > 0f)
 			{
 				_flashTimer -= Time.unscaledDeltaTime;
-				if (_flashTimer <= 0f && _displayBg != null)
-					_displayBg.color = _displayBaseColor;
+				if (_flashTimer <= 0f)
+				{
+					if (_displayBg != null) _displayBg.color = _displayBaseColor;
+					if (_keypadBg != null) _keypadBg.color = _keypadBaseColor;
+					if (SuccessLightRenderer != null) SuccessLightRenderer.material.color = _lightBaseColor;
+				}
 			}
 		}
 
 		private void OnDestroy()
 		{
 			if (_session != null) _session.OpenedChanged -= OnOpenedChanged;
+			if (SuccessLightRenderer != null && SuccessLightRenderer.material != null)
+				Destroy(SuccessLightRenderer.material);
 		}
 
 		private void TryBind()
@@ -169,17 +194,29 @@ namespace Starter.Shooter
 			// The code is serialized on every peer, so validate locally for the green/red flash.
 			// The authoritative networked unlock (and OnUnlocked event) is gated again on the host.
 			bool correct = code == _padlock.Code;
-			Flash(correct ? CorrectColor : WrongColor);
+			
 			if (correct)
 			{
 				_locked = true;
+				Flash(CorrectColor, true);
+				if (SuccessSound != null) AudioSource.PlayClipAtPoint(SuccessSound, transform.position);
+				
 				_session?.Submit(code);
+				Invoke(nameof(DelayedClose), SuccessCloseDelay);
 			}
 			else
 			{
+				Flash(WrongColor, false);
+				if (FailSound != null) AudioSource.PlayClipAtPoint(FailSound, transform.position);
+				
 				_entry.Clear();
 				RefreshDisplay();
 			}
+		}
+
+		private void DelayedClose()
+		{
+			_session?.RequestClose();
 		}
 
 		private void OnUnlockedChanged()
@@ -188,14 +225,25 @@ namespace Starter.Shooter
 			if (_keypadRoot != null && _keypadRoot.activeSelf)
 			{
 				_locked = true;
-				Flash(CorrectColor);
+				Flash(CorrectColor, true);
 			}
 		}
 
-		private void Flash(Color color)
+		private void Flash(Color color, bool success)
 		{
-			if (_displayBg == null) return;
-			_displayBg.color = color;
+			if (_displayBg != null) _displayBg.color = color;
+			
+			if (success)
+			{
+				if (SuccessLightRenderer != null)
+					SuccessLightRenderer.material.color = SuccessLightColor;
+			}
+			else
+			{
+				// Flash the whole screen red on failure
+				if (_keypadBg != null) _keypadBg.color = color;
+			}
+			
 			_flashTimer = FlashDuration;
 		}
 
@@ -267,7 +315,8 @@ namespace Starter.Shooter
 			_keypadRoot = new GameObject("Keypad", typeof(RectTransform), typeof(Image));
 			_keypadRoot.transform.SetParent(parent, false);
 			StretchFull((RectTransform)_keypadRoot.transform);
-			_keypadRoot.GetComponent<Image>().color = Background;
+			_keypadBg = _keypadRoot.GetComponent<Image>();
+			_keypadBg.color = Background;
 
 			float pxW = SizeMeters.x * PixelsPerMeter;
 			float pxH = SizeMeters.y * PixelsPerMeter;
