@@ -782,7 +782,9 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 7616326081865252942, guid: 0cd3151edb8ff0448ba9de4e11af6355, type: 3}
+    - {fileID: 7617559765153932018, guid: 0cd3151edb8ff0448ba9de4e11af6355, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 0cd3151edb8ff0448ba9de4e11af6355, type: 3}
@@ -2079,7 +2081,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 1586842119}
+  - {fileID: 1549861013}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -5263,7 +5265,7 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 1000000000000000001, guid: f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3, type: 3}
   m_PrefabInstance: {fileID: 1521192962}
   m_PrefabAsset: {fileID: 0}
---- !u!21 &1586842119
+--- !u!21 &1549861013
 Material:
   serializedVersion: 8
   m_ObjectHideFlags: 0
