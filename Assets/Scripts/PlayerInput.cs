@@ -16,6 +16,7 @@ namespace Starter.Shooter
 		Crouch,
 		Brake,
 		SecondaryFire,
+		Flashlight,
 	}
 
 	/// <summary>
@@ -278,6 +279,8 @@ namespace Starter.Shooter
 				// otherwise "crouch". ProcessClimbInput / ProcessInput each read only the relevant button.
 				_input.Buttons.Set(EInputButton.ClimbDrop, crouchHeld);
 				_input.Buttons.Set(EInputButton.Crouch, !isClimbing && crouchHeld);
+				// Null-guarded: the action only exists in the current InputSystem_Actions asset revision.
+				_input.Buttons.Set(EInputButton.Flashlight, _actions.Flashlight != null && _actions.Flashlight.IsPressed());
 			}
 		}
 

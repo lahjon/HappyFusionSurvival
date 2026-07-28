@@ -288,6 +288,10 @@ namespace Starter.Shooter
 		private Vector3 _moveVelocity { get; set; }
 		[Networked, OnChangedRender(nameof(OnJumpingChanged))]
 		private NetworkBool _isJumping { get; set; }
+		/// <summary>Flashlight toggle (F). Networked so every peer renders the beam — a light only its owner can
+		/// see would be pointless in a game about being seen.</summary>
+		[Networked, OnChangedRender(nameof(OnFlashlightChanged))]
+		public NetworkBool FlashlightOn { get; private set; }
 		[Networked]
 		private NetworkBool _wasSprinting { get; set; }
 		// True while a sprint-jump is in flight: latched at takeoff if the player was sprinting,
@@ -731,6 +735,12 @@ namespace Starter.Shooter
 			// while the player is downed. Opt into HideWhenLocked so the prompt only appears
 			// while the IInteractable side reports CanInteract == true (i.e. IsDowned).
 			SetupDownedInteractionPrompt();
+
+			// Runtime-built flashlight (HorrorTown). Built in code rather than baked on the prefab —
+			// same reasoning as the bot components: no prefab edit, no Fusion re-bake risk. Applies
+			// current networked state immediately so late joiners see already-lit flashlights.
+			SetupFlashlight();
+			OnFlashlightChanged();
 
 			// Re-seed SimpleKCC's internal pose from the spawn position. Without this, the KCC's
 			// first-tick depenetration can run from the prefab's serialized transform (often 0,0,0)
@@ -1485,6 +1495,11 @@ namespace Starter.Shooter
 
 			ProcessFireInput(input, previousButtons);
 			ProcessSecondaryInput(input, previousButtons);
+
+			// Flashlight toggle. Input-driven state change inside the simulation, so prediction and
+			// resimulation replay it identically on every peer.
+			if (input.Buttons.WasPressed(previousButtons, EInputButton.Flashlight))
+				FlashlightOn = !FlashlightOn;
 
 			// Tick the magazine auto-reload cycle (no-op for non-magazine weapons). Runs on SA + IA;
 			// mutations gate on state authority internally, the reload timer/flag replicate for the HUD.
@@ -3192,6 +3207,44 @@ namespace Starter.Shooter
 			}
 
 			return false;
+		}
+
+		// ── Flashlight ─────────────────────────────────────────────────────────────
+
+		private Light _flashlight;
+
+		/// <summary>
+		/// Builds the flashlight rig under <see cref="CameraPivot"/> on every peer. The pivot carries the
+		/// networked look pitch, so the beam follows where the carrier is looking for everyone — which is the
+		/// whole point: a lit flashlight is a beacon that says "someone is here, facing that way".
+		/// </summary>
+		private void SetupFlashlight()
+		{
+			if (_flashlight != null || CameraPivot == null) return;
+
+			var go = new GameObject("Flashlight");
+			go.transform.SetParent(CameraPivot, false);
+			// Shoulder-ish offset so first person shows the beam without it clipping the viewmodel.
+			go.transform.localPosition = new Vector3(0.18f, -0.12f, 0.25f);
+			go.transform.localRotation = Quaternion.identity;
+
+			_flashlight = go.AddComponent<Light>();
+			_flashlight.type = LightType.Spot;
+			_flashlight.range = 28f;
+			_flashlight.spotAngle = 62f;
+			_flashlight.innerSpotAngle = 28f;
+			_flashlight.intensity = 3.2f;
+			_flashlight.color = new Color(1f, 0.96f, 0.88f);
+			// No shadows: up to 4 of these can be live at once and the beam is information, not portraiture.
+			_flashlight.shadows = LightShadows.None;
+			_flashlight.enabled = false;
+		}
+
+		/// <summary>OnChangedRender for <see cref="FlashlightOn"/>; also called once from Spawned for late joiners.</summary>
+		private void OnFlashlightChanged()
+		{
+			if (_flashlight == null) return;
+			_flashlight.enabled = FlashlightOn && Health != null && Health.IsAlive;
 		}
 
 		/// <summary>Adds the floating revive prompt to the player root. <see cref="InteractionPrompt.HideWhenLocked"/>

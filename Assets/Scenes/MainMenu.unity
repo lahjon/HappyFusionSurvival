@@ -1899,7 +1899,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9c94454d6a806454dbb285bf4023d242, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Starter.Shooter.LobbyManager
-  GameSceneIndex: 1
+  GameSceneIndex: 2
   DefaultTeamSize: 2
   _TeamSize: 0
   _Names:

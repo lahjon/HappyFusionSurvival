@@ -469,7 +469,20 @@ namespace Starter.Shooter
 
 		private void GetSpawnPose(int zoneId, out Vector3 position, out Quaternion rotation)
 		{
+			// HorrorTown: when a procedural run is active, the team lands in the run's generated start area
+			// rather than at an authored scene spawn point. The city is different every run, so there is nothing
+			// to author — RunDirector picks open ground in an outer district and everyone drops in together.
+			if (TryGetRunStartPose(out position, out rotation))
+				return;
+
 			var spawnPoint = PickSpawnPoint(zoneId);
+			if (spawnPoint == null)
+			{
+				position = Vector3.up * 2f;
+				rotation = Quaternion.identity;
+				return;
+			}
+
 			var randomPositionOffset = Random.insideUnitCircle * spawnPoint.Radius;
 			position = spawnPoint.transform.position + new Vector3(randomPositionOffset.x, 0f, randomPositionOffset.y);
 
@@ -493,10 +506,37 @@ namespace Starter.Shooter
 			rotation = Quaternion.Euler(0f, yaw, 0f);
 		}
 
+		/// <summary>
+		/// Spawn pose from the active procedural run, scattered a few metres so four players do not spawn inside
+		/// each other. Returns false when no run is generated (the legacy authored-scene path).
+		/// </summary>
+		private bool TryGetRunStartPose(out Vector3 position, out Quaternion rotation)
+		{
+			position = default;
+			rotation = Quaternion.identity;
+
+			var director = Starter.Run.RunDirector.Instance;
+			if (director == null || !director.TryGetStartPose(out position, out rotation)) return false;
+
+			var scatter = Random.insideUnitCircle * 4f;
+			position += new Vector3(scatter.x, 0f, scatter.y);
+
+			// Same floor snap as the authored path, so a start area on a raised plaza still puts feet on ground.
+			if (Physics.Raycast(position + Vector3.up * 3f, Vector3.down, out RaycastHit hit, 30f,
+					Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+			{
+				position.y = hit.point.y + 0.5f;
+			}
+
+			return true;
+		}
+
 		// Random spawn point belonging to the requested zone (spawn points are tied to zones by containment via
 		// ZoneManager); falls back to any spawn point in the scene when zoneId is negative or the zone has none.
 		private SpawnPoint PickSpawnPoint(int zoneId)
 		{
+			if (_spawnPoints == null || _spawnPoints.Length == 0) return null;
+
 			if (zoneId >= 0 && ZoneManager.Instance != null)
 			{
 				var zone = ZoneManager.Instance.ZoneById(zoneId);
