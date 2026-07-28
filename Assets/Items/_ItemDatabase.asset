@@ -42,4 +42,10 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 9da5d66a6247f2e4c86969114d8b0d5e, type: 2}
   - {fileID: 11400000, guid: 90e28fda9fe5e0f4283460653628d88c, type: 2}
   - {fileID: 11400000, guid: ba5021bbbb2225f44a12fb175f0e37b0, type: 2}
+  - {fileID: 11400000, guid: eb5dd8dca07d480195ac0def0a1b7a9e, type: 2}
+  - {fileID: 11400000, guid: 3f00131dcd0f4229bc4b681cd2297b88, type: 2}
+  - {fileID: 11400000, guid: 0919a385d62442a49e81a5f4667ab692, type: 2}
+  - {fileID: 11400000, guid: 7d8a6d8f6dcf423e9f86d0f9634d74b5, type: 2}
+  - {fileID: 11400000, guid: 9a9d540be3ed4c12be8d6f8bdd3fd89e, type: 2}
+  - {fileID: 11400000, guid: e8ed31c6c76643e8a7f5ca6d2d15b47b, type: 2}
   GenericWorldPrefab: {fileID: 9211657559894916144, guid: d6be30b7870ee414c884bea67ee7e83b, type: 3}

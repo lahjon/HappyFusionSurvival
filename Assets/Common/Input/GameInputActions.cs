@@ -30,6 +30,7 @@ namespace Starter.Common.Input
 		public InputAction HotbarScroll { get; private set; }
 		public InputAction[] HotbarSlots { get; private set; }
 		public InputAction Emotes { get; private set; }
+		public InputAction Flashlight { get; private set; }
 
 		public InputAction Close { get; private set; }
 		public InputAction TakeAll { get; private set; }
@@ -69,6 +70,8 @@ namespace Starter.Common.Input
 			Rotate = PlayerMap.FindAction("Rotate", true);
 			HotbarScroll = PlayerMap.FindAction("HotbarScroll", true);
 			Emotes       = PlayerMap.FindAction("Emotes", false);
+			// Optional lookup: a player prefab still carrying a pre-flashlight copy of the asset must not throw here.
+			Flashlight   = PlayerMap.FindAction("Flashlight", false);
 
 			HotbarSlots = new InputAction[8];
 			for (int i = 0; i < 8; i++)
